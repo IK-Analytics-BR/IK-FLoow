@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block title %}Orçamento {{ orcamento.numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-file-invoice-dollar text-primary me-2"></i>
+                Orçamento {{ orcamento.numero }}
+            </h1>
+            <p class="text-muted mb-0">
+                Emitido em {{ orcamento.data_emissao.strftime('%d/%m/%Y às %H:%M') if orcamento.data_emissao else '-' }}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+            </a>
+            
+            <!-- Dropdown PDF -->
+            <div class="btn-group">
+                <a href="{{ url_for('orcamentos.gerar_pdf', id=orcamento.id) }}" class="btn btn-danger" target="_blank">
+                    <i class="fas fa-file-pdf me-1"></i>Visualizar PDF
+                </a>
+                <button type="button" class="btn btn-danger dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                    <span class="visually-hidden">Toggle Dropdown</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('orcamentos.gerar_pdf', id=orcamento.id) }}" target="_blank">
+                            <i class="fas fa-eye me-2"></i>Visualizar no Navegador
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('orcamentos.download_pdf', id=orcamento.id) }}">
+                            <i class="fas fa-download me-2"></i>Baixar PDF
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="window.print()">
+                            <i class="fas fa-print me-2"></i>Imprimir
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Botão Email -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEmail">
+                <i class="fas fa-envelope me-1"></i>Enviar Email
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-8">
+            <!-- Status e Ações -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted me-2">Status:</span>
+                            {% if orcamento.status == 'rascunho' %}
+                                <span class="badge bg-secondary fs-6">Rascunho</span>
+                            {% elif orcamento.status == 'enviado' %}
+                                <span class="badge bg-warning text-dark fs-6">Aguardando Aprovação</span>
+                            {% elif orcamento.status == 'aprovado' %}
+                                <span class="badge bg-success fs-6">Aprovado</span>
+                            {% elif orcamento.status == 'reprovado' %}
+                                <span class="badge bg-danger fs-6">Reprovado</span>
+                            {% elif orcamento.status == 'convertido' %}
+                                <span class="badge bg-info fs-6">Convertido em Pedido</span>
+                            {% elif orcamento.status == 'vencido' %}
+                                <span class="badge bg-dark fs-6">Vencido</span>
+                            {% elif orcamento.status == 'cancelado' %}
+                                <span class="badge bg-secondary fs-6">Cancelado</span>
+                            {% endif %}
+                            
+                            {% if orcamento.pedido_id %}
+                                <a href="#" class="ms-2 text-info">
+                                    <i class="fas fa-external-link-alt me-1"></i>Pedido #{{ orcamento.pedido_id }}
+                                </a>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if orcamento.status == 'rascunho' %}
+                                <a href="{{ url_for('orcamentos.editar', id=orcamento.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </a>
+                                <form action="{{ url_for('orcamentos.enviar', id=orcamento.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-paper-plane me-1"></i>Enviar ao Cliente
+                                    </button>
+                                </form>
+                            {% elif orcamento.status == 'enviado' %}
+                                <a href="{{ url_for('orcamentos.editar', id=orcamento.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </a>
+                                <a href="{{ url_for('orcamentos.pre_aprovar', id=orcamento.id) }}" class="btn btn-success">
+                                    <i class="fas fa-check me-1"></i>Aprovar
+                                </a>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalReprovar">
+                                    <i class="fas fa-times me-1"></i>Reprovar
+                                </button>
+                            {% elif orcamento.status == 'aprovado' %}
+                                <form action="{{ url_for('orcamentos.converter_em_pedido', id=orcamento.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-industry me-1"></i>Gerar Ordem de Produção
+                                    </button>
+                                </form>
+                            {% endif %}
+                            
+                            <form action="{{ url_for('orcamentos.duplicar', id=orcamento.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-outline-info">
+                                    <i class="fas fa-copy me-1"></i>Duplicar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados do Cliente -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>Cliente</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">{{ orcamento.cliente_nome }}</h6>
+                            <p class="text-muted mb-1">{{ orcamento.cliente_documento }}</p>
+                            {% if orcamento.cliente_endereco %}
+                            <p class="mb-1">{{ orcamento.cliente_endereco }}</p>
+                            {% endif %}
+                            <p class="mb-0">{{ orcamento.cliente_cidade }} {{ '/' + orcamento.cliente_estado if orcamento.cliente_estado else '' }} {{ '- CEP: ' + orcamento.cliente_cep if orcamento.cliente_cep else '' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if orcamento.cliente_telefone %}
+                            <p class="mb-1"><i class="fas fa-phone me-2 text-muted"></i>{{ orcamento.cliente_telefone }}</p>
+                            {% endif %}
+                            {% if orcamento.cliente_email %}
+                            <p class="mb-1"><i class="fas fa-envelope me-2 text-muted"></i>{{ orcamento.cliente_email }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Itens do Orçamento -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-boxes me-2 text-primary"></i>Itens do Orçamento</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40">#</th>
+                                    <th>Produto</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-end">Preço Unit.</th>
+                                    <th class="text-center">Desc.</th>
+                                    <th class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in itens %}
+                                <tr>
+                                    <td class="text-muted">{{ loop.index }}</td>
+                                    <td>
+                                        <strong>{{ item.produto_codigo or '' }}</strong> {{ item.produto_nome }}
+                                        {% if item.largura or item.comprimento %}
+                                        <br><small class="text-muted">
+                                            {{ item.largura }}mm x {{ item.comprimento }}m
+                                            {% if item.espessura %} x {{ item.espessura }}mm{% endif %}
+                                            {% if item.tipo_correia %} - {{ item.tipo_correia }}{% endif %}
+                                            {% if item.material %} ({{ item.material }}){% endif %}
+                                        </small>
+                                        {% endif %}
+                                        {% if item.observacao %}
+                                        <br><small class="text-info"><i class="fas fa-comment me-1"></i>{{ item.observacao }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ item.quantidade }} {{ item.unidade }}</td>
+                                    <td class="text-end">R$ {{ "{:,.2f}".format(item.preco_unitario).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
+                                    <td class="text-center">
+                                        {% if item.percentual_desconto %}
+                                            {{ item.percentual_desconto }}%
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-semibold">R$ {{ "{:,.2f}".format(item.valor_total).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Nenhum item</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observações -->
+            {% if orcamento.observacoes or orcamento.observacoes_internas %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-comment me-2 text-primary"></i>Observações</h5>
+                </div>
+                <div class="card-body">
+                    {% if orcamento.observacoes %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Para o Cliente:</label>
+                        <p class="mb-0">{{ orcamento.observacoes }}</p>
+                    </div>
+                    {% endif %}
+                    {% if orcamento.observacoes_internas %}
+                    <div class="p-3 bg-warning bg-opacity-10 rounded">
+                        <label class="form-label fw-bold text-warning">
+                            <i class="fas fa-lock me-1"></i>Observações Internas:
+                        </label>
+                        <p class="mb-0">{{ orcamento.observacoes_internas }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Produção (OPs) -->
+            {% if producao_ops is defined and producao_ops %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-industry me-2 text-primary"></i>Produção</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>OP</th>
+                                    <th>Produto</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Template</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for op in producao_ops %}
+                                <tr>
+                                    <td class="fw-semibold">{{ op.numero_op or ('OP #' ~ op.ordem_producao_id) }}</td>
+                                    <td>{{ op.produto_nome }}</td>
+                                    <td class="text-center">{{ op.quantidade_orcamento }}</td>
+                                    <td class="text-center">
+                                        {% if op.status == 'pendente' %}
+                                            <span class="badge bg-secondary">Pendente</span>
+                                        {% elif op.status == 'em_producao' %}
+                                            <span class="badge bg-warning text-dark">Em Produção</span>
+                                        {% elif op.status == 'concluida' %}
+                                            <span class="badge bg-success">Concluída</span>
+                                        {% elif op.status == 'cancelada' %}
+                                            <span class="badge bg-danger">Cancelada</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">{{ op.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if op.tem_template or op.usou_template %}
+                                            <span class="badge bg-success">OK</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Sem template</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-external-link-alt me-1"></i>Ver OP
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Histórico -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Histórico</h5>
+                </div>
+                <div class="card-body">
+                    {% if historico %}
+                    <div class="timeline">
+                        {% for h in historico %}
+                        <div class="timeline-item mb-3 pb-3 border-bottom">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <span class="badge 
+                                        {% if h.status_novo == 'aprovado' %}bg-success
+                                        {% elif h.status_novo == 'reprovado' %}bg-danger
+                                        {% elif h.status_novo == 'enviado' %}bg-warning text-dark
+                                        {% elif h.status_novo == 'convertido' %}bg-info
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ h.status_novo or h.acao }}
+                                    </span>
+                                    {% if h.observacao %}
+                                    <span class="ms-2 text-muted">{{ h.observacao }}</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">
+                                    {{ h.data_evento.strftime('%d/%m/%Y %H:%M') if h.data_evento else '' }}
+                                    {% if h.usuario_nome %} por {{ h.usuario_nome }}{% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Nenhum registro no histórico.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Resumo -->
+            <div class="card border-0 shadow-sm mb-4 bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Resumo</h5>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span>R$ {{ "{:,.2f}".format(orcamento.valor_produtos or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                    </div>
+                    
+                    {% if orcamento.valor_desconto and orcamento.valor_desconto > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Desconto ({{ orcamento.percentual_desconto or 0 }}%):</span>
+                        <span>- R$ {{ "{:,.2f}".format(orcamento.valor_desconto).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if orcamento.valor_frete and orcamento.valor_frete > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Frete:</span>
+                        <span>R$ {{ "{:,.2f}".format(orcamento.valor_frete).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <hr class="border-light">
+                    
+                    <div class="d-flex justify-content-between">
+                        <span class="h5 mb-0">TOTAL:</span>
+                        <span class="h4 mb-0 fw-bold">R$ {{ "{:,.2f}".format(orcamento.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Informações</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Vendedor:</td>
+                            <td class="fw-semibold">{{ orcamento.vendedor_nome }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Empresa:</td>
+                            <td>{{ orcamento.empresa_nome }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Validade:</td>
+                            <td>
+                                {{ orcamento.data_validade.strftime('%d/%m/%Y') if orcamento.data_validade else '-' }}
+                                {% set dias = (orcamento.data_validade - today).days if orcamento.data_validade and today else 0 %}
+                                {% if orcamento.status == 'enviado' %}
+                                    {% if dias < 0 %}
+                                        <span class="badge bg-danger ms-1">Vencido</span>
+                                    {% elif dias <= 3 %}
+                                        <span class="badge bg-warning text-dark ms-1">{{ dias }} dias</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if orcamento.prazo_entrega %}
+                        <tr>
+                            <td class="text-muted">Prazo Entrega:</td>
+                            <td>{{ orcamento.prazo_entrega }} dias</td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.condicao_pagamento %}
+                        <tr>
+                            <td class="text-muted">Pagamento:</td>
+                            <td>{{ orcamento.condicao_pagamento }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.frete_por_conta %}
+                        <tr>
+                            <td class="text-muted">Frete:</td>
+                            <td>
+                                {% if orcamento.frete_por_conta == 'emitente' %}CIF (Emitente)
+                                {% elif orcamento.frete_por_conta == 'destinatario' %}FOB (Destinatário)
+                                {% elif orcamento.frete_por_conta == 'terceiros' %}Terceiros
+                                {% else %}Sem Frete{% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.transportadora_nome %}
+                        <tr>
+                            <td class="text-muted">Transportadora:</td>
+                            <td>{{ orcamento.transportadora_nome }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Ações Rápidas -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2 text-primary"></i>Ações Rápidas</h5>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <a href="{{ url_for('orcamentos.gerar_pdf', id=orcamento.id) }}" class="btn btn-outline-danger">
+                        <i class="fas fa-file-pdf me-2"></i>Baixar PDF
+                    </a>
+                    <form action="{{ url_for('orcamentos.enviar_email', id=orcamento.id) }}" method="POST">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-envelope me-2"></i>Enviar por Email
+                        </button>
+                    </form>
+                    <form action="{{ url_for('orcamentos.duplicar', id=orcamento.id) }}" method="POST">
+                        <button type="submit" class="btn btn-outline-info w-100">
+                            <i class="fas fa-copy me-2"></i>Duplicar Orçamento
+                        </button>
+                    </form>
+                    {% if orcamento.status in ['rascunho', 'enviado'] %}
+                    <hr>
+                    <form action="{{ url_for('orcamentos.cancelar', id=orcamento.id) }}" method="POST"
+                          onsubmit="return confirm('Deseja realmente cancelar este orçamento?')">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-times me-2"></i>Cancelar Orçamento
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reprovar -->
+<div class="modal fade" id="modalReprovar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('orcamentos.reprovar', id=orcamento.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reprovar Orçamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Motivo da Reprovação</label>
+                        <textarea name="motivo" class="form-control" rows="3" 
+                                  placeholder="Informe o motivo da reprovação..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Confirmar Reprovação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Enviar Email -->
+<div class="modal fade" id="modalEmail" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('orcamentos.enviar_email', id=orcamento.id) }}" method="POST">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-envelope me-2"></i>Enviar Orcamento por Email</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Email do Destinatario *</label>
+                            <input type="email" name="email" class="form-control" 
+                                   value="{{ orcamento.cliente_email or '' }}"
+                                   placeholder="email@exemplo.com" required>
+                            <small class="text-muted">Email do cliente (pode ser alterado)</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Assunto</label>
+                            <input type="text" name="assunto" class="form-control" 
+                                   value="Orcamento {{ orcamento.numero }} - {{ orcamento.cliente_nome or '' }}"
+                                   placeholder="Assunto do email">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mensagem Personalizada</label>
+                        <textarea name="mensagem" class="form-control" rows="4" 
+                                  placeholder="Escreva uma mensagem para o cliente (opcional)...">Prezado(a) cliente,
+
+Segue em anexo o orcamento solicitado no valor de R$ {{ "%.2f"|format(orcamento.valor_total|float) }}.
+
+Este orcamento tem validade ate {{ orcamento.data_validade.strftime('%d/%m/%Y') if orcamento.data_validade else 'data a combinar' }}.
+
+Ficamos a disposicao para quaisquer esclarecimentos.
+
+Atenciosamente,</textarea>
+                    </div>
+                    
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Anexo:</strong> O PDF do orcamento sera anexado automaticamente ao email.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Enviar Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

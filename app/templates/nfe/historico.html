@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de NF-e{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-history text-primary"></i> 
+            Histórico de NF-e (Gravadas e Emitidas)
+        </h2>
+        <div>
+            <a href="{{ url_for('nfe_emissao.vendas_pendentes') }}" class="btn btn-warning">
+                <i class="fas fa-clock"></i> Vendas Pendentes
+            </a>
+            <a href="{{ url_for('nfe_emissao.emitir_manual') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Emitir NF-e
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter"></i> Filtros
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('nfe_emissao.historico') }}">
+                <div class="row">
+                    <div class="col-md-2">
+                        <label>Data Início</label>
+                        <input type="date" name="data_inicio" class="form-control" 
+                               value="{{ filtros.data_inicio }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label>Data Fim</label>
+                        <input type="date" name="data_fim" class="form-control" 
+                               value="{{ filtros.data_fim }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Cliente</label>
+                        <select name="cliente_id" class="form-control">
+                            <option value="">Todos</option>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" 
+                                    {% if filtros.cliente_id == cliente.id|string %}selected{% endif %}>
+                                {{ cliente.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="Gravada" {% if filtros.status == 'Gravada' %}selected{% endif %}>
+                                🟡 Gravada
+                            </option>
+                            <option value="Autorizada" {% if filtros.status == 'Autorizada' %}selected{% endif %}>
+                                🟢 Autorizada
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Número NF-e</label>
+                        <input type="text" name="numero_nfe" class="form-control" 
+                               placeholder="Ex: 123456" value="{{ filtros.numero_nfe }}">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Limpar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de NF-e -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-file-invoice"></i> 
+                NF-e Emitidas 
+                <span class="badge bg-primary">{{ nfes|length }}</span>
+            </div>
+            <a href="{{ url_for('nfe_emissao.inutilizar_nfe') }}" class="btn btn-warning btn-sm">
+                <i class="fas fa-ban me-1"></i> Inutilizar Numeração
+            </a>
+        </div>
+        <div class="card-body">
+            {% if nfes %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Número</th>
+                            <th>Série</th>
+                            <th>Data Emissão</th>
+                            <th>Cliente</th>
+                            <th>CPF/CNPJ</th>
+                            <th>Empresa</th>
+                            <th>Valor Total</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nfe in nfes %}
+                        <tr>
+                            <td>
+                                <strong class="text-primary">{{ nfe.numero_nfe }}</strong>
+                            </td>
+                            <td>{{ nfe.serie_nfe }}</td>
+                            <td>
+                                {{ nfe.data_emissao_nfe.strftime('%d/%m/%Y %H:%M') if nfe.data_emissao_nfe else '-' }}
+                            </td>
+                            <td>{{ nfe.cliente_nome or 'Não informado' }}</td>
+                            <td>{{ nfe.cnpj_cpf or '-' }}</td>
+                            <td>{{ nfe.empresa_nome or '-' }}</td>
+                            <td>
+                                <strong class="text-success">
+                                    R$ {{ "%.2f"|format(nfe.total_amount) }}
+                                </strong>
+                            </td>
+                            <td>
+                                {% if nfe.status_nfe == 'Gravada' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-save"></i> {{ nfe.status_nfe }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> {{ nfe.status_nfe }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('nfe_emissao.detalhes', nfe_id=nfe.id) }}" 
+                                       class="btn btn-sm btn-info" 
+                                       title="Ver Detalhes">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    {% if nfe.status_nfe == 'Gravada' %}
+                                        <!-- NFe Gravada: Botões Emitir e Excluir -->
+                                        <button type="button" 
+                                                class="btn btn-sm btn-success" 
+                                                title="Emitir NFe"
+                                                onclick="emitirNFe({{ nfe.id }})">
+                                            <i class="fas fa-paper-plane"></i> Emitir
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger" 
+                                                title="Excluir NFe"
+                                                onclick="excluirNFe({{ nfe.id }}, '{{ nfe.numero_nfe }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% else %}
+                                        <!-- NFe Autorizada: Botões Download e Cancelar -->
+                                        <a href="{{ url_for('nfe_emissao.download_xml', nfe_id=nfe.id) }}" 
+                                           class="btn btn-sm btn-primary" 
+                                           title="Download XML">
+                                            <i class="fas fa-file-code"></i>
+                                        </a>
+                                        <a href="{{ url_for('nfe_emissao.download_danfe', nfe_id=nfe.id) }}" 
+                                           class="btn btn-sm btn-secondary" 
+                                           title="Download DANFE">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        {% if nfe.status_nfe != 'Cancelada' %}
+                                        <button type="button" 
+                                                class="btn btn-sm btn-warning" 
+                                                title="Carta de Correção"
+                                                data-nfe-id="{{ nfe.id }}"
+                                                data-nfe-numero="{{ nfe.numero_nfe }}"
+                                                onclick="abrirModalCartaCorrecao(this)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger" 
+                                                title="Cancelar NF-e"
+                                                data-nfe-id="{{ nfe.id }}"
+                                                data-nfe-numero="{{ nfe.numero_nfe }}"
+                                                onclick="abrirModalCancelamento(this)">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h5>Nenhuma NF-e encontrada</h5>
+                <p>Não há NF-e emitidas com os filtros selecionados.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cancelamento -->
+<div class="modal fade" id="modalCancelamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-ban"></i> Cancelar NF-e
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Atenção!</strong> Esta ação não pode ser desfeita.
+                </div>
+                
+                <p>Você está prestes a cancelar a NF-e:</p>
+                <p><strong>Número: <span id="nfeNumeroCancelar"></span></strong></p>
+                
+                <div class="mb-3">
+                    <label class="required-field">Justificativa (mínimo 15 caracteres)</label>
+                    <textarea id="justificativaCancelamento" 
+                              class="form-control" 
+                              rows="4" 
+                              placeholder="Digite o motivo do cancelamento..."
+                              minlength="15"
+                              required></textarea>
+                    <small class="text-muted">
+                        <span id="contadorCaracteres">0</span> / 15 caracteres mínimos
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarCancelamento">
+                    <i class="fas fa-ban"></i> Confirmar Cancelamento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Carta de Correção -->
+<div class="modal fade" id="modalCartaCorrecao" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Carta de Correção Eletrônica (CC-e)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Importante!</strong> A Carta de Correção é utilizada para regularização de erro ocorrido na emissão de NF-e, 
+                    desde que o erro <strong>NÃO esteja relacionado</strong> com:
+                    <ul class="mt-2 mb-0">
+                        <li>Valores (base de cálculo, alíquota, preço, quantidade)</li>
+                        <li>Dados cadastrais que alterem remetente ou destinatário</li>
+                        <li>Data de emissão ou de saída</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Atenção!</strong> A Carta de Correção <strong>NÃO pode ser cancelada</strong> após enviada!
+                </div>
+                
+                <p>NF-e: <strong><span id="nfeNumeroCorrecao"></span></strong></p>
+                
+                <div class="mb-3">
+                    <label class="form-label required-field">Texto da Correção (15 a 1000 caracteres)</label>
+                    <textarea id="textoCorrecao" 
+                              class="form-control" 
+                              rows="6" 
+                              placeholder="Descreva detalhadamente a correção a ser feita..."
+                              minlength="15"
+                              maxlength="1000"
+                              required></textarea>
+                    <small class="text-muted">
+                        <span id="contadorCaracteresCorrecao">0</span> / 1000 caracteres
+                        (mínimo 15)
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Sequência do Evento</label>
+                    <input type="number" id="sequenciaCorrecao" class="form-control" value="1" min="1" max="20" style="width: 100px;">
+                    <small class="text-muted">Número sequencial do evento (1 a 20). Use 1 para a primeira CC-e.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-warning" id="btnConfirmarCorrecao" disabled>
+                    <i class="fas fa-paper-plane"></i> Enviar Carta de Correção
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let nfeIdCancelar = null;
+let nfeIdCorrecao = null;
+
+// Abrir modal de cancelamento
+function abrirModalCancelamento(btn) {
+    nfeIdCancelar = btn.dataset.nfeId;
+    const nfeNumero = btn.dataset.nfeNumero;
+    
+    document.getElementById('nfeNumeroCancelar').textContent = nfeNumero;
+    document.getElementById('justificativaCancelamento').value = '';
+    document.getElementById('contadorCaracteres').textContent = '0';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalCancelamento'));
+    modal.show();
+}
+
+// Contador de caracteres
+document.getElementById('justificativaCancelamento').addEventListener('input', function() {
+    const count = this.value.length;
+    document.getElementById('contadorCaracteres').textContent = count;
+    
+    const btn = document.getElementById('btnConfirmarCancelamento');
+    if (count >= 15) {
+        btn.disabled = false;
+        btn.classList.remove('disabled');
+    } else {
+        btn.disabled = true;
+        btn.classList.add('disabled');
+    }
+});
+
+// Confirmar cancelamento
+document.getElementById('btnConfirmarCancelamento').addEventListener('click', function() {
+    const justificativa = document.getElementById('justificativaCancelamento').value.trim();
+    
+    if (justificativa.length < 15) {
+        alert('A justificativa deve ter no mínimo 15 caracteres');
+        return;
+    }
+    
+    // Fechar modal
+    bootstrap.Modal.getInstance(document.getElementById('modalCancelamento')).hide();
+    
+    // Mostrar loading
+    Swal.fire({
+        title: 'Cancelando NF-e...',
+        html: 'Por favor aguarde. Enviando cancelamento para SEFAZ.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Enviar requisição
+    fetch(`/nfe/cancelar/${nfeIdCancelar}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            justificativa: justificativa
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'NF-e Cancelada!',
+                html: `
+                    <p>${data.message}</p>
+                    <p><strong>Protocolo:</strong> ${data.protocolo_cancelamento || '-'}</p>
+                `,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro ao Cancelar',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Erro ao processar requisição: ' + error
+        });
+    });
+});
+
+// Inicializar botão como desabilitado
+document.getElementById('btnConfirmarCancelamento').disabled = true;
+
+// Emitir NFe gravada
+function emitirNFe(nfeId) {
+    Swal.fire({
+        title: 'Emitir NF-e?',
+        text: 'Deseja transmitir esta NF-e para a SEFAZ?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, Emitir',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Emitindo NF-e...',
+                html: 'Aguarde, transmitindo para SEFAZ...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch(`/nfe/emitir-gravada/${nfeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'NF-e Emitida!',
+                        html: `<p><strong>Chave:</strong> ${data.chave_acesso || 'Aguardando'}</p>`,
+                        confirmButtonText: 'OK'
+                    }).then(() => { location.reload(); });
+                } else {
+                    Swal.fire('Erro', data.message || 'Erro ao emitir NF-e', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Erro', 'Erro ao comunicar com o servidor', 'error');
+            });
+        }
+    });
+}
+
+// Excluir NFe gravada
+function excluirNFe(nfeId, numeroNfe) {
+    Swal.fire({
+        title: 'Excluir NF-e?',
+        html: `<p>Deseja excluir a NF-e <strong>${numeroNfe}</strong>?</p><p class="text-danger">Esta ação não pode ser desfeita!</p>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, Excluir',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc3545'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Excluindo...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch(`/nfe/excluir/${nfeId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Excluída!',
+                        text: 'NF-e excluída com sucesso.',
+                        confirmButtonText: 'OK'
+                    }).then(() => { location.reload(); });
+                } else {
+                    Swal.fire('Erro', data.message || 'Erro ao excluir NF-e', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Erro', 'Erro ao comunicar com o servidor', 'error');
+            });
+        }
+    });
+}
+
+// ========================================
+// CARTA DE CORREÇÃO
+// ========================================
+
+// Abrir modal de carta de correção
+function abrirModalCartaCorrecao(btn) {
+    nfeIdCorrecao = btn.dataset.nfeId;
+    const nfeNumero = btn.dataset.nfeNumero;
+    
+    document.getElementById('nfeNumeroCorrecao').textContent = nfeNumero;
+    document.getElementById('textoCorrecao').value = '';
+    document.getElementById('contadorCaracteresCorrecao').textContent = '0';
+    document.getElementById('sequenciaCorrecao').value = '1';
+    document.getElementById('btnConfirmarCorrecao').disabled = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalCartaCorrecao'));
+    modal.show();
+}
+
+// Contador de caracteres da correção
+document.getElementById('textoCorrecao').addEventListener('input', function() {
+    const count = this.value.length;
+    document.getElementById('contadorCaracteresCorrecao').textContent = count;
+    
+    const btn = document.getElementById('btnConfirmarCorrecao');
+    if (count >= 15 && count <= 1000) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+    }
+});
+
+// Confirmar carta de correção
+document.getElementById('btnConfirmarCorrecao').addEventListener('click', function() {
+    const correcao = document.getElementById('textoCorrecao').value.trim();
+    const sequencia = document.getElementById('sequenciaCorrecao').value || 1;
+    
+    if (correcao.length < 15) {
+        Swal.fire('Erro', 'Texto da correção deve ter no mínimo 15 caracteres', 'error');
+        return;
+    }
+    
+    // Confirmação final
+    Swal.fire({
+        title: 'Confirmar Carta de Correção?',
+        html: `
+            <p><strong>ATENÇÃO:</strong> A Carta de Correção NÃO pode ser cancelada após enviada!</p>
+            <hr>
+            <p><strong>Texto da correção:</strong></p>
+            <p class="text-start" style="max-height: 150px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                ${correcao}
+            </p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, Enviar CC-e',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ffc107'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            enviarCartaCorrecao(correcao, sequencia);
+        }
+    });
+});
+
+function enviarCartaCorrecao(correcao, sequencia) {
+    Swal.fire({
+        title: 'Enviando Carta de Correção...',
+        html: 'Aguarde, transmitindo para SEFAZ...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+    
+    // Fechar modal
+    bootstrap.Modal.getInstance(document.getElementById('modalCartaCorrecao')).hide();
+    
+    fetch(`/nfe/carta-correcao/${nfeIdCorrecao}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            correcao: correcao,
+            sequencia: parseInt(sequencia)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Carta de Correção Enviada!',
+                html: `
+                    <p>${data.message}</p>
+                    <p><strong>Protocolo:</strong> ${data.protocolo || '-'}</p>
+                `,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro ao Enviar CC-e',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Erro ao processar requisição: ' + error
+        });
+    });
+}
+</script>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

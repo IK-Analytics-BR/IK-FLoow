@@ -1,0 +1,947 @@
+{% extends "base.html" %}
+
+{% block title %}Produção (Gantt V2){% endblock %}
+
+{% block content %}
+<style>
+  .gantt-v2-page {
+    --row-h: 240px;
+    --op-band-h: 28px;
+    --cell-pad: 8px;
+    --stage-bar-w: 16px;
+    --sublote-pill-h: 12px;
+    --sublote-max-w: 260px;
+    --stair-step: 18px;
+    --bg: #0b2940;
+    --bg2: #0a2438;
+    --grid: rgba(255,255,255,.10);
+    --grid2: rgba(255,255,255,.06);
+    --text: #e6f0ff;
+    --muted: rgba(230,240,255,.78);
+  }
+
+  .gantt-v2-wrapper {
+    overflow: auto;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    background: var(--bg);
+    position: relative;
+  }
+
+  .gantt-v2-op-overlays {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .gantt-v2-op-overlay {
+    position: absolute;
+    height: 28px;
+    border-radius: 10px;
+    background: var(--op-color, #60a5fa);
+    box-shadow: 0 8px 20px rgba(0,0,0,.30);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #062030;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: auto;
+    text-decoration: none;
+    max-width: calc(100% - 10px);
+  }
+
+  .gantt-v2-op-overlay:hover { filter: brightness(1.06); color: #062030; }
+
+  .gantt-v2-grid {
+    display: grid;
+    gap: 0;
+    min-width: 1060px;
+  }
+
+  .gantt-v2-header-left {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--bg2);
+    border-right: 1px solid var(--grid);
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .gantt-v2-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--grid);
+    color: var(--text);
+  }
+
+  .gantt-v2-header-cell {
+    padding: 10px 10px;
+    border-right: 1px solid var(--grid);
+    font-size: 12px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gantt-v2-header-cell .cod { font-weight: 900; margin-right: 6px; opacity: .95; }
+  .gantt-v2-header-cell .nome { opacity: .90; }
+
+  .gantt-v2-group-cell {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: var(--bg);
+    border-right: 1px solid var(--grid);
+    border-bottom: 1px solid var(--grid2);
+    padding: 10px 10px;
+    font-weight: 900;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .gantt-v2-group-cell.muted { color: rgba(230,240,255,.20); font-weight: 800; }
+
+  .gantt-v2-stage-cell {
+    position: relative;
+    border-right: 1px solid var(--grid2);
+    border-bottom: 1px solid var(--grid2);
+    height: var(--row-h);
+    overflow: hidden;
+    padding-top: calc(var(--op-band-h) + 6px);
+  }
+
+  .gantt-v2-dropzone.drag-over {
+    outline: 2px solid rgba(255,255,255,.18);
+    outline-offset: -2px;
+    background: rgba(255,255,255,.04);
+  }
+
+  .gantt-v2-sublotes {
+    position: absolute;
+    left: var(--cell-pad);
+    right: var(--cell-pad);
+    top: calc(var(--op-band-h) + 18px);
+    bottom: calc(var(--cell-pad) + 10px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+
+  .gantt-v2-sublote {
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    transform: translateY(calc(var(--lvl, 0) * var(--stair-step)));
+  }
+
+  .gantt-v2-sublote-bar {
+    width: var(--w, 60px);
+    height: var(--sublote-pill-h);
+    border-radius: 999px;
+    background: var(--op-color, #60a5fa);
+    box-shadow: 0 6px 16px rgba(0,0,0,.22), inset 0 -1px 0 rgba(0,0,0,.20);
+    cursor: grab;
+  }
+
+  .gantt-v2-sublote-bar {
+    min-width: 70px;
+    max-width: var(--sublote-max-w);
+    width: min(var(--w, 60px), 100%);
+  }
+
+  .gantt-v2-sublote-bar:active { cursor: grabbing; }
+
+  .gantt-v2-stage-pct {
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text);
+    background: rgba(0,0,0,.18);
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.14);
+    white-space: nowrap;
+    backdrop-filter: blur(2px);
+  }
+
+  .gantt-v2-stage-bar {
+    width: var(--stage-bar-w);
+    height: var(--h, 10px);
+    border-radius: 6px;
+    background: var(--op-color, #60a5fa);
+    box-shadow: 0 6px 16px rgba(0,0,0,.22), inset 0 -1px 0 rgba(0,0,0,.20);
+  }
+
+  .gantt-v2-stage-qty {
+    font-size: 10px;
+    line-height: 1;
+    color: rgba(230,240,255,.88);
+    white-space: nowrap;
+  }
+
+  .gantt-v2-connectors {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .gantt-v2-stage-cell > * { position: relative; z-index: 3; }
+
+  .gantt-v2-muted { color: var(--muted); font-weight: 700; }
+</style>
+
+<div class="container-fluid mt-2 px-2 gantt-v2-page">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h4 class="mb-0"><i class="fas fa-project-diagram"></i> Produção (Gantt V2)</h4>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('ordem_producao.producao_gantt') }}" class="btn btn-light btn-sm">Voltar p/ Gantt</a>
+            <a href="{{ url_for('ordem_producao.etapas_lista') }}" class="btn btn-light btn-sm">
+              <i class="fas fa-stream"></i> Etapas
+            </a>
+          </div>
+        </div>
+        <div class="card-body p-2">
+          <form method="get" id="formFiltrosProducaoV2" class="row g-2 mb-2 align-items-end">
+            <div class="col-12 col-lg-2">
+              <label class="form-label">Status</label>
+              <select class="form-select form-select-sm" name="status">
+                <option value="" {% if not status_filtro %}selected{% endif %}>Todos</option>
+                <option value="pendente" {% if status_filtro=='pendente' %}selected{% endif %}>Pendente</option>
+                <option value="em_producao" {% if status_filtro=='em_producao' %}selected{% endif %}>Em Produção</option>
+                <option value="concluida" {% if status_filtro=='concluida' %}selected{% endif %}>Concluída</option>
+                <option value="cancelada" {% if status_filtro=='cancelada' %}selected{% endif %}>Cancelada</option>
+              </select>
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label">Grupo de Etapas</label>
+              <select class="form-select form-select-sm" name="grupo_etapas_id">
+                <option value="" {% if not grupo_etapas_filtro %}selected{% endif %}>Todos</option>
+                {% for g in (grupos_etapas or []) %}
+                <option value="{{ g.id }}" {% if grupo_etapas_filtro and (grupo_etapas_filtro|int == g.id) %}selected{% endif %}>{{ g.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label">Etapa</label>
+              <select class="form-select form-select-sm" name="etapa_id">
+                <option value="" {% if not etapa_filtro %}selected{% endif %}>Todas</option>
+                {% for e in etapas %}
+                <option value="{{ e.id }}" {% if etapa_filtro and etapa_filtro|int == e.id %}selected{% endif %}>{{ e.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label">Colunas (Etapas visíveis)</label>
+              <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="btnEtapasDropdownV2">
+                  Selecionar etapas
+                </button>
+                <div class="dropdown-menu p-2" style="width: 100%; max-height: 260px; overflow-y: auto;">
+                  <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" id="filtroEtapasV2" placeholder="Filtrar etapas...">
+                  </div>
+                  <div id="listaEtapasCheckboxV2">
+                    {% for e in (etapas_todas or etapas) %}
+                    <div class="form-check">
+                      <input class="form-check-input etapa-visivel-v2" type="checkbox" value="{{ e.id }}" id="etapaVisivelV2{{ e.id }}" {% if etapas_visiveis and (e.id in etapas_visiveis) %}checked{% endif %}>
+                      <label class="form-check-label" for="etapaVisivelV2{{ e.id }}">{{ e.nome }}</label>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-light w-100" id="btnEtapasLimparV2">Limpar</button>
+                    <button type="button" class="btn btn-sm btn-primary w-100" id="btnEtapasAplicarV2">Aplicar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label">Cliente / Produto</label>
+              <input type="text" class="form-control form-control-sm" name="q" value="{{ q_filtro }}" placeholder="Buscar...">
+            </div>
+            <div class="col-12 col-lg-2">
+              <button class="btn btn-primary btn-sm w-100" type="submit"><i class="fas fa-search"></i> Filtrar</button>
+            </div>
+          </form>
+
+          <div class="gantt-v2-wrapper" id="ganttV2Wrapper">
+            <svg class="gantt-v2-connectors" id="ganttV2Connectors" aria-hidden="true"></svg>
+            <div class="gantt-v2-op-overlays" id="ganttV2OpOverlays" aria-hidden="true"></div>
+            <div class="gantt-v2-grid" id="ganttV2Grid" data-etapas-count="{{ etapas|length }}">
+              <div class="gantt-v2-header gantt-v2-header-left gantt-v2-header-cell">Romaneio de Produção</div>
+              {% for e in etapas %}
+                <div class="gantt-v2-header gantt-v2-header-cell" title="{{ e.nome }}">
+                  <span class="cod">{{ '%02d' % (e.ordem or 0) }}</span>
+                  <span class="nome">{{ e.nome }}</span>
+                </div>
+              {% endfor %}
+
+              {% if grupos %}
+                {% for g in grupos %}
+                  {% set ops = (ops_por_grupo[g.grupo_id] if ops_por_grupo and (g.grupo_id in ops_por_grupo) else []) %}
+
+                  {% if ops %}
+                    {% for op in ops %}
+                      <div class="gantt-v2-group-cell {% if not loop.first %}muted{% endif %}" data-op-id="{{ op.op_id }}" title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}">
+                        {% if loop.first %}{{ g.orcamento_numero or '-' }}{% else %}&nbsp;{% endif %}
+                      </div>
+
+                      {% for e in etapas %}
+                        {% set etapa_pos = loop.index0 %}
+                        {% set ed = (op.etapas_data[e.id] if op.etapas_data and (e.id in op.etapas_data) else none) %}
+                        <div class="gantt-v2-stage-cell gantt-v2-dropzone" data-op-id="{{ op.op_id }}" data-etapa-id="{{ e.id }}">
+                          {% if ed %}
+                            <div class="gantt-v2-sublotes">
+                              {% for l in (ed.lotes or []) %}
+                                <div class="gantt-v2-sublote" data-lote-id="{{ l.lote_id }}" data-op-id="{{ op.op_id }}" data-etapa-pos="{{ etapa_pos }}" data-qty="{{ l.lote_quantidade }}" data-total="{{ op.op_quantidade_total or 0 }}" style="--op-color: hsl({{ (op.op_id * 137) % 360 }}, 80%, 62%);">
+                                  <div class="gantt-v2-stage-pct" data-role="pct">0%</div>
+                                  {% set resumo = [] %}
+                                  {% for e2 in etapas %}
+                                    {% if op.etapas_data and (e2.id in op.etapas_data) %}
+                                      {% set q2 = op.etapas_data[e2.id].qty_total %}
+                                      {% set t2 = (op.op_quantidade_total or 0) %}
+                                      {% set pct2 = ((q2 / t2) * 100) if t2 else 0 %}
+                                      {% set _ = resumo.append(('%02d' % (e2.ordem or 0)) ~ ' - ' ~ e2.nome ~ ': ' ~ q2 ~ ' (' ~ (pct2|round(0)|int) ~ '%)') %}
+                                    {% endif %}
+                                  {% endfor %}
+                                  <div class="gantt-v2-sublote-bar" draggable="true" data-role="bar" data-lote-id="{{ l.lote_id }}" data-lote-seq="{{ l.lote_sequencia }}" data-op-id="{{ op.op_id }}" data-etapa-id="{{ e.id }}" data-etapa-pos="{{ etapa_pos }}" data-qty="{{ l.lote_quantidade }}" data-total="{{ op.op_quantidade_total or 0 }}" data-quantidade="{{ l.lote_quantidade }}" data-op-total="{{ op.op_quantidade_total or 0 }}" data-op-url="{{ op.op_url }}" data-op-label="{{ op.numero_op }} — {{ op.produto_nome or '-' }}" data-op-sub="{{ op.cliente_nome or '-' }}" data-op-tooltip="{{ op.numero_op }}\n{{ op.cliente_nome or '-' }}\n{{ op.produto_nome or '-' }}{% if resumo %}\n\nResumo por etapa:\n{{ resumo|join('\\n') }}{% endif %}" style="--op-color: hsl({{ (op.op_id * 137) % 360 }}, 80%, 62%);"></div>
+                                  <div class="gantt-v2-stage-qty" data-role="qty"></div>
+                                </div>
+                              {% endfor %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    {% endfor %}
+                  {% else %}
+                    <div class="gantt-v2-group-cell" title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}">{{ g.orcamento_numero or '-' }}</div>
+                    {% for e in etapas %}
+                      <div class="gantt-v2-stage-cell"></div>
+                    {% endfor %}
+                  {% endif %}
+
+                {% endfor %}
+              {% else %}
+                <div class="p-3 text-muted">Nenhum grupo encontrado com os filtros atuais.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="text-muted mt-2">
+            <small>
+              V2: A barra grossa mostra o descritivo da OP (span). As barras pequenas por etapa mostram % e quantidade (altura = %).
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function parseNumberFlexible(value) {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    const s0 = String(value).trim();
+    if (!s0) return 0;
+
+    // Se tiver vírgula, assumir pt-BR (milhar com . e decimal com ,)
+    if (s0.includes(',')) {
+      return parseFloat(s0.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    // Se não tiver vírgula, assumir decimal com ponto (formato do backend)
+    return parseFloat(s0) || 0;
+  }
+
+  // Backward compat: manter nome antigo usado em outras funções
+  const parseDecimalBR = parseNumberFlexible;
+
+  function buildMoverLoteUrl(loteId) {
+    const id = String(loteId || '').trim();
+    if (!/^\d+$/.test(id)) return null;
+
+    // moverLoteUrlBase vem do Flask: /industria/ordem-producao/lotes/0/mover
+    // Pode eventualmente ter querystring; vamos substituir o segmento do path.
+    const base = String(moverLoteUrlBase || '');
+    const parts = base.split('?');
+    const path = parts[0];
+    const qs = parts.length > 1 ? ('?' + parts.slice(1).join('?')) : '';
+
+    const newPath = path.replace(/\/lotes\/\d+\/mover$/, `/lotes/${id}/mover`);
+    return newPath + qs;
+  }
+
+  function formatQty(q) {
+    if (!isFinite(q)) return '-';
+    if (Math.abs(q - Math.round(q)) < 1e-9) return String(Math.round(q));
+    return q.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+  }
+
+  function ajustarGridV2() {
+    const grid = document.getElementById('ganttV2Grid');
+    if (!grid) return;
+    const n = parseInt(grid.getAttribute('data-etapas-count') || '0', 10) || 0;
+    if (!n) return;
+
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    const w = wrapper ? wrapper.clientWidth : 1200;
+    const grupoMin = 140;
+    const grupoMax = 220;
+    const grupoW = Math.max(grupoMin, Math.min(grupoMax, Math.floor(w * 0.18)));
+    const colMin = 72;
+
+    grid.style.gridTemplateColumns = `${grupoW}px repeat(${n}, minmax(${colMin}px, 1fr))`;
+  }
+
+  function resizeSvgToWrapper() {
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    const svg = document.getElementById('ganttV2Connectors');
+    if (!wrapper || !svg) return;
+
+    const w = wrapper.scrollWidth;
+    const h = wrapper.scrollHeight;
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  }
+
+  function drawConnectorsV2() {
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    const svg = document.getElementById('ganttV2Connectors');
+    if (!wrapper || !svg) return;
+
+    // limpar
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const stacks = Array.from(wrapper.querySelectorAll('.gantt-v2-sublote-bar[data-op-id]'));
+    const byOp = new Map();
+    for (const el of stacks) {
+      const opId = el.getAttribute('data-op-id');
+      const pos = parseInt(el.getAttribute('data-etapa-pos') || '0', 10) || 0;
+      const seq = parseInt(el.getAttribute('data-lote-seq') || '0', 10) || 0;
+      if (!byOp.has(opId)) byOp.set(opId, []);
+      byOp.get(opId).push({ el, pos, seq });
+    }
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    // Linha contínua em degrau: barra-mãe -> 1º sublote -> próximos sublotes (ordem por etapa)
+    const overlays = Array.from(wrapper.querySelectorAll('.gantt-v2-op-overlay[data-op-id]'));
+    for (const ov of overlays) {
+      const opId = ov.getAttribute('data-op-id');
+      if (!opId) continue;
+
+      const bars = Array.from(wrapper.querySelectorAll(`.gantt-v2-sublote-bar[data-op-id="${opId}"]`));
+      if (!bars.length) continue;
+
+      bars.sort((a, b) => {
+        const pa = parseInt(a.getAttribute('data-etapa-pos') || '0', 10) || 0;
+        const pb = parseInt(b.getAttribute('data-etapa-pos') || '0', 10) || 0;
+        const sa = parseInt(a.getAttribute('data-lote-seq') || '0', 10) || 0;
+        const sb = parseInt(b.getAttribute('data-lote-seq') || '0', 10) || 0;
+        return (pa - pb) || (sa - sb);
+      });
+
+      const color = getComputedStyle(ov).getPropertyValue('--op-color').trim() || '#60a5fa';
+      const ro = ov.getBoundingClientRect();
+      const ox = (ro.left - wrapperRect.left) + ro.width * 0.25 + wrapper.scrollLeft; // ponto de saída à esquerda
+      const oy = (ro.top - wrapperRect.top) + ro.height + wrapper.scrollTop;
+
+      // primeiro alvo
+      const r0 = bars[0].getBoundingClientRect();
+      const x0 = (r0.left - wrapperRect.left) + 6 + wrapper.scrollLeft;
+      const y0 = (r0.top - wrapperRect.top) + (r0.height / 2) + wrapper.scrollTop;
+
+      const pathMain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathMain.setAttribute('d', `M ${ox} ${oy} L ${ox} ${y0} L ${x0} ${y0}`);
+      pathMain.setAttribute('fill', 'none');
+      pathMain.setAttribute('stroke', color);
+      pathMain.setAttribute('stroke-width', '2');
+      pathMain.setAttribute('stroke-linecap', 'round');
+      pathMain.setAttribute('stroke-linejoin', 'round');
+      pathMain.setAttribute('opacity', '0.85');
+      svg.appendChild(pathMain);
+
+      // encadear as demais barras, em degrau
+      let prev = bars[0];
+      for (let i = 1; i < bars.length; i++) {
+        const next = bars[i];
+        const rp = prev.getBoundingClientRect();
+        const rn = next.getBoundingClientRect();
+
+        const px = (rp.right - wrapperRect.left) - 6 + wrapper.scrollLeft; // saída direita da pílula anterior
+        const py = (rp.top - wrapperRect.top) + (rp.height / 2) + wrapper.scrollTop;
+        const nx = (rn.left - wrapperRect.left) + 6 + wrapper.scrollLeft; // entrada esquerda da próxima
+        const ny = (rn.top - wrapperRect.top) + (rn.height / 2) + wrapper.scrollTop;
+
+        const mx = px + (nx - px) * 0.5;
+
+        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('d', `M ${px} ${py} L ${mx} ${py} L ${mx} ${ny} L ${nx} ${ny}`);
+        p.setAttribute('fill', 'none');
+        p.setAttribute('stroke', color);
+        p.setAttribute('stroke-width', '2');
+        p.setAttribute('stroke-linecap', 'round');
+        p.setAttribute('stroke-linejoin', 'round');
+        p.setAttribute('opacity', '0.85');
+        svg.appendChild(p);
+
+        prev = next;
+      }
+    }
+  }
+
+  function layoutSublotesLevelsV2() {
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    if (!wrapper) return;
+
+    const bars = Array.from(wrapper.querySelectorAll('.gantt-v2-sublote-bar[data-op-id]'));
+    const byOp = new Map();
+    for (const b of bars) {
+      const opId = b.getAttribute('data-op-id');
+      if (!opId) continue;
+      if (!byOp.has(opId)) byOp.set(opId, []);
+      byOp.get(opId).push(b);
+    }
+
+    const page = document.querySelector('.gantt-v2-page');
+    const stepRaw = page ? getComputedStyle(page).getPropertyValue('--stair-step').trim() : '14px';
+    const stairStep = parseInt(stepRaw || '14', 10) || 14;
+    const rowRaw = page ? getComputedStyle(page).getPropertyValue('--row-h').trim() : '240px';
+    const baseRowH = parseInt(rowRaw || '240', 10) || 240;
+    const bandRaw = page ? getComputedStyle(page).getPropertyValue('--op-band-h').trim() : '28px';
+    const bandH = parseInt(bandRaw || '28', 10) || 28;
+    // altura útil para o degrau dentro da linha base
+    const usableBase = Math.max(40, baseRowH - bandH - 44);
+    const maxLvlBase = Math.max(0, Math.floor(usableBase / stairStep));
+
+    for (const [opId, list] of byOp.entries()) {
+      list.sort((a, b) => {
+        const pa = parseInt(a.getAttribute('data-etapa-pos') || '0', 10) || 0;
+        const pb = parseInt(b.getAttribute('data-etapa-pos') || '0', 10) || 0;
+        const sa = parseInt(a.getAttribute('data-lote-seq') || '0', 10) || 0;
+        const sb = parseInt(b.getAttribute('data-lote-seq') || '0', 10) || 0;
+        return (pa - pb) || (sa - sb);
+      });
+
+      // nível por etapa (não por subcard) para não estourar a altura
+      const stageToLvl = new Map();
+      let nextLvl = 0;
+      for (const b of list) {
+        const etapaPos = parseInt(b.getAttribute('data-etapa-pos') || '0', 10) || 0;
+        if (!stageToLvl.has(etapaPos)) {
+          stageToLvl.set(etapaPos, Math.min(nextLvl, maxLvlBase));
+          nextLvl += 1;
+        }
+        const sub = b.closest('.gantt-v2-sublote');
+        if (sub) {
+          sub.style.setProperty('--lvl', String(stageToLvl.get(etapaPos) || 0));
+        }
+      }
+
+      // Auto-ajuste de altura por OP (linha inteira)
+      // Baseia-se no número de níveis usados (etapas distintas) * degrau
+      const levelsUsed = Math.max(1, stageToLvl.size);
+      const required = bandH + 44 + ((levelsUsed - 1) * stairStep) + 70; // folga p/ pct+qtd+pílula
+      const rowH = Math.max(baseRowH, required);
+
+      wrapper.querySelectorAll(`.gantt-v2-stage-cell[data-op-id="${opId}"]`).forEach(cell => {
+        cell.style.height = `${rowH}px`;
+      });
+      wrapper.querySelectorAll(`.gantt-v2-group-cell[data-op-id="${opId}"]`).forEach(cell => {
+        cell.style.height = `${rowH}px`;
+      });
+    }
+  }
+
+  function renderOpOverlaysV2() {
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    const container = document.getElementById('ganttV2OpOverlays');
+    if (!wrapper || !container) return;
+
+    container.innerHTML = '';
+
+    const bars = Array.from(wrapper.querySelectorAll('.gantt-v2-sublote-bar[data-op-id]'));
+    const byOp = new Map();
+    for (const el of bars) {
+      const opId = el.getAttribute('data-op-id');
+      if (!opId) continue;
+      if (!byOp.has(opId)) byOp.set(opId, []);
+      byOp.get(opId).push(el);
+    }
+
+    const wr = wrapper.getBoundingClientRect();
+
+    for (const [opId, list] of byOp.entries()) {
+      if (!list || !list.length) continue;
+
+      let minLeft = Infinity;
+      let maxRight = -Infinity;
+      let minRowTop = Infinity;
+      for (const el of list) {
+        const r = el.getBoundingClientRect();
+        const left = (r.left - wr.left) + wrapper.scrollLeft;
+        const right = (r.right - wr.left) + wrapper.scrollLeft;
+        minLeft = Math.min(minLeft, left);
+        maxRight = Math.max(maxRight, right);
+
+        const cell = el.closest('.gantt-v2-stage-cell');
+        if (cell) {
+          const rc = cell.getBoundingClientRect();
+          const rowTop = (rc.top - wr.top) + wrapper.scrollTop;
+          minRowTop = Math.min(minRowTop, rowTop);
+        }
+      }
+
+      const ref = list[0];
+      const color = getComputedStyle(ref).getPropertyValue('--op-color').trim() || '#60a5fa';
+      const url = ref.getAttribute('data-op-url') || '#';
+      const label = ref.getAttribute('data-op-label') || `OP ${opId}`;
+      const sub = ref.getAttribute('data-op-sub') || '';
+      const tooltip = ref.getAttribute('data-op-tooltip') || '';
+
+      // barra grande fixa na faixa superior da linha (evita sobrepor subcards)
+      const top = Math.max(0, (isFinite(minRowTop) ? minRowTop : 0) + 2);
+      const left = Math.max(0, minLeft - 14);
+      const width = Math.max(70, (maxRight - minLeft) + 28);
+
+      // clamp dentro do wrapper
+      const maxW = Math.max(0, (wrapper.scrollWidth || 0) - 8);
+      const clampedLeft = Math.min(left, Math.max(0, maxW - width));
+      const clampedWidth = Math.max(70, Math.min(width, maxW - clampedLeft));
+
+      const a = document.createElement('a');
+      a.className = 'gantt-v2-op-overlay';
+      a.href = url;
+      a.setAttribute('data-op-id', String(opId));
+      a.style.left = `${clampedLeft}px`;
+      a.style.top = `${top}px`;
+      a.style.width = `${clampedWidth}px`;
+      a.style.setProperty('--op-color', color);
+      if (tooltip) {
+        a.setAttribute('data-bs-toggle', 'tooltip');
+        a.setAttribute('data-bs-placement', 'top');
+        a.setAttribute('title', tooltip);
+      }
+      a.textContent = sub ? `${label}  ${sub}` : label;
+      container.appendChild(a);
+    }
+
+    container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      try { new bootstrap.Tooltip(el); } catch (e) {}
+    });
+  }
+
+  function atualizarAlturasV2() {
+    document.querySelectorAll('.gantt-v2-sublote').forEach(stack => {
+      const qty = parseNumberFlexible(stack.getAttribute('data-qty'));
+      const total = parseNumberFlexible(stack.getAttribute('data-total'));
+      const pct = (total > 0) ? (qty / total) : 0;
+      const pct100 = Math.max(0, Math.min(1, pct));
+
+      const pctEl = stack.querySelector('[data-role="pct"]');
+      const barEl = stack.querySelector('[data-role="bar"]');
+      const qtyEl = stack.querySelector('[data-role="qty"]');
+
+      if (pctEl) pctEl.textContent = `${Math.round(pct100 * 100)}%`;
+      if (qtyEl) qtyEl.textContent = formatQty(qty);
+
+      if (barEl) {
+        const page = document.querySelector('.gantt-v2-page');
+        let minW = 70;
+        const maxWRaw = page ? getComputedStyle(page).getPropertyValue('--sublote-max-w').trim() : '260px';
+        const maxWCfg = parseInt(maxWRaw || '260', 10) || 260;
+
+        // limitar pela largura real da coluna
+        const cell = barEl.closest('.gantt-v2-stage-cell');
+        let maxWByCell = maxWCfg;
+        if (cell) {
+          const cs = getComputedStyle(cell);
+          const padL = parseFloat(cs.paddingLeft || '0') || 0;
+          const padR = parseFloat(cs.paddingRight || '0') || 0;
+          maxWByCell = Math.max(minW, Math.floor(cell.clientWidth - padL - padR - 6));
+        }
+        const maxW = Math.min(maxWCfg, maxWByCell);
+        // se a coluna estiver muito estreita, reduzir minW para caber
+        minW = Math.min(minW, maxW);
+        const w = Math.round(minW + ((maxW - minW) * pct100));
+        barEl.style.setProperty('--w', `${Math.max(minW, Math.min(w, maxW))}px`);
+      }
+    });
+  }
+
+  const moverLoteUrlBase = "{{ url_for('ordem_producao.mover_lote', lote_id=0) }}";
+  let draggedLote = null;
+
+  function abrirModalMoverLoteV2(loteEl, etapaNovaId) {
+    const loteId = loteEl.getAttribute('data-lote-id');
+    const opId = loteEl.getAttribute('data-op-id');
+    const qty = parseNumberFlexible(loteEl.getAttribute('data-qty') || loteEl.getAttribute('data-quantidade'));
+    const total = parseNumberFlexible(loteEl.getAttribute('data-total') || loteEl.getAttribute('data-op-total'));
+
+    if (!loteId || !/^\d+$/.test(String(loteId))) {
+      alert('Lote inválido (sem ID).');
+      return;
+    }
+    const pct = total > 0 ? Math.round((qty / total) * 100) : 0;
+
+    document.getElementById('mover_lote_id').value = loteId;
+    document.getElementById('mover_etapa_nova_id').value = etapaNovaId;
+
+    const info = document.getElementById('mover_lote_info');
+    if (info) {
+      info.textContent = `OP ${opId} • Lote ${loteId} • ${pct}% • Qtd: ${formatQty(qty)} / ${formatQty(total)}`;
+    }
+
+    const input = document.getElementById('mover_quantidade');
+    if (input) {
+      input.max = String(qty);
+      input.value = String(qty);
+      input.setAttribute('data-max-qty', String(qty));
+    }
+
+    const hint = document.getElementById('mover_quantidade_hint');
+    if (hint) {
+      hint.textContent = `Máx: ${formatQty(qty)}`;
+    }
+
+    const erro = document.getElementById('mover_quantidade_erro');
+    if (erro) {
+      erro.textContent = '';
+      erro.classList.add('d-none');
+    }
+
+    const modalEl = document.getElementById('modalMoverLote');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  async function confirmarMoverLoteV2() {
+    const loteId = document.getElementById('mover_lote_id').value;
+    const etapaNovaId = document.getElementById('mover_etapa_nova_id').value;
+    const quantidadeRaw = document.getElementById('mover_quantidade').value;
+    const observacao = document.getElementById('mover_observacao').value;
+
+    const input = document.getElementById('mover_quantidade');
+    const maxQty = parseNumberFlexible((input && input.getAttribute('data-max-qty')) || (input && input.max) || '0');
+    const qtd = parseNumberFlexible(quantidadeRaw);
+
+    const erro = document.getElementById('mover_quantidade_erro');
+    const showErro = (msg) => {
+      if (!erro) {
+        alert(msg);
+        return;
+      }
+      erro.textContent = msg;
+      erro.classList.remove('d-none');
+    };
+
+    if (!(qtd > 0)) {
+      showErro(`Quantidade inválida. O máximo permitido é ${formatQty(maxQty)}.`);
+      return;
+    }
+    if (qtd > maxQty) {
+      showErro(`Quantidade maior que o permitido. O máximo permitido é ${formatQty(maxQty)}.`);
+      return;
+    }
+    if (erro) {
+      erro.textContent = '';
+      erro.classList.add('d-none');
+    }
+
+    if (!loteId || !/^\d+$/.test(String(loteId))) {
+      alert('Lote inválido (sem ID).');
+      return;
+    }
+
+    const url = buildMoverLoteUrl(loteId);
+    if (!url) {
+      alert('Lote inválido (URL).');
+      return;
+    }
+    const body = new URLSearchParams();
+    body.append('etapa_nova_id', etapaNovaId);
+    body.append('quantidade', String(qtd));
+    body.append('observacao', observacao || '');
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      alert(`Erro ao mover lote: ${txt}`);
+      return;
+    }
+
+    window.location.reload();
+  }
+
+  function wireFiltrosV2() {
+    const form = document.getElementById('formFiltrosProducaoV2');
+    if (!form) return;
+
+    const filtroEtapas = document.getElementById('filtroEtapasV2');
+    if (filtroEtapas) {
+      filtroEtapas.addEventListener('input', function() {
+        const term = (this.value || '').toLowerCase();
+        document.querySelectorAll('#listaEtapasCheckboxV2 .form-check').forEach(div => {
+          const label = div.querySelector('label');
+          const txt = (label ? label.textContent : '').toLowerCase();
+          div.style.display = txt.includes(term) ? '' : 'none';
+        });
+      });
+    }
+
+    const btnLimpar = document.getElementById('btnEtapasLimparV2');
+    const btnAplicar = document.getElementById('btnEtapasAplicarV2');
+
+    if (btnLimpar) {
+      btnLimpar.addEventListener('click', function() {
+        document.querySelectorAll('.etapa-visivel-v2').forEach(cb => cb.checked = false);
+      });
+    }
+
+    if (btnAplicar) {
+      btnAplicar.addEventListener('click', function() {
+        form.querySelectorAll('input[name="etapas"]').forEach(el => el.remove());
+        document.querySelectorAll('.etapa-visivel-v2:checked').forEach(cb => {
+          const hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = 'etapas';
+          hidden.value = cb.value;
+          form.appendChild(hidden);
+        });
+        form.submit();
+      });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    wireFiltrosV2();
+    ajustarGridV2();
+    atualizarAlturasV2();
+    resizeSvgToWrapper();
+    layoutSublotesLevelsV2();
+    renderOpOverlaysV2();
+    drawConnectorsV2();
+
+    // tooltips bootstrap
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      try { new bootstrap.Tooltip(el); } catch (e) {}
+    });
+
+    // Drag & drop: somente sublotes (pela barra, que tem o lote_id sempre)
+    document.querySelectorAll('.gantt-v2-sublote-bar[draggable="true"]').forEach(el => {
+      el.addEventListener('dragstart', (ev) => {
+        draggedLote = el;
+        try { ev.dataTransfer.setData('text/plain', el.getAttribute('data-lote-id') || ''); } catch(e) {}
+      });
+      el.addEventListener('dragend', () => { draggedLote = null; });
+    });
+
+    document.querySelectorAll('.gantt-v2-dropzone').forEach(zone => {
+      zone.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        zone.classList.remove('drag-over');
+        if (!draggedLote) return;
+        const etapaNovaId = zone.getAttribute('data-etapa-id');
+        if (!etapaNovaId) return;
+        abrirModalMoverLoteV2(draggedLote, etapaNovaId);
+      });
+    });
+
+    const btnConfirmar = document.getElementById('btnConfirmarMoverLote');
+    if (btnConfirmar) {
+      btnConfirmar.addEventListener('click', function() {
+        confirmarMoverLoteV2();
+      });
+    }
+
+    window.addEventListener('resize', function() {
+      ajustarGridV2();
+      atualizarAlturasV2();
+      resizeSvgToWrapper();
+      renderOpOverlaysV2();
+      layoutSublotesLevelsV2();
+      renderOpOverlaysV2();
+      drawConnectorsV2();
+    });
+
+    const wrapper = document.getElementById('ganttV2Wrapper');
+    if (wrapper) {
+      wrapper.addEventListener('scroll', function() {
+        layoutSublotesLevelsV2();
+        renderOpOverlaysV2();
+        drawConnectorsV2();
+      }, { passive: true });
+    }
+  });
+</script>
+
+<!-- Modal Mover Lote (parcial) -->
+<div class="modal fade" id="modalMoverLote" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Mover Sublote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formMoverLote">
+          <input type="hidden" id="mover_lote_id" name="lote_id">
+          <input type="hidden" id="mover_etapa_nova_id" name="etapa_nova_id">
+
+          <div class="mb-2">
+            <div class="small text-muted" id="mover_lote_info"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Quantidade a mover</label>
+            <input type="number" step="0.0001" class="form-control" id="mover_quantidade" name="quantidade" required>
+            <div class="form-text" id="mover_quantidade_hint"></div>
+            <div class="text-danger small mt-1 d-none" id="mover_quantidade_erro"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Observação (opcional)</label>
+            <textarea class="form-control" id="mover_observacao" name="observacao" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnConfirmarMoverLote">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Transferência de Estoque - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Transferência de Estoque</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.inventory_list') }}">Estoque</a></li>
+        <li class="breadcrumb-item active">Transferência de Estoque</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-exchange-alt me-1"></i>
+                    Formulário de Transferência de Estoque
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('inventory.inventory_transfer') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="product_id" class="form-label">Produto <span class="text-danger">*</span></label>
+                                <select class="form-select" id="product_id" name="product_id" required>
+                                    <option value="">Selecione um produto</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" data-unit="{{ product.unit }}">
+                                        {{ product.name }} ({{ product.unit }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card border-primary h-100">
+                                    <div class="card-header bg-primary text-white">
+                                        <i class="fas fa-arrow-circle-up me-1"></i> Origem
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="source_location_id" class="form-label">Local de Origem <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="source_location_id" name="source_location_id" required>
+                                                <option value="">Selecione o local de origem</option>
+                                                {% for location in locations %}
+                                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Estoque Disponível</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="available_stock" readonly>
+                                                <span class="input-group-text" id="available_unit">UN</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card border-success h-100">
+                                    <div class="card-header bg-success text-white">
+                                        <i class="fas fa-arrow-circle-down me-1"></i> Destino
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="target_location_id" class="form-label">Local de Destino <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="target_location_id" name="target_location_id" required>
+                                                <option value="">Selecione o local de destino</option>
+                                                {% for location in locations %}
+                                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Estoque Atual no Destino</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="target_stock" readonly>
+                                                <span class="input-group-text" id="target_unit">UN</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="quantity" class="form-label">Quantidade a Transferir <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                                    <span class="input-group-text" id="transfer_unit">UN</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="1"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Estoque após transferência (Origem):</strong>
+                                            <div class="input-group mt-1">
+                                                <input type="text" class="form-control" id="new_source_stock" readonly>
+                                                <span class="input-group-text" id="new_source_unit">UN</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Estoque após transferência (Destino):</strong>
+                                            <div class="input-group mt-1">
+                                                <input type="text" class="form-control" id="new_target_stock" readonly>
+                                                <span class="input-group-text" id="new_target_unit">UN</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                    <i class="fas fa-exchange-alt me-1"></i> Realizar Transferência
+                                </button>
+                                <a href="{{ url_for('inventory.inventory_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Últimas Transferências
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Produto</th>
+                                    <th>Origem</th>
+                                    <th>Destino</th>
+                                    <th>Quantidade</th>
+                                    <th>Usuário</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTransfers">
+                                <!-- Será preenchido via JavaScript -->
+                                <tr>
+                                    <td colspan="6" class="text-center">Carregando transferências recentes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Variáveis para armazenar os estoques
+        var availableStock = 0;
+        var targetStock = 0;
+        var selectedUnit = 'UN';
+        
+        // Função para verificar se todos os campos obrigatórios estão preenchidos e validar a transferência
+        function validateTransfer() {
+            var productId = $('#product_id').val();
+            var sourceLocationId = $('#source_location_id').val();
+            var targetLocationId = $('#target_location_id').val();
+            var quantity = parseFloat($('#quantity').val()) || 0;
+            
+            // Verificar se todos os campos obrigatórios estão preenchidos
+            var fieldsValid = productId && sourceLocationId && targetLocationId && quantity > 0;
+            
+            // Verificar se os locais de origem e destino são diferentes
+            var differentLocations = sourceLocationId !== targetLocationId;
+            
+            // Verificar se há estoque suficiente
+            var sufficientStock = quantity <= availableStock;
+            
+            // Habilitar/desabilitar botão de envio
+            $('#submitBtn').prop('disabled', !(fieldsValid && differentLocations && sufficientStock));
+            
+            // Mostrar mensagens de erro
+            if (sourceLocationId === targetLocationId && sourceLocationId) {
+                alert('Os locais de origem e destino devem ser diferentes.');
+                $('#target_location_id').val('');
+            }
+            
+            if (quantity > availableStock && quantity > 0) {
+                alert('Quantidade insuficiente no local de origem.');
+                $('#quantity').val('');
+            }
+        }
+        
+        // Atualizar unidade ao selecionar produto
+        $('#product_id').change(function() {
+            var selectedOption = $(this).find(':selected');
+            selectedUnit = selectedOption.data('unit') || 'UN';
+            
+            $('#available_unit').text(selectedUnit);
+            $('#target_unit').text(selectedUnit);
+            $('#transfer_unit').text(selectedUnit);
+            $('#new_source_unit').text(selectedUnit);
+            $('#new_target_unit').text(selectedUnit);
+            
+            // Limpar estoques
+            $('#available_stock').val('');
+            $('#target_stock').val('');
+            $('#new_source_stock').val('');
+            $('#new_target_stock').val('');
+            
+            // Atualizar estoques se os locais estiverem selecionados
+            updateStocks();
+            validateTransfer();
+        });
+        
+        // Atualizar estoque ao mudar o local de origem
+        $('#source_location_id').change(function() {
+            updateSourceStock();
+            validateTransfer();
+        });
+        
+        // Atualizar estoque ao mudar o local de destino
+        $('#target_location_id').change(function() {
+            updateTargetStock();
+            validateTransfer();
+        });
+        
+        // Recalcular estoques após transferência quando quantidade mudar
+        $('#quantity').on('input', function() {
+            calculateNewStocks();
+            validateTransfer();
+        });
+        
+        // Função para atualizar o estoque do local de origem
+        function updateSourceStock() {
+            var productId = $('#product_id').val();
+            var locationId = $('#source_location_id').val();
+            
+            if (productId && locationId) {
+                // Buscar estoque do produto no local selecionado
+                $.ajax({
+                    url: '/api/produto/' + productId + '/estoque',
+                    type: 'GET',
+                    data: { location_id: locationId },
+                    success: function(data) {
+                        if (data && data.length > 0) {
+                            availableStock = data[0].quantity;
+                            $('#available_stock').val(availableStock);
+                        } else {
+                            availableStock = 0;
+                            $('#available_stock').val(0);
+                        }
+                        
+                        // Recalcular estoques após transferência
+                        calculateNewStocks();
+                    },
+                    error: function() {
+                        availableStock = 0;
+                        $('#available_stock').val(0);
+                        calculateNewStocks();
+                    }
+                });
+            }
+        }
+        
+        // Função para atualizar o estoque do local de destino
+        function updateTargetStock() {
+            var productId = $('#product_id').val();
+            var locationId = $('#target_location_id').val();
+            
+            if (productId && locationId) {
+                // Buscar estoque do produto no local selecionado
+                $.ajax({
+                    url: '/api/produto/' + productId + '/estoque',
+                    type: 'GET',
+                    data: { location_id: locationId },
+                    success: function(data) {
+                        if (data && data.length > 0) {
+                            targetStock = data[0].quantity;
+                            $('#target_stock').val(targetStock);
+                        } else {
+                            targetStock = 0;
+                            $('#target_stock').val(0);
+                        }
+                        
+                        // Recalcular estoques após transferência
+                        calculateNewStocks();
+                    },
+                    error: function() {
+                        targetStock = 0;
+                        $('#target_stock').val(0);
+                        calculateNewStocks();
+                    }
+                });
+            }
+        }
+        
+        // Função para atualizar ambos os estoques
+        function updateStocks() {
+            updateSourceStock();
+            updateTargetStock();
+        }
+        
+        // Função para calcular os novos estoques após a transferência
+        function calculateNewStocks() {
+            var quantity = parseFloat($('#quantity').val()) || 0;
+            
+            var newSourceStock = Math.max(0, availableStock - quantity);
+            var newTargetStock = targetStock + quantity;
+            
+            $('#new_source_stock').val(newSourceStock.toFixed(2));
+            $('#new_target_stock').val(newTargetStock.toFixed(2));
+        }
+        
+        // Carregar transferências recentes
+        function loadRecentTransfers() {
+            $.ajax({
+                url: '/api/estoque/transferencias-recentes',
+                type: 'GET',
+                success: function(data) {
+                    var html = '';
+                    
+                    if (data && data.length > 0) {
+                        $.each(data, function(index, transfer) {
+                            html += '<tr>';
+                            html += '<td>' + transfer.created_at + '</td>';
+                            html += '<td>' + transfer.product_name + '</td>';
+                            html += '<td>' + transfer.source_location + '</td>';
+                            html += '<td>' + transfer.target_location + '</td>';
+                            html += '<td>' + transfer.quantity + ' ' + transfer.unit + '</td>';
+                            html += '<td>' + transfer.created_by + '</td>';
+                            html += '</tr>';
+                        });
+                    } else {
+                        html = '<tr><td colspan="6" class="text-center">Nenhuma transferência recente encontrada.</td></tr>';
+                    }
+                    
+                    $('#recentTransfers').html(html);
+                },
+                error: function() {
+                    $('#recentTransfers').html('<tr><td colspan="6" class="text-center">Erro ao carregar transferências recentes.</td></tr>');
+                }
+            });
+        }
+        
+        // Carregar transferências recentes ao carregar a página
+        // Comentado temporariamente até que a API esteja disponível
+        // loadRecentTransfers();
+    });
+</script>
+{% endblock %}

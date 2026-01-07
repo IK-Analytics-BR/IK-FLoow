@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Alertas - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Dashboard de Alertas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('alert.alert_list') }}">Alertas</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+    
+    <!-- Cards de estatísticas -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Total de Alertas</div>
+                            <div class="display-6">{{ stats.total }}</div>
+                        </div>
+                        <i class="fas fa-bell fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Alertas Ativos</div>
+                            <div class="display-6">{{ stats.active_count }}</div>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Reconhecidos</div>
+                            <div class="display-6">{{ stats.acknowledged_count }}</div>
+                        </div>
+                        <i class="fas fa-check fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Resolvidos</div>
+                            <div class="display-6">{{ stats.resolved_count }}</div>
+                        </div>
+                        <i class="fas fa-check-double fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_history') }}">Ver Histórico</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cards de prioridade -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Prioridade Crítica</div>
+                            <div class="display-6">{{ stats.critical_count }}</div>
+                        </div>
+                        <i class="fas fa-radiation fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}?priority=critical">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Prioridade Alta</div>
+                            <div class="display-6">{{ stats.high_count }}</div>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}?priority=high">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Prioridade Média</div>
+                            <div class="display-6">{{ stats.medium_count }}</div>
+                        </div>
+                        <i class="fas fa-info-circle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}?priority=medium">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-secondary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Prioridade Baixa</div>
+                            <div class="display-6">{{ stats.low_count }}</div>
+                        </div>
+                        <i class="fas fa-comment fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}?priority=low">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Alertas por Tipo
+                </div>
+                <div class="card-body">
+                    <canvas id="alertsByTypeChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Alertas por Equipamento
+                </div>
+                <div class="card-body">
+                    <canvas id="alertsByEquipmentChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Alertas por Mês
+                </div>
+                <div class="card-body">
+                    <canvas id="alertsByMonthChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list-alt me-1"></i>
+                    Alertas Recentes
+                </div>
+                <div class="card-body">
+                    {% if recent_alerts %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tipo</th>
+                                    <th>Equipamento</th>
+                                    <th>Prioridade</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for alert in recent_alerts %}
+                                <tr class="{% if alert.priority == 'critical' %}table-danger{% elif alert.priority == 'high' %}table-warning{% endif %}">
+                                    <td>
+                                        <a href="{{ url_for('alert.alert_view', alert_id=alert.id) }}">
+                                            {{ alert.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ alert_types.get(alert.alert_type, 'Desconhecido') }}</td>
+                                    <td>{{ alert.equipment_name }}</td>
+                                    <td>
+                                        {% if alert.priority == 'critical' %}
+                                        <span class="badge bg-danger">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                        {% elif alert.priority == 'high' %}
+                                        <span class="badge bg-warning text-dark">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                        {% elif alert.priority == 'medium' %}
+                                        <span class="badge bg-primary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if alert.status == 'active' %}
+                                        <span class="badge bg-danger">Ativo</span>
+                                        {% elif alert.status == 'acknowledged' %}
+                                        <span class="badge bg-warning text-dark">Reconhecido</span>
+                                        {% elif alert.status == 'resolved' %}
+                                        <span class="badge bg-success">Resolvido</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ alert.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhum alerta recente.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Gráfico de alertas por tipo
+        var ctxType = document.getElementById('alertsByTypeChart').getContext('2d');
+        new Chart(ctxType, {
+            type: 'pie',
+            data: {
+                labels: [
+                    {% for item in by_type %}
+                        '{{ alert_types.get(item.alert_type, "Desconhecido") }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    data: [
+                        {% for item in by_type %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                        'rgba(199, 199, 199, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribuição por Tipo de Alerta'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de alertas por equipamento
+        var ctxEquipment = document.getElementById('alertsByEquipmentChart').getContext('2d');
+        new Chart(ctxEquipment, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in by_equipment %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Alertas',
+                    data: [
+                        {% for item in by_equipment %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 5 Equipamentos por Número de Alertas'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de alertas por mês
+        var ctxMonth = document.getElementById('alertsByMonthChart').getContext('2d');
+        new Chart(ctxMonth, {
+            type: 'line',
+            data: {
+                labels: [
+                    {% for item in by_month %}
+                        '{{ item.month }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Alertas',
+                    data: [
+                        {% for item in by_month %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Alertas por Mês (Últimos 6 Meses)'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

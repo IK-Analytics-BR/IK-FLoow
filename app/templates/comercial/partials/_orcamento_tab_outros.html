@@ -1,0 +1,198 @@
+<!-- =====================================================
+     ABA 5: OUTROS
+     Ficha Técnica (Mão de Obra, Matéria Prima, Consumo Interno)
+     ===================================================== -->
+<div class="row">
+    <div class="col-md-8">
+        <!-- GRADE: Ficha Técnica / Insumos -->
+        <div class="grade">
+            <div class="grade-header laranja">
+                <i class="fas fa-clipboard-list"></i>Ficha Técnica
+                <button type="button" class="btn btn-sm btn-light float-end py-0 px-2" onclick="carregarInsumosItens()" title="Atualizar lista de itens">
+                    <i class="fas fa-sync me-1"></i>Atualizar
+                </button>
+            </div>
+            <div class="grade-body">
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Selecione um item do orçamento para visualizar a ficha técnica.
+                    </small>
+                </div>
+                
+                <!-- Seletor de item -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-8">
+                        <select class="form-select form-select-sm" id="select_item_insumos" onchange="carregarInsumosItem(this.value)">
+                            <option value="">-- Selecione um item do orçamento --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-center">
+                        <span class="badge bg-secondary" id="badge_template_status">Sem ficha técnica</span>
+                    </div>
+                </div>
+                
+                <!-- Área do Template -->
+                <div id="areaTemplateProducao">
+                    <div class="text-center text-muted py-4" id="msgSemTemplate">
+                        <i class="fas fa-box-open fa-2x mb-2 d-block text-secondary"></i>
+                        Selecione um item para visualizar a ficha técnica
+                    </div>
+                    
+                    <!-- Seção Mão de Obra / Serviços -->
+                    <div id="secaoServicos" class="mb-3" style="display:none;">
+                        <h6 class="text-primary mb-2"><i class="fas fa-tools me-1"></i>Mão de Obra / Serviços</h6>
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="text-center" style="width:70px">Qtde</th>
+                                    <th class="text-center" style="width:50px">Un</th>
+                                    <th class="text-end" style="width:90px">Custo Un.</th>
+                                    <th class="text-end" style="width:90px">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyServicos"></tbody>
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Subtotal Serviços:</td>
+                                    <td class="text-end fw-bold" id="totalServicos">R$ 0,00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <!-- Seção Matéria Prima -->
+                    <div id="secaoMateriasPrimas" class="mb-3" style="display:none;">
+                        <h6 class="text-success mb-2"><i class="fas fa-cubes me-1"></i>Matéria Prima</h6>
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="text-center" style="width:70px">Qtde</th>
+                                    <th class="text-center" style="width:50px">Un</th>
+                                    <th class="text-end" style="width:90px">Custo Un.</th>
+                                    <th class="text-end" style="width:90px">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyMateriasPrimas"></tbody>
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Subtotal Matéria Prima:</td>
+                                    <td class="text-end fw-bold" id="totalMateriasPrimas">R$ 0,00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <!-- Seção Consumo Interno -->
+                    <div id="secaoConsumoInterno" class="mb-3" style="display:none;">
+                        <h6 class="text-warning mb-2"><i class="fas fa-industry me-1"></i>Consumo Interno</h6>
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="text-center" style="width:70px">Qtde</th>
+                                    <th class="text-center" style="width:50px">Un</th>
+                                    <th class="text-end" style="width:90px">Custo Un.</th>
+                                    <th class="text-end" style="width:90px">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyConsumoInterno"></tbody>
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Subtotal Consumo:</td>
+                                    <td class="text-end fw-bold" id="totalConsumoInterno">R$ 0,00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- GRADE: Observações de Produção -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-clipboard"></i>Observações de Produção</div>
+            <div class="grade-body">
+                <textarea class="form-control form-control-sm" name="obs_producao" rows="2" 
+                          placeholder="Instruções especiais para produção...">{{ orcamento.obs_producao if orcamento else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- GRADE: Resumo de Custos -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-chart-pie"></i>Resumo de Custos</div>
+            <div class="grade-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span><i class="fas fa-tools text-primary me-1"></i>Mão de Obra:</span>
+                    <strong id="resumoServicos">R$ 0,00</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><i class="fas fa-cubes text-success me-1"></i>Matéria Prima:</span>
+                    <strong id="resumoMateriasPrimas">R$ 0,00</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><i class="fas fa-industry text-warning me-1"></i>Consumo Interno:</span>
+                    <strong id="resumoConsumoInterno">R$ 0,00</strong>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between">
+                    <strong>Custo Total Produção:</strong>
+                    <strong class="text-primary" id="resumoCustoTotal">R$ 0,00</strong>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between">
+                    <span>Valor de Venda:</span>
+                    <strong id="resumoValorVenda">R$ 0,00</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <strong class="text-success">Margem:</strong>
+                    <strong class="text-success" id="resumoMargem">0%</strong>
+                </div>
+            </div>
+        </div>
+        
+        <!-- GRADE: Info Ficha Técnica -->
+        <div class="grade">
+            <div class="grade-header roxo"><i class="fas fa-file-alt"></i>Info da Ficha Técnica</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label">Nome da Ficha Técnica</label>
+                        <input type="text" class="form-control form-control-sm" id="infoTemplateNome" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Custo Base</label>
+                        <input type="text" class="form-control form-control-sm" id="infoTemplateCusto" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Tempo (h)</label>
+                        <input type="text" class="form-control form-control-sm" id="infoTemplateTempo" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- GRADE: Tags/Etiquetas -->
+        <div class="grade">
+            <div class="grade-header azul"><i class="fas fa-tags"></i>Tags</div>
+            <div class="grade-body">
+                <div id="containerTags" class="mb-2">
+                    <!-- Tags serão adicionadas aqui -->
+                </div>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="inputNovaTag" placeholder="Nova tag...">
+                    <button type="button" class="btn btn-outline-primary" onclick="adicionarTag()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

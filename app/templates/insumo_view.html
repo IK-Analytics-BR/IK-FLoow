@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Insumo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .view-container {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .view-label { font-weight: 600; color: #495057; }
+    .view-value { margin-bottom: 15px; }
+    .price-value { font-weight: bold; color: #28a745; }
+    .stock-value { font-weight: bold; }
+    .low-stock { color: #dc3545; }
+    .stock-ok { color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Visualizar Insumo</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <a href="{{ url_for('insumo.insumo_editar', id=insumo.id) }}" class="btn btn-sm btn-warning me-2">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <a href="{{ url_for('insumo.insumos') }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="view-container">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Código</div>
+                                    <div class="view-value">{{ insumo.id }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Nome do Insumo</div>
+                                    <div class="view-value">{{ insumo.name }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="view-label">Descrição</div>
+                                    <div class="view-value">{{ insumo.description }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Fornecedor</div>
+                                    <div class="view-value">{{ fornecedor.name if fornecedor else 'N/A' }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Preço</div>
+                                    <div class="view-value price-value">R$ {{ "%.2f"|format(insumo.price) }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Estoque Atual</div>
+                                    <div class="view-value stock-value {% if insumo.stock < insumo.min_stock %}low-stock{% else %}stock-ok{% endif %}">
+                                        {{ insumo.stock }}
+                                        {% if insumo.stock < insumo.min_stock %}
+                                        <span class="badge bg-danger ms-2">Estoque Baixo</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Estoque Mínimo</div>
+                                    <div class="view-value">{{ insumo.min_stock }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if fornecedor %}
+                        <div class="view-container">
+                            <h5>Informações do Fornecedor</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Nome</div>
+                                    <div class="view-value">{{ fornecedor.name }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">CNPJ</div>
+                                    <div class="view-value">{{ fornecedor.cnpj }}</div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <a href="{{ url_for('fornecedor.fornecedor_visualizar', id=fornecedor.id) }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> Ver Detalhes do Fornecedor
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="view-container">
+                            <h5><i class="fas fa-info-circle"></i> Informações</h5>
+                            <p>Visualizando detalhes do insumo.</p>
+                            <p>Para editar os dados, clique no botão "Editar".</p>
+                            <p>Para voltar à lista de insumos, clique em "Voltar".</p>
+                            
+                            {% if insumo.stock < insumo.min_stock %}
+                            <div class="alert alert-danger mt-3">
+                                <i class="fas fa-exclamation-triangle"></i> Alerta de Estoque Baixo
+                                <p class="mb-0 mt-2">O estoque atual está abaixo do mínimo recomendado. Considere fazer um novo pedido.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+{% endblock %}

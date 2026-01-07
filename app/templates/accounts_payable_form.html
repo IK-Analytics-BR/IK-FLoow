@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Conta a Pagar' if not payable else 'Editar Conta a Pagar' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Nova Conta a Pagar' if not payable else 'Editar Conta a Pagar' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('accounts_payable.accounts_payable_list') }}">Contas a Pagar</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Conta' if not payable else 'Editar Conta' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-invoice-dollar me-1"></i>
+            {{ 'Nova Conta a Pagar' if not payable else 'Editar Conta a Pagar' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('accounts_payable.accounts_payable_create') if not payable else url_for('accounts_payable.accounts_payable_edit', payable_id=payable.id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="supplier_id" class="form-label">Fornecedor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Selecione um fornecedor</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if payable and payable.supplier_id == supplier.id %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="invoice_number" class="form-label">Número da Nota Fiscal</label>
+                        <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ payable.invoice_number if payable else '' }}">
+                        <div class="form-text">Opcional. Número da NF-e ou outro documento fiscal.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">Descrição <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="description" name="description" value="{{ payable.description if payable else '' }}" required>
+                        <div class="form-text">Ex.: Compra de materiais, Pagamento de serviços, etc.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="total_amount" class="form-label">Valor Total <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control money" id="total_amount" name="total_amount" value="{{ "%.2f"|format(payable.total_amount) if payable else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="installments" class="form-label">Parcelas <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="installments" name="installments" value="{{ payable.installments if payable else '1' }}" min="1" max="24" required {% if payable %}readonly{% endif %}>
+                        <div class="form-text">Número de parcelas (1 para pagamento à vista).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="payment_method" class="form-label">Forma de Pagamento <span class="text-danger">*</span></label>
+                        <select class="form-select" id="payment_method" name="payment_method" required>
+                            <option value="">Selecione</option>
+                            <option value="boleto" {% if payable and payable.payment_method == 'boleto' %}selected{% endif %}>Boleto</option>
+                            <option value="ted" {% if payable and payable.payment_method == 'ted' %}selected{% endif %}>TED</option>
+                            <option value="pix" {% if payable and payable.payment_method == 'pix' %}selected{% endif %}>PIX</option>
+                            <option value="credit_card" {% if payable and payable.payment_method == 'credit_card' %}selected{% endif %}>Cartão de Crédito</option>
+                            <option value="debit_card" {% if payable and payable.payment_method == 'debit_card' %}selected{% endif %}>Cartão de Débito</option>
+                            <option value="cash" {% if payable and payable.payment_method == 'cash' %}selected{% endif %}>Dinheiro</option>
+                            <option value="check" {% if payable and payable.payment_method == 'check' %}selected{% endif %}>Cheque</option>
+                            <option value="other" {% if payable and payable.payment_method == 'other' %}selected{% endif %}>Outro</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="issue_date" class="form-label">Data de Emissão <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="issue_date" name="issue_date" value="{{ payable.issue_date.strftime('%Y-%m-%d') if payable and payable.issue_date else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="due_date" class="form-label">Data de Vencimento <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="due_date" name="due_date" value="{{ payable.due_date.strftime('%Y-%m-%d') if payable and payable.due_date else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="bank_account_id" class="form-label">Conta Bancária <span class="text-danger">*</span></label>
+                        <select class="form-select" id="bank_account_id" name="bank_account_id" required>
+                            <option value="">Selecione</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}" {% if payable and payable.bank_account_id == account.id %}selected{% endif %}>
+                                {{ account.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="chart_account_id" class="form-label">Conta Contábil</label>
+                        <select class="form-select" id="chart_account_id" name="chart_account_id">
+                            <option value="">Selecione (opcional)</option>
+                            {% for chart_account in chart_accounts %}
+                            <option value="{{ chart_account.id }}" {% if payable and payable.chart_account_id == chart_account.id %}selected{% endif %}>
+                                {{ chart_account.code }} - {{ chart_account.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Classificação contábil da despesa</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="notes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2">{{ payable.notes if payable else '' }}</textarea>
+                    </div>
+                </div>
+                
+                {% if not payable %}
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Informações sobre Parcelas
+                            </div>
+                            <div class="card-body">
+                                <div id="installmentsInfo">
+                                    <p>Parcela única com vencimento em <span id="firstDueDate"></span>.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('accounts_payable.accounts_payable_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-maskmoney/3.0.2/jquery.maskMoney.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Inicializar máscara para valores monetários
+        $('.money').maskMoney({
+            prefix: '',
+            allowNegative: false,
+            thousands: '.',
+            decimal: ',',
+            affixesStay: false
+        });
+        
+        // Atualizar informações de parcelas
+        function updateInstallmentsInfo() {
+            var installments = $('#installments').val();
+            var dueDate = $('#due_date').val();
+            
+            if (!dueDate) {
+                $('#installmentsInfo').html('<p>Defina a data de vencimento para ver as parcelas.</p>');
+                return;
+            }
+            
+            var firstDueDate = new Date(dueDate);
+            $('#firstDueDate').text(formatDate(firstDueDate));
+            
+            if (installments > 1) {
+                var installmentsList = '<p>Parcelamento em ' + installments + 'x:</p><ul>';
+                var totalAmount = parseFloat($('#total_amount').val().replace('.', '').replace(',', '.')) || 0;
+                var installmentAmount = (totalAmount / installments).toFixed(2);
+                
+                for (var i = 0; i < installments; i++) {
+                    var installmentDate = new Date(firstDueDate);
+                    installmentDate.setDate(installmentDate.getDate() + (i * 30)); // 30 dias entre parcelas
+                    
+                    installmentsList += '<li>Parcela ' + (i + 1) + ': R$ ' + 
+                        installmentAmount.replace('.', ',') + 
+                        ' - Vencimento: ' + formatDate(installmentDate) + '</li>';
+                }
+                
+                installmentsList += '</ul>';
+                $('#installmentsInfo').html(installmentsList);
+            } else {
+                $('#installmentsInfo').html('<p>Parcela única com vencimento em ' + formatDate(firstDueDate) + '.</p>');
+            }
+        }
+        
+        // Formatar data para exibição
+        function formatDate(date) {
+            return date.toLocaleDateString('pt-BR');
+        }
+        
+        // Eventos para atualizar informações de parcelas
+        $('#installments, #due_date, #total_amount').on('change keyup', updateInstallmentsInfo);
+        
+        // Inicializar informações de parcelas
+        updateInstallmentsInfo();
+        
+        // Preencher data de emissão com a data atual se for um novo registro
+        {% if not payable %}
+        if (!$('#issue_date').val()) {
+            var today = new Date().toISOString().split('T')[0];
+            $('#issue_date').val(today);
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Pedido de Compra{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Editar Pedido de Compra #{{ po.id }}</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('purchase_orders.purchase_order_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <form method="post">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-file-invoice me-1"></i> Dados do Pedido
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="supplier_id" name="supplier_id" required {% if po.status != 'draft' %}disabled{% endif %}>
+                                <option value="">Selecione um fornecedor</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}" {% if supplier.id == po.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="supplier_id">Fornecedor <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="order_date" name="order_date" value="{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else '' }}" required {% if po.status != 'draft' %}readonly{% endif %}>
+                            <label for="order_date">Data do Pedido <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="delivery_date" name="delivery_date" value="{{ po.delivery_date.strftime('%Y-%m-%d') if po.delivery_date else '' }}">
+                            <label for="delivery_date">Previsão de Entrega</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" value="R$ {{ '%.2f'|format(po.total_value|float) }}" readonly>
+                            <label>Valor Total</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" value="{{ po.status }}" readonly>
+                            <label>Status</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-list me-1"></i> Itens do Pedido
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus"></i> Adicionar Item
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Quantidade</th>
+                                <th>Preço Unit.</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product_name if item.product_name else 'Produto #' + item.product_id|string }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>R$ {{ '%.2f'|format(item.unit_price|float) }}</td>
+                                <td>R$ {{ '%.2f'|format(item.total_price|float) }}</td>
+                                <td>
+                                    {% if item.status == 'active' %}
+                                        <span class="badge bg-success">Ativo</span>
+                                    {% elif item.status == 'canceled' %}
+                                        <span class="badge bg-danger">Cancelado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.status == 'active' and po.status in ('draft', 'sent') %}
+                                    <form action="{{ url_for('purchase_orders.purchase_order_delete_item', item_id=item.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remover este item?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p>Nenhum item adicionado ao pedido.</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus"></i> Adicionar Item
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+            <a href="{{ url_for('purchase_orders.purchase_order_list') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+            <button type="submit" class="btn btn-primary" {% if po.status != 'draft' and po.status != 'sent' %}disabled{% endif %}>Salvar Alterações</button>
+            
+            {% if po.status == 'draft' %}
+            <a href="{{ url_for('purchase_orders.purchase_order_confirm', id=po.id) }}" class="btn btn-success" onclick="event.preventDefault(); document.getElementById('confirm-form').submit();">
+                <i class="fas fa-paper-plane"></i> Enviar Pedido
+            </a>
+            <form id="confirm-form" action="{{ url_for('purchase_orders.purchase_order_confirm', id=po.id) }}" method="post" style="display: none;"></form>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Modal para adicionar item -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('purchase_orders.purchase_order_add_item', id=po.id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addItemModalLabel">Adicionar Item ao Pedido</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Produto</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Selecione um produto</option>
+                            <!-- Aqui você deve carregar a lista de produtos dinamicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="unit_price" class="form-label">Preço Unitário</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" class="form-control" id="unit_price" name="unit_price" min="0.01" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="total_preview" class="form-label">Total</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control" id="total_preview" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Select2 para fornecedores se disponível
+        if ($.fn.select2) {
+            $('#supplier_id').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Selecione um fornecedor'
+            });
+            
+            $('#product_id').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Selecione um produto',
+                dropdownParent: $('#addItemModal')
+            });
+        }
+        
+        // Carregar produtos via AJAX
+        $.ajax({
+            url: '/api/products',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                const productSelect = $('#product_id');
+                productSelect.empty();
+                productSelect.append('<option value="">Selecione um produto</option>');
+                
+                data.forEach(function(product) {
+                    productSelect.append(`<option value="${product.id}" data-price="${product.cost_price || 0}">${product.name}</option>`);
+                });
+                
+                // Atualizar preço quando produto for selecionado
+                productSelect.on('change', function() {
+                    const selectedOption = $(this).find('option:selected');
+                    const price = selectedOption.data('price') || 0;
+                    $('#unit_price').val(price.toFixed(2));
+                    updateTotal();
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro ao carregar produtos:', error);
+            }
+        });
+        
+        // Atualizar total quando quantidade ou preço mudar
+        $('#quantity, #unit_price').on('input', updateTotal);
+        
+        function updateTotal() {
+            const quantity = parseFloat($('#quantity').val()) || 0;
+            const unitPrice = parseFloat($('#unit_price').val()) || 0;
+            const total = quantity * unitPrice;
+            $('#total_preview').val(total.toFixed(2));
+        }
+    });
+</script>
+{% endblock %}

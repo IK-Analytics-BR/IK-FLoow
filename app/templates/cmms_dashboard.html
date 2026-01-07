@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard CMMS - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Dashboard CMMS</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Dashboard CMMS</li>
+    </ol>
+    
+    <!-- Cards de estatísticas -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Equipamentos</div>
+                            <div class="display-6">{{ equipment_stats.total }}</div>
+                        </div>
+                        <i class="fas fa-cogs fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('equipamento.index') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Ordens de Serviço</div>
+                            <div class="display-6">{{ service_order_stats.total }}</div>
+                        </div>
+                        <i class="fas fa-tools fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('service_order.service_order_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Alertas Ativos</div>
+                            <div class="display-6">{{ alert_stats.active_count }}</div>
+                        </div>
+                        <i class="fas fa-bell fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('alert.alert_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Planos de Manutenção</div>
+                            <div class="display-6">{{ maintenance_plan_stats.total }}</div>
+                        </div>
+                        <i class="fas fa-clipboard-list fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('maintenance_plan.maintenance_plan_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cards de status -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cogs me-1"></i>
+                    Status dos Equipamentos
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-danger text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Crítico</h5>
+                                    <h2>{{ equipment_stats.critical_count }}</h2>
+                                    <p class="small mb-0">Desgaste ≥ 100%</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Alerta</h5>
+                                    <h2>{{ equipment_stats.warning_count }}</h2>
+                                    <p class="small mb-0">Desgaste ≥ 80%</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Normal</h5>
+                                    <h2>{{ equipment_stats.normal_count }}</h2>
+                                    <p class="small mb-0">Desgaste < 80%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <canvas id="equipmentStatusChart" width="100%" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-tools me-1"></i>
+                    Status das Ordens de Serviço
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Abertas</h5>
+                                    <h2>{{ service_order_stats.open_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Em Andamento</h5>
+                                    <h2>{{ service_order_stats.in_progress_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Concluídas</h5>
+                                    <h2>{{ service_order_stats.completed_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5>Canceladas</h5>
+                                    <h2>{{ service_order_stats.canceled_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <canvas id="serviceOrderStatusChart" width="100%" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Ordens de Serviço por Mês
+                </div>
+                <div class="card-body">
+                    <canvas id="serviceOrdersByMonthChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Top 5 Equipamentos com Mais Manutenções
+                </div>
+                <div class="card-body">
+                    <canvas id="topEquipmentChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-cog me-1"></i>
+                    Top 5 Técnicos com Mais Ordens de Serviço
+                </div>
+                <div class="card-body">
+                    <canvas id="topTechniciansChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Planos de Manutenção por Tipo
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenancePlanTypeChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabelas -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Próximas Manutenções
+                </div>
+                <div class="card-body">
+                    {% if upcoming_maintenance %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Equipamento</th>
+                                    <th>Tarefa</th>
+                                    <th>Data</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for plan in upcoming_maintenance %}
+                                <tr class="{% if plan.status == 'overdue' %}table-danger{% elif plan.status == 'warning' %}table-warning{% endif %}">
+                                    <td>{{ plan.equipment_name }}</td>
+                                    <td>{{ plan.task }}</td>
+                                    <td>{{ plan.next_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {% if plan.status == 'overdue' %}
+                                        <span class="badge bg-danger">Atrasada</span>
+                                        {% elif plan.status == 'warning' %}
+                                        <span class="badge bg-warning text-dark">Próxima</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Agendada</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma manutenção programada.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-bell me-1"></i>
+                    Alertas Recentes
+                </div>
+                <div class="card-body">
+                    {% if recent_alerts %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Equipamento</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for alert in recent_alerts %}
+                                <tr class="{% if alert.priority == 'critical' %}table-danger{% elif alert.priority == 'high' %}table-warning{% endif %}">
+                                    <td>{{ alert_types.get(alert.alert_type, 'Desconhecido') }}</td>
+                                    <td>{{ alert.equipment_name }}</td>
+                                    <td>
+                                        {% if alert.status == 'active' %}
+                                        <span class="badge bg-danger">Ativo</span>
+                                        {% elif alert.status == 'acknowledged' %}
+                                        <span class="badge bg-warning text-dark">Reconhecido</span>
+                                        {% elif alert.status == 'resolved' %}
+                                        <span class="badge bg-success">Resolvido</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ alert.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhum alerta recente.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Relatórios -->
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-file-alt me-1"></i>
+                    Relatórios Disponíveis
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">Relatório de Manutenções</h5>
+                                    <p class="card-text">Relatório detalhado de todas as manutenções realizadas, com filtros por período, cliente, equipamento e técnico.</p>
+                                    <a href="{{ url_for('dashboard.maintenance_report') }}" class="btn btn-primary">Acessar</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">Relatório de Custos</h5>
+                                    <p class="card-text">Análise de custos de manutenção por cliente, equipamento ou tipo de manutenção, com detalhamento de peças e mão de obra.</p>
+                                    <a href="{{ url_for('dashboard.cost_report') }}" class="btn btn-primary">Acessar</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">Relatório de Desempenho</h5>
+                                    <p class="card-text">Indicadores de desempenho como MTBF, MTTR e disponibilidade dos equipamentos.</p>
+                                    <a href="{{ url_for('dashboard.performance_report') }}" class="btn btn-primary">Acessar</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Gráfico de status dos equipamentos
+        var ctxEquipment = document.getElementById('equipmentStatusChart').getContext('2d');
+        new Chart(ctxEquipment, {
+            type: 'pie',
+            data: {
+                labels: ['Normal', 'Alerta', 'Crítico'],
+                datasets: [{
+                    data: [
+                        {{ equipment_stats.normal_count }},
+                        {{ equipment_stats.warning_count }},
+                        {{ equipment_stats.critical_count }}
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de status das ordens de serviço
+        var ctxServiceOrder = document.getElementById('serviceOrderStatusChart').getContext('2d');
+        new Chart(ctxServiceOrder, {
+            type: 'pie',
+            data: {
+                labels: ['Abertas', 'Em Andamento', 'Concluídas', 'Canceladas'],
+                datasets: [{
+                    data: [
+                        {{ service_order_stats.open_count }},
+                        {{ service_order_stats.in_progress_count }},
+                        {{ service_order_stats.completed_count }},
+                        {{ service_order_stats.canceled_count }}
+                    ],
+                    backgroundColor: [
+                        'rgba(0, 123, 255, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(0, 123, 255, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de ordens de serviço por mês
+        var ctxMonths = document.getElementById('serviceOrdersByMonthChart').getContext('2d');
+        new Chart(ctxMonths, {
+            type: 'line',
+            data: {
+                labels: [
+                    {% for item in months_data %}
+                        '{{ item.month }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Ordens de Serviço',
+                    data: [
+                        {% for item in months_data %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de top equipamentos
+        var ctxTopEquipment = document.getElementById('topEquipmentChart').getContext('2d');
+        new Chart(ctxTopEquipment, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in top_equipment %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Ordens de Serviço',
+                    data: [
+                        {% for item in top_equipment %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de top técnicos
+        var ctxTopTechnicians = document.getElementById('topTechniciansChart').getContext('2d');
+        new Chart(ctxTopTechnicians, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in top_technicians %}
+                        '{{ item.technician_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Ordens de Serviço',
+                    data: [
+                        {% for item in top_technicians %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.5)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de tipos de planos de manutenção
+        var ctxPlanTypes = document.getElementById('maintenancePlanTypeChart').getContext('2d');
+        new Chart(ctxPlanTypes, {
+            type: 'pie',
+            data: {
+                labels: ['Preventiva', 'Corretiva', 'Preditiva'],
+                datasets: [{
+                    data: [
+                        {{ maintenance_plan_stats.preventive_count }},
+                        {{ maintenance_plan_stats.corrective_count }},
+                        {{ maintenance_plan_stats.predictive_count }}
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(23, 162, 184, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

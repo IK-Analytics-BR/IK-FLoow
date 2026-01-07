@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Integrações - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Integrações</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Integrações</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-building me-1"></i>
+                    Integração com ERP
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5>Status: 
+                                {% if erp_status.enabled %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </h5>
+                            <p>Tipo: {{ erp_status.erp_type|capitalize }}</p>
+                            <p>Última sincronização: 
+                                {% if erp_status.last_sync %}
+                                {{ erp_status.last_sync }}
+                                {% else %}
+                                <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('integration.erp_config') }}" class="btn btn-primary">
+                                <i class="fas fa-cog me-1"></i> Configurar
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <h6>Descrição</h6>
+                    <p>A integração com ERP permite sincronizar dados entre o CMMS e seu sistema ERP, incluindo:</p>
+                    <ul>
+                        <li>Equipamentos e ativos</li>
+                        <li>Estoque e peças</li>
+                        <li>Ordens de serviço e custos</li>
+                    </ul>
+                    
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Configure a integração com seu sistema ERP para manter os dados sincronizados e evitar duplicação de trabalho.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-microchip me-1"></i>
+                    Integração com IoT
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5>Status: 
+                                {% if iot_status.enabled %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </h5>
+                            <p>Tipo: {{ iot_status.integration_type|upper }}</p>
+                            <p>Dispositivos registrados: {{ iot_status.device_count }}</p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('integration.iot_config') }}" class="btn btn-primary">
+                                <i class="fas fa-cog me-1"></i> Configurar
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <h6>Descrição</h6>
+                    <p>A integração com IoT permite coletar dados automaticamente de seus equipamentos, incluindo:</p>
+                    <ul>
+                        <li>Leituras de horímetro automáticas</li>
+                        <li>Monitoramento de temperatura, vibração e outros parâmetros</li>
+                        <li>Alertas em tempo real para condições anormais</li>
+                    </ul>
+                    
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Configure a integração com seus dispositivos IoT para automatizar a coleta de dados e melhorar a precisão do monitoramento.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-exchange-alt me-1"></i>
+                    Visão Geral das Integrações
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Benefícios das Integrações</h5>
+                            <ul>
+                                <li><strong>Automação:</strong> Reduz a entrada manual de dados e erros associados</li>
+                                <li><strong>Tempo Real:</strong> Mantém informações atualizadas em todos os sistemas</li>
+                                <li><strong>Eficiência:</strong> Elimina a duplicação de trabalho entre sistemas</li>
+                                <li><strong>Precisão:</strong> Melhora a qualidade dos dados para tomada de decisão</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Próximos Passos</h5>
+                            <ol>
+                                <li>Configure as integrações necessárias para seu ambiente</li>
+                                <li>Teste as conexões para garantir que estão funcionando corretamente</li>
+                                <li>Mapeie os dispositivos IoT para os equipamentos correspondentes</li>
+                                <li>Configure a sincronização automática com seu ERP</li>
+                                <li>Monitore os logs para garantir que as integrações estão funcionando</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

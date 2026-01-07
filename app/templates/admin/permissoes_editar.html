@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Permissões - {{ usuario.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1">
+                            <li class="breadcrumb-item"><a href="{{ url_for('permissoes.lista') }}">Permissões</a></li>
+                            <li class="breadcrumb-item active">{{ usuario.name }}</li>
+                        </ol>
+                    </nav>
+                    <h2><i class="fas fa-key text-primary"></i> Permissões de {{ usuario.name }}</h2>
+                    <p class="text-muted mb-0">@{{ usuario.username }} | {{ usuario.email }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('permissoes.lista') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <h6 class="mb-2"><i class="fas fa-bolt text-warning"></i> Ações Rápidas</h6>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="btn-group me-2">
+                                <form action="{{ url_for('permissoes.acesso_total_usuario', usuario_id=usuario.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Dar acesso TOTAL a todas as telas?')">
+                                        <i class="fas fa-check-double"></i> Acesso Total
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('permissoes.remover_todas_permissoes', usuario_id=usuario.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('REMOVER todas as permissões?')">
+                                        <i class="fas fa-times"></i> Remover Todas
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-copy"></i> Copiar de...
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% for ou in outros_usuarios %}
+                                    <li>
+                                        <form action="{{ url_for('permissoes.copiar_de_usuario', usuario_id=usuario.id) }}" method="post" class="d-inline w-100">
+                                            <input type="hidden" name="usuario_origem_id" value="{{ ou.id }}">
+                                            <button type="submit" class="dropdown-item" onclick="return confirm('Copiar permissões de {{ ou.name }}?')">
+                                                {{ ou.name }} (@{{ ou.username }})
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário de Permissões -->
+    <form action="{{ url_for('permissoes.salvar_usuario', usuario_id=usuario.id) }}" method="post" id="formPermissoes">
+        {% for modulo_nome, telas in modulos.items() %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open text-primary me-2"></i>{{ modulo_nome }}
+                    <span class="badge bg-secondary ms-2">{{ telas|length }} telas</span>
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-success" onclick="marcarModulo('{{ modulo_nome }}', 'todos', true)" title="Marcar tudo">
+                        <i class="fas fa-check-double"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="marcarModulo('{{ modulo_nome }}', 'todos', false)" title="Desmarcar tudo">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 35%">Tela</th>
+                            <th class="text-center" style="width: 13%">
+                                <i class="fas fa-check-double text-info"></i> Todos
+                            </th>
+                            <th class="text-center" style="width: 13%">
+                                <i class="fas fa-eye text-primary"></i> Visualizar
+                            </th>
+                            <th class="text-center" style="width: 13%">
+                                <i class="fas fa-plus text-success"></i> Criar
+                            </th>
+                            <th class="text-center" style="width: 13%">
+                                <i class="fas fa-edit text-warning"></i> Editar
+                            </th>
+                            <th class="text-center" style="width: 13%">
+                                <i class="fas fa-trash text-danger"></i> Excluir
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tela in telas %}
+                        <tr data-modulo="{{ modulo_nome }}" data-tela-id="{{ tela.tela_id }}">
+                            <td>
+                                <i class="{{ tela.icone }} text-muted me-2"></i>
+                                <strong>{{ tela.nome }}</strong>
+                                <br>
+                                <small class="text-muted">{{ tela.codigo }}</small>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input perm-checkbox perm-todos" type="checkbox" 
+                                           data-tela="{{ tela.tela_id }}" data-tipo="todos"
+                                           {% if tela.pode_visualizar and tela.pode_criar and tela.pode_editar and tela.pode_excluir %}checked{% endif %}>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input perm-checkbox perm-visualizar" type="checkbox" 
+                                           name="perm_{{ tela.tela_id }}_visualizar" value="1"
+                                           data-tela="{{ tela.tela_id }}" data-tipo="visualizar"
+                                           {% if tela.pode_visualizar %}checked{% endif %}>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input perm-checkbox perm-criar" type="checkbox" 
+                                           name="perm_{{ tela.tela_id }}_criar" value="1"
+                                           data-tela="{{ tela.tela_id }}" data-tipo="criar"
+                                           {% if tela.pode_criar %}checked{% endif %}>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input perm-checkbox perm-editar" type="checkbox" 
+                                           name="perm_{{ tela.tela_id }}_editar" value="1"
+                                           data-tela="{{ tela.tela_id }}" data-tipo="editar"
+                                           {% if tela.pode_editar %}checked{% endif %}>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input perm-checkbox perm-excluir" type="checkbox" 
+                                           name="perm_{{ tela.tela_id }}_excluir" value="1"
+                                           data-tela="{{ tela.tela_id }}" data-tipo="excluir"
+                                           {% if tela.pode_excluir %}checked{% endif %}>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Botão Salvar Fixo -->
+        <div class="position-fixed bottom-0 end-0 p-4" style="z-index: 1050;">
+            <button type="submit" class="btn btn-primary btn-lg shadow">
+                <i class="fas fa-save"></i> Salvar Permissões
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.perm-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+.perm-checkbox:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+<script>
+// Marcar/desmarcar módulo inteiro
+function marcarModulo(modulo, campo, valor) {
+    const linhas = document.querySelectorAll(`tr[data-modulo="${modulo}"]`);
+    
+    linhas.forEach(function(linha) {
+        if (campo === 'todos') {
+            linha.querySelectorAll('.perm-checkbox').forEach(cb => cb.checked = valor);
+        } else {
+            const checkbox = linha.querySelector(`.perm-${campo}`);
+            if (checkbox) checkbox.checked = valor;
+        }
+    });
+}
+
+// Lógica: checkbox "Todos" marca/desmarca todas as permissões da linha
+document.querySelectorAll('.perm-todos').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        const linha = this.closest('tr');
+        const valor = this.checked;
+        linha.querySelectorAll('.perm-visualizar, .perm-criar, .perm-editar, .perm-excluir').forEach(c => c.checked = valor);
+    });
+});
+
+// Lógica: se marcar criar/editar/excluir, marca visualizar automaticamente
+document.querySelectorAll('.perm-criar, .perm-editar, .perm-excluir').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            const linha = this.closest('tr');
+            const visualizar = linha.querySelector('.perm-visualizar');
+            if (visualizar) visualizar.checked = true;
+        }
+        atualizarCheckboxTodos(this.closest('tr'));
+    });
+});
+
+// Lógica: se desmarcar visualizar, desmarca os outros
+document.querySelectorAll('.perm-visualizar').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        if (!this.checked) {
+            const linha = this.closest('tr');
+            linha.querySelectorAll('.perm-criar, .perm-editar, .perm-excluir').forEach(c => c.checked = false);
+        }
+        atualizarCheckboxTodos(this.closest('tr'));
+    });
+});
+
+// Atualiza o checkbox "Todos" baseado no estado dos outros
+function atualizarCheckboxTodos(linha) {
+    const todos = linha.querySelector('.perm-todos');
+    if (!todos) return;
+    
+    const visualizar = linha.querySelector('.perm-visualizar')?.checked || false;
+    const criar = linha.querySelector('.perm-criar')?.checked || false;
+    const editar = linha.querySelector('.perm-editar')?.checked || false;
+    const excluir = linha.querySelector('.perm-excluir')?.checked || false;
+    
+    todos.checked = visualizar && criar && editar && excluir;
+}
+</script>
+{% endblock %}

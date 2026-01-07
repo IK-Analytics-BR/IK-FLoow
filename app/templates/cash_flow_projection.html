@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Projeção de Fluxo de Caixa - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Projeção de Fluxo de Caixa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cash_flow.cash_flow_dashboard') }}">Fluxo de Caixa</a></li>
+        <li class="breadcrumb-item active">Projeção</li>
+    </ol>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-filter me-1"></i>
+                    Filtros
+                </div>
+                <div class="card-body">
+                    <form id="filterForm" method="get" action="{{ url_for('cash_flow.cash_flow_projection') }}">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="months" class="form-label">Período de Projeção</label>
+                                <select class="form-select" id="months" name="months">
+                                    <option value="1" {% if months == 1 %}selected{% endif %}>1 mês</option>
+                                    <option value="3" {% if months == 3 %}selected{% endif %}>3 meses</option>
+                                    <option value="6" {% if months == 6 %}selected{% endif %}>6 meses</option>
+                                    <option value="12" {% if months == 12 %}selected{% endif %}>12 meses</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="bank_account_id" class="form-label">Conta Bancária</label>
+                                <select class="form-select" id="bank_account_id" name="bank_account_id">
+                                    <option value="">Todas as contas</option>
+                                    {% for account in bank_accounts %}
+                                    <option value="{{ account.id }}" {% if bank_account_id|int == account.id %}selected{% endif %}>
+                                        {{ account.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-1"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{{ url_for('cash_flow.cash_flow_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar para Dashboard
+                    </a>
+                    <div>
+                        <a href="{{ url_for('cash_flow.cash_flow_report') }}" class="btn btn-info">
+                            <i class="fas fa-chart-bar"></i> Relatórios
+                        </a>
+                        <a href="{{ url_for('cash_flow.cash_flow_simulation') }}" class="btn btn-info">
+                            <i class="fas fa-calculator"></i> Simulação
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Saldo Atual</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(current_balance) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Saldo disponível nas contas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Entradas Previstas</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(projection_items|selectattr('type', 'equalto', 'income')|sum(attribute='amount')) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Total de receitas previstas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Saídas Previstas</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(projection_items|selectattr('type', 'equalto', 'expense')|sum(attribute='amount')) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Total de despesas previstas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Projeção de Saldo
+                </div>
+                <div class="card-body">
+                    <canvas id="projectionChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-table me-1"></i>
+                    Itens da Projeção
+                </div>
+                <div class="card-body">
+                    {% if projection_items %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Saldo Projetado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="table-primary">
+                                    <td>Hoje</td>
+                                    <td>Saldo Atual</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>R$ {{ "%.2f"|format(current_balance) }}</td>
+                                </tr>
+                                {% for item in projection_items %}
+                                <tr class="{{ 'table-success' if item.type == 'income' else 'table-danger' }}">
+                                    <td>{{ item.date.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ item.description }}</td>
+                                    <td>
+                                        {% if item.type == 'income' %}
+                                            <span class="badge bg-success">Entrada</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Saída</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if item.type == 'income' else 'text-danger' }}">
+                                        R$ {{ "%.2f"|format(item.amount) }}
+                                    </td>
+                                    <td class="{{ 'text-success' if item.balance >= 0 else 'text-danger' }}">
+                                        R$ {{ "%.2f"|format(item.balance) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhum item encontrado para projeção.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Preparar dados para o gráfico
+        var dates = {{ dates|tojson }};
+        var balances = {{ balances|tojson }};
+        
+        // Gráfico de projeção
+        var ctx = document.getElementById("projectionChart");
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Saldo Projetado',
+                        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 2,
+                        pointRadius: 5,
+                        pointBackgroundColor: function(context) {
+                            var value = context.dataset.data[context.dataIndex];
+                            return value < 0 ? 'rgba(220, 53, 69, 1)' : 'rgba(40, 167, 69, 1)';
+                        },
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0.1,
+                        data: balances
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Saldo (R$)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    var value = context.raw || 0;
+                                    return label + ': R$ ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

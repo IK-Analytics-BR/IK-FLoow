@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Alertas - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Configuração de Alertas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('alert.alert_list') }}">Alertas</a></li>
+        <li class="breadcrumb-item active">Configuração</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-envelope me-1"></i>
+                    Configuração de E-mail
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('alert.alert_config') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="smtp_server" class="form-label">Servidor SMTP <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="smtp_server" name="smtp_server" required>
+                                <div class="form-text">Ex: smtp.gmail.com</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="smtp_port" class="form-label">Porta SMTP <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="smtp_port" name="smtp_port" required>
+                                <div class="form-text">Ex: 587 para TLS, 465 para SSL</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">Usuário <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                                <div class="form-text">Geralmente seu endereço de e-mail completo</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">Senha <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <div class="form-text">Para Gmail, use uma senha de aplicativo</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="from_email" class="form-label">E-mail de Origem <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="from_email" name="from_email" required>
+                                <div class="form-text">E-mail que enviará as notificações</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="to_email" class="form-label">E-mail de Destino <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="to_email" name="to_email" required>
+                                <div class="form-text">E-mail que receberá as notificações</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Atenção:</strong> As credenciais de e-mail serão armazenadas em um arquivo de configuração. Certifique-se de que o servidor tenha as permissões adequadas para proteger essas informações.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar Configurações
+                                </button>
+                                <a href="{{ url_for('alert.alert_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações sobre Notificações
+                </div>
+                <div class="card-body">
+                    <h5>Tipos de Alerta que Geram Notificações</h5>
+                    <ul>
+                        <li><strong>Desgaste 80%:</strong> Quando um equipamento ou componente atinge 80% da vida útil ajustada.</li>
+                        <li><strong>Desgaste 100%:</strong> Quando um equipamento ou componente atinge 100% da vida útil ajustada.</li>
+                        <li><strong>Estoque Baixo:</strong> Quando o estoque de um componente está abaixo do mínimo.</li>
+                        <li><strong>Manutenção Programada:</strong> Quando uma manutenção programada está pendente.</li>
+                        <li><strong>OS Criada:</strong> Quando uma nova ordem de serviço é criada.</li>
+                    </ul>
+                    
+                    <h5>Configuração para Gmail</h5>
+                    <p>Se você estiver usando o Gmail, siga estas etapas:</p>
+                    <ol>
+                        <li>Acesse sua conta do Google e vá para "Segurança".</li>
+                        <li>Ative a verificação em duas etapas, se ainda não estiver ativada.</li>
+                        <li>Crie uma "Senha de aplicativo" específica para este sistema.</li>
+                        <li>Use essa senha no campo "Senha" acima.</li>
+                    </ol>
+                    
+                    <h5>Teste de Configuração</h5>
+                    <p>Após salvar as configurações, você pode testar o envio de e-mail criando um alerta manual.</p>
+                    <a href="{{ url_for('alert.alert_create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Criar Alerta de Teste
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cog me-1"></i>
+                    Outras Configurações
+                </div>
+                <div class="card-body">
+                    <p>Configurações adicionais de alertas serão implementadas em versões futuras:</p>
+                    <ul>
+                        <li>Notificações por SMS</li>
+                        <li>Notificações por WhatsApp</li>
+                        <li>Configuração de regras personalizadas para alertas</li>
+                        <li>Configuração de destinatários por tipo de alerta</li>
+                        <li>Agendamento de relatórios periódicos</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

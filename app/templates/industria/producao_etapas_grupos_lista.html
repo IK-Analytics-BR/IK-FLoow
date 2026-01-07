@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Grupos de Etapas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-layer-group"></i> Grupos de Etapas</h4>
+                    <div>
+                        <a href="{{ url_for('ordem_producao.etapas_lista') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-stream"></i> Etapas
+                        </a>
+                        <a href="{{ url_for('ordem_producao.etapas_grupos_novo') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus"></i> Novo Grupo
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:80px;">Ordem</th>
+                                    <th>Nome</th>
+                                    <th style="width:120px;">Cor</th>
+                                    <th style="width:100px;">Ativo</th>
+                                    <th style="width:220px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if grupos %}
+                                {% for g in grupos %}
+                                <tr>
+                                    <td>{{ g.ordem }}</td>
+                                    <td>{{ g.nome }}</td>
+                                    <td>
+                                        {% if g.cor_hex %}
+                                        <span class="badge etapa-cor-badge" data-bg="{{ g.cor_hex }}">&nbsp;</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if g.ativo %}
+                                        <span class="badge bg-success">Sim</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Não</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('ordem_producao.etapas_grupos_editar', id=g.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        <form method="post" action="{{ url_for('ordem_producao.etapas_grupos_toggle', id=g.id) }}" class="d-inline" onsubmit="return confirm('Alterar status deste grupo?');">
+                                            <button class="btn btn-sm btn-warning" type="submit">
+                                                <i class="fas fa-toggle-on"></i> Ativar/Desativar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Nenhum grupo cadastrado.</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="text-muted"><small>Use grupos para organizar e filtrar colunas (etapas) na tela de Produção (Gantt).</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.etapa-cor-badge').forEach(el => {
+        const bg = el.getAttribute('data-bg');
+        if (bg) el.style.background = bg;
+    });
+});
+</script>
+{% endblock %}

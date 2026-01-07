@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Empresa - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-building me-2"></i>
+            Detalhes da Empresa
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('empresa.empresa_editar', id=empresa.id) }}" class="btn btn-sm btn-warning">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="confirmarExclusao({{ empresa.id }}, '{{ empresa.nome_fantasia }}')">
+                    <i class="fas fa-trash"></i> Excluir
+                </button>
+            </div>
+            <a href="{{ url_for('empresa.empresas') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-8">
+            <!-- Dados Principais -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-id-card me-1"></i>
+                    Dados Principais
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <strong>Código:</strong>
+                            <p class="text-muted">{{ empresa.id }}</p>
+                        </div>
+                        <div class="col-md-10">
+                            <strong>Razão Social:</strong>
+                            <p class="text-muted">{{ empresa.razao_social }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>Nome Fantasia:</strong>
+                            <p class="text-muted">{{ empresa.nome_fantasia }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>CNPJ:</strong>
+                            <p class="text-muted">{{ empresa.cnpj }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Inscrição Estadual:</strong>
+                            <p class="text-muted">{{ empresa.inscricao_estadual if empresa.inscricao_estadual else '-' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Inscrição Municipal:</strong>
+                            <p class="text-muted">{{ empresa.inscricao_municipal if empresa.inscricao_municipal else '-' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados de Contato -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-phone me-1"></i>
+                    Dados de Contato
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Telefone:</strong>
+                            <p class="text-muted">{{ empresa.telefone if empresa.telefone else '-' }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Celular:</strong>
+                            <p class="text-muted">{{ empresa.celular if empresa.celular else '-' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>E-mail:</strong>
+                            <p class="text-muted">
+                                {% if empresa.email %}
+                                <a href="mailto:{{ empresa.email }}">{{ empresa.email }}</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>Website:</strong>
+                            <p class="text-muted">
+                                {% if empresa.website %}
+                                <a href="{{ empresa.website }}" target="_blank">{{ empresa.website }}</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    Endereço
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>Endereço Completo:</strong>
+                            <p class="text-muted">
+                                {% if empresa.logradouro %}
+                                {{ empresa.logradouro }}{% if empresa.numero %}, {{ empresa.numero }}{% endif %}{% if empresa.complemento %} - {{ empresa.complemento }}{% endif %}
+                                <br>
+                                {{ empresa.bairro if empresa.bairro else '' }}{% if empresa.bairro and empresa.cidade %} - {% endif %}{{ empresa.cidade if empresa.cidade else '' }}/{{ empresa.estado if empresa.estado else '' }}
+                                {% if empresa.cep %}
+                                <br>CEP: {{ empresa.cep }}
+                                {% endif %}
+                                {% if empresa.pais %}
+                                <br>{{ empresa.pais }}
+                                {% endif %}
+                                {% else %}
+                                Endereço não cadastrado
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados Fiscais -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-file-invoice-dollar me-1"></i>
+                    Dados Fiscais e Tributários
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Regime Tributário:</strong>
+                            <p class="text-muted">{{ empresa.regime_tributario if empresa.regime_tributario else '-' }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>CNAE Principal:</strong>
+                            <p class="text-muted">{{ empresa.cnae_principal if empresa.cnae_principal else '-' }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Capital Social:</strong>
+                            <p class="text-muted">
+                                {% if empresa.capital_social %}
+                                R$ {{ '%0.2f'|format(empresa.capital_social) }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <strong>Natureza Jurídica:</strong>
+                            <p class="text-muted">{{ empresa.natureza_juridica if empresa.natureza_juridica else '-' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Data de Abertura:</strong>
+                            <p class="text-muted">
+                                {% if empresa.data_abertura %}
+                                {{ empresa.data_abertura.strftime('%d/%m/%Y') if empresa.data_abertura is not string else empresa.data_abertura }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Dados Bancários -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-university me-1"></i>
+                    Dados Bancários
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Banco:</strong>
+                        <p class="text-muted">{{ empresa.banco if empresa.banco else '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Agência:</strong>
+                        <p class="text-muted">{{ empresa.agencia if empresa.agencia else '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Conta:</strong>
+                        <p class="text-muted">{{ empresa.conta if empresa.conta else '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Tipo de Conta:</strong>
+                        <p class="text-muted">{{ empresa.tipo_conta if empresa.tipo_conta else '-' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Responsável Legal -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <i class="fas fa-user-tie me-1"></i>
+                    Responsável Legal
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Nome Completo:</strong>
+                        <p class="text-muted">{{ empresa.responsavel_legal if empresa.responsavel_legal else '-' }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>CPF:</strong>
+                        <p class="text-muted">{{ empresa.cpf_responsavel if empresa.cpf_responsavel else '-' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observações -->
+            {% if empresa.observacoes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-comment-alt me-1"></i>
+                    Observações
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">{{ empresa.observacoes }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Informações de Sistema -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações do Sistema
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Data de Cadastro:</strong>
+                        <p class="text-muted">
+                            {% if empresa.created_at %}
+                            {{ empresa.created_at.strftime('%d/%m/%Y %H:%M') if empresa.created_at is not string else empresa.created_at }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Última Atualização:</strong>
+                        <p class="text-muted">
+                            {% if empresa.updated_at %}
+                            {{ empresa.updated_at.strftime('%d/%m/%Y %H:%M') if empresa.updated_at is not string else empresa.updated_at }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Status:</strong>
+                        <p>
+                            {% if empresa.ativo %}
+                            <span class="badge bg-success">Ativa</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inativa</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExclusao" tabindex="-1" aria-labelledby="modalExclusaoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="modalExclusaoLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir a empresa <strong id="nomeEmpresa"></strong>?</p>
+                <p class="text-muted">Esta ação não poderá ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <form id="formExclusao" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmarExclusao(id, nome) {
+        document.getElementById('nomeEmpresa').textContent = nome;
+        document.getElementById('formExclusao').action = "{{ url_for('empresa.empresa_excluir', id=0) }}".replace('0', id);
+        var modal = new bootstrap.Modal(document.getElementById('modalExclusao'));
+        modal.show();
+    }
+</script>
+{% endblock %}

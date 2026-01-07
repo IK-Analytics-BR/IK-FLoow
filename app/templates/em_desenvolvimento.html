@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Em Desenvolvimento{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-hard-hat text-warning" style="font-size: 5rem;"></i>
+                    </div>
+                    <h2 class="text-primary mb-3">
+                        {% if funcionalidade %}
+                            {{ funcionalidade|replace('_', ' ')|replace('-', ' ')|title }}
+                        {% else %}
+                            Funcionalidade
+                        {% endif %}
+                    </h2>
+                    <h4 class="text-muted mb-4">Em Desenvolvimento</h4>
+                    <p class="lead text-secondary mb-4">
+                        Esta funcionalidade está sendo desenvolvida e estará disponível em breve.
+                    </p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Estamos trabalhando para trazer esta funcionalidade o mais rápido possível.
+                    </div>
+                    <div class="mt-4">
+                        <a href="{{ url_for('bem_vindo') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-home me-2"></i> Voltar ao Início
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

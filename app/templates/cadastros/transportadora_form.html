@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if transportadora else 'Nova' }} Transportadora{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Cabeçalho -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="fas fa-truck me-2"></i>
+                    {{ 'Editar' if transportadora else 'Nova' }} Transportadora
+                </h4>
+                <a href="{{ url_for('transportadoras.lista') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                </a>
+            </div>
+            
+            <!-- Formulário -->
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('transportadoras.salvar') }}" method="POST">
+                        {% if transportadora %}
+                        <input type="hidden" name="id" value="{{ transportadora.id }}">
+                        {% endif %}
+                        
+                        <!-- Dados Básicos -->
+                        <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-info-circle me-1"></i> Dados Básicos</h6>
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Código</label>
+                                <input type="text" name="codigo" class="form-control" 
+                                       value="{{ transportadora.codigo if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                                <input type="text" name="nome" class="form-control" required
+                                       value="{{ transportadora.nome if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Razão Social</label>
+                                <input type="text" name="razao_social" class="form-control"
+                                       value="{{ transportadora.razao_social if transportadora else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-3">
+                                <label class="form-label">CNPJ</label>
+                                <input type="text" name="cnpj" class="form-control" 
+                                       value="{{ transportadora.cnpj if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">CPF</label>
+                                <input type="text" name="cpf" class="form-control"
+                                       value="{{ transportadora.cpf if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Inscrição Estadual</label>
+                                <input type="text" name="inscricao_estadual" class="form-control"
+                                       value="{{ transportadora.inscricao_estadual if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="active" class="form-check-input" id="active"
+                                           {{ 'checked' if not transportadora or transportadora.active else '' }}>
+                                    <label class="form-check-label" for="active">Ativa</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Endereço -->
+                        <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="fas fa-map-marker-alt me-1"></i> Endereço</h6>
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label">CEP</label>
+                                <input type="text" name="cep" class="form-control"
+                                       value="{{ transportadora.cep if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Endereço</label>
+                                <input type="text" name="endereco" class="form-control"
+                                       value="{{ transportadora.endereco if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Número</label>
+                                <input type="text" name="numero" class="form-control"
+                                       value="{{ transportadora.numero if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Complemento</label>
+                                <input type="text" name="complemento" class="form-control"
+                                       value="{{ transportadora.complemento if transportadora else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-3">
+                                <label class="form-label">Bairro</label>
+                                <input type="text" name="bairro" class="form-control"
+                                       value="{{ transportadora.bairro if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Cidade</label>
+                                <input type="text" name="cidade" class="form-control"
+                                       value="{{ transportadora.cidade if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Estado</label>
+                                <input type="text" name="estado" class="form-control" maxlength="2"
+                                       value="{{ transportadora.estado if transportadora else '' }}">
+                            </div>
+                        </div>
+                        
+                        <!-- Contato -->
+                        <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="fas fa-phone me-1"></i> Contato</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Telefone</label>
+                                <input type="text" name="telefone" class="form-control"
+                                       value="{{ transportadora.telefone if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Celular</label>
+                                <input type="text" name="celular" class="form-control"
+                                       value="{{ transportadora.celular if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">E-mail</label>
+                                <input type="email" name="email" class="form-control"
+                                       value="{{ transportadora.email if transportadora else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Contato</label>
+                                <input type="text" name="contato" class="form-control"
+                                       value="{{ transportadora.contato if transportadora else '' }}">
+                            </div>
+                        </div>
+                        
+                        <!-- Observações -->
+                        <div class="row g-3 mt-1">
+                            <div class="col-12">
+                                <label class="form-label">Observações</label>
+                                <textarea name="observacoes" class="form-control" rows="2">{{ transportadora.observacoes if transportadora else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ url_for('transportadoras.lista') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

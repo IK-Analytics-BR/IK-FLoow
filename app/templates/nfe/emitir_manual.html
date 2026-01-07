@@ -1,0 +1,1389 @@
+{% extends "base.html" %}
+
+{% block title %}Emissão Manual de NF-e{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* v2.1 - Diferenciação de Modelos NFe - 19/11/2025 15:12 */
+    .section-card { margin-bottom: 20px; border-left: 4px solid #007bff; }
+    .totalizador { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; }
+    .totalizador h5 { color: #28a745; font-size: 24px; }
+    .readonly-field { background-color: #e9ecef; }
+    #produtosTable input { padding: 4px; font-size: 12px; }
+    
+    /* ========== DIFERENCIAÇÃO MODELO NFe ========== */
+    /* Modelo ANTIGO: Oculta campos da REFORMA */
+    body.modelo-antigo th.coluna-reforma,
+    body.modelo-antigo td.coluna-reforma {
+        display: none !important;
+    }
+    
+    body.modelo-antigo .campo-reforma,
+    body.modelo-antigo .secao-reforma,
+    body.modelo-antigo div.secao-reforma {
+        display: none !important;
+    }
+    
+    /* Modelo REFORMA: Oculta campos ANTIGOS */
+    body.modelo-reforma th.coluna-antigo,
+    body.modelo-reforma td.coluna-antigo {
+        display: none !important;
+    }
+    
+    body.modelo-reforma .campo-antigo,
+    body.modelo-reforma .secao-antigo,
+    body.modelo-reforma div.secao-antigo {
+        display: none !important;
+    }
+    
+    /* Fundo verde APENAS nas colunas de reforma quando visíveis */
+    body.modelo-reforma th.coluna-reforma,
+    body.modelo-reforma td.coluna-reforma {
+        background-color: #d1e7dd !important;
+    }
+    /* ============================================== */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Emissão Manual de NF-e</h4>
+        </div>
+        <div class="card-body">
+            <form id="nfeForm">
+                <!-- Campo hidden para ID da venda em modo edição -->
+                {% if modo_edicao and venda_existente %}
+                <input type="hidden" id="venda_id" name="venda_id" value="{{ venda_existente.id }}">
+                {% endif %}
+
+                <!-- 1. IDENTIFICAÇÃO -->
+                <div class="card section-card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">1. Identificação da NF-e</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">Empresa Emitente *</label>
+                                <select class="form-select" id="empresa_id" name="empresa_id" required>
+                                    <option value="">Selecione...</option>
+                                    {% for empresa in empresas %}
+                                    <option value="{{ empresa.id }}"
+                                            data-cnpj="{{ empresa.cnpj }}"
+                                            data-ie="{{ empresa.inscricao_estadual }}"
+                                            data-razao="{{ empresa.razao_social }}"
+                                            data-fantasia="{{ empresa.nome_fantasia }}"
+                                            data-uf="{{ empresa.estado }}"
+                                            data-crt="{{ empresa.crt or '3' }}"
+                                            data-municipio="{{ empresa.codigo_municipio_ibge }}"
+                                            data-modelo="{{ empresa.modelo_nfe or 'antigo' }}">
+                                        {{ empresa.nome_fantasia }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <!-- Badge de Ambiente e Modelo -->
+                                <div id="badge-ambiente" style="margin-top: 8px; display: none;">
+                                    <span id="badge-ambiente-texto" class="badge"></span>
+                                    <span id="badge-modelo-texto" class="badge"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Série *</label>
+                                <input type="number" class="form-control" id="serie" name="serie" value="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Número NF-e</label>
+                                <input type="number" class="form-control" id="nNF" name="nNF" placeholder="Auto">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Data Emissão *</label>
+                                <input type="date" class="form-control" id="dhEmi" name="dhEmi" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Tipo Operação</label>
+                                <select class="form-select" name="tpNF">
+                                    <option value="0">0 - Entrada</option>
+                                    <option value="1" selected>1 - Saída</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Finalidade</label>
+                                <select class="form-select" name="finNFe">
+                                    <option value="1" selected>1 - Normal</option>
+                                    <option value="2">2 - Complementar</option>
+                                    <option value="3">3 - Ajuste</option>
+                                    <option value="4">4 - Devolução</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Consumidor Final</label>
+                                <select class="form-select" name="indFinal">
+                                    <option value="0">0 - Não</option>
+                                    <option value="1" selected>1 - Sim</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Presença</label>
+                                <select class="form-select" name="indPres">
+                                    <option value="0">0 - Não se aplica</option>
+                                    <option value="1" selected>1 - Presencial</option>
+                                    <option value="2">2 - Internet</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Natureza Operação</label>
+                                <input type="text" class="form-control" name="natOp" value="Venda de Mercadoria">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. EMITENTE -->
+                <div class="card section-card" id="secao-emitente" style="display: none;">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">2. Dados do Emitente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Razão Social</label>
+                                <input type="text" class="form-control readonly-field" id="emitXNome" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">CNPJ</label>
+                                <input type="text" class="form-control readonly-field" id="emitCNPJ" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">IE</label>
+                                <input type="text" class="form-control readonly-field" id="emitIE" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. DESTINATÁRIO -->
+                <div class="card section-card" id="secao-destinatario" style="display: none;">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">3. Dados do Destinatário</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Cliente *</label>
+                                <select class="form-select" id="cliente_id" name="cliente_id" required>
+                                    <option value="">Selecione...</option>
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.id }}"
+                                            data-nome="{{ cliente.name }}"
+                                            data-cnpj="{{ cliente.cnpj or cliente.cpf }}"
+                                            data-ie="{{ cliente.ie or '' }}"
+                                            data-endereco="{{ cliente.address or '' }}"
+                                            data-numero="{{ cliente.number or 'SN' }}"
+                                            data-bairro="{{ cliente.neighborhood or '' }}"
+                                            data-cidade="{{ cliente.city or '' }}"
+                                            data-uf="{{ cliente.state or '' }}"
+                                            data-cep="{{ cliente.cep or '' }}"
+                                            data-cmun="{{ cliente.codigo_municipio or '' }}"
+                                            data-indie="{{ '1' if cliente.ie else '9' }}"
+                                            data-email="{{ cliente.email or '' }}"
+                                            data-phone="{{ cliente.phone or '' }}">
+                                        {{ cliente.name }} - {{ cliente.cnpj or cliente.cpf }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">CPF/CNPJ</label>
+                                <input type="text" class="form-control readonly-field" id="destCPFCNPJ" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo IE</label>
+                                <select class="form-select" id="indIEDest" name="indIEDest">
+                                    <option value="1">1 - Contribuinte</option>
+                                    <option value="2">2 - Isento</option>
+                                    <option value="9" selected>9 - Não contribuinte</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Endereço</label>
+                                <input type="text" class="form-control readonly-field" id="destXLgr" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Número</label>
+                                <input type="text" class="form-control readonly-field" id="destNro" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Bairro</label>
+                                <input type="text" class="form-control readonly-field" id="destXBairro" readonly>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Município</label>
+                                <input type="text" class="form-control readonly-field" id="destXMun" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">UF</label>
+                                <input type="text" class="form-control readonly-field" id="destUF" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">CEP</label>
+                                <input type="text" class="form-control readonly-field" id="destCEP" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">IE</label>
+                                <input type="text" class="form-control readonly-field" id="destIE" readonly>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-5">
+                                <label class="form-label"><i class="fas fa-envelope text-success"></i> Email (para envio da NF-e)</label>
+                                <input type="email" class="form-control" id="destEmail" name="destEmail" placeholder="email@cliente.com">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Telefone</label>
+                                <input type="text" class="form-control readonly-field" id="destFone" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. PRODUTOS -->
+                <div class="card section-card" id="secao-produtos" style="display: none;">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">4. Produtos/Serviços</h5>
+                        <button type="button" class="btn btn-success btn-sm" onclick="adicionarProduto()">
+                            <i class="fas fa-plus"></i> Adicionar Produto
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm table-hover" id="produtosTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 3%">#</th>
+                                        <th style="width: 15%">Produto</th>
+                                        <th style="width: 6%">NCM</th>
+                                        <th style="width: 5%">CFOP</th>
+                                        <th style="width: 5%" class="coluna-antigo">ICMS%</th>
+                                        <th style="width: 5%" class="coluna-antigo">IPI%</th>
+                                        <th style="width: 5%" class="coluna-antigo">PIS%</th>
+                                        <th style="width: 5%" class="coluna-antigo">COFINS%</th>
+                                        <th style="width: 5%" class="coluna-reforma">IBS%</th>
+                                        <th style="width: 5%" class="coluna-reforma">CBS%</th>
+                                        <th style="width: 5%" class="coluna-reforma">IS%</th>
+                                        <th style="width: 5%">Qtd</th>
+                                        <th style="width: 4%">Un</th>
+                                        <th style="width: 7%">Vlr Unit</th>
+                                        <th style="width: 6%">Desc</th>
+                                        <th style="width: 8%">Total</th>
+                                        <th style="width: 4%">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="produtosBody">
+                                    <tr>
+                                        <td colspan="17" class="text-center text-muted">
+                                            Nenhum produto adicionado. Clique em "Adicionar Produto" acima.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. IMPOSTOS E TOTAIS -->
+                <div class="card section-card" id="secao-totais" style="display: none;">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">5. Impostos e Totalizadores</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Linha 1: Valores -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <h6 class="text-primary mb-3"><i class="fas fa-dollar-sign"></i> Valores da Nota</h6>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Subtotal Produtos:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vProd">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold text-danger">Desconto Produtos:</label>
+                                <div class="form-control-plaintext text-end text-danger"><strong id="vDesc">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-danger">Desconto Adicional:</label>
+                                <input type="number" class="form-control text-end" 
+                                       id="vDescAdicional" value="0.00" step="0.01" min="0" onchange="calcularTotais()" 
+                                       placeholder="R$ 0,00">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Frete:</label>
+                                <input type="number" class="form-control text-end" 
+                                       id="vFrete" value="0.00" step="0.01" min="0" onchange="calcularTotais()">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Seguro:</label>
+                                <input type="number" class="form-control text-end" 
+                                       id="vSeg" value="0.00" step="0.01" min="0" onchange="calcularTotais()">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Outras Despesas:</label>
+                                <input type="number" class="form-control text-end" 
+                                       id="vOutro" value="0.00" step="0.01" min="0" onchange="calcularTotais()">
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Linha 2: Impostos Tradicionais -->
+                        <div class="row mb-3 secao-antigo">
+                            <div class="col-md-12">
+                                <h6 class="text-primary mb-3"><i class="fas fa-calculator"></i> Impostos Tradicionais</h6>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Base ICMS:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vBC">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Valor ICMS:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vICMS">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Valor IPI:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vIPI">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Valor PIS:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vPIS">R$ 0,00</strong></div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Valor COFINS:</label>
+                                <div class="form-control-plaintext text-end"><strong id="vCOFINS">R$ 0,00</strong></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Linha 3: Reforma Tributária -->
+                        <div class="row mb-3 secao-reforma">
+                            <div class="col-md-12">
+                                <h6 class="text-success mb-3">
+                                    <i class="fas fa-star"></i> Reforma Tributária (LC 214/2025)
+                                </h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-success">Valor IBS:</label>
+                                <div class="form-control-plaintext text-end bg-success-subtle p-2 rounded">
+                                    <strong id="vIBS">R$ 0,00</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-success">Valor CBS:</label>
+                                <div class="form-control-plaintext text-end bg-success-subtle p-2 rounded">
+                                    <strong id="vCBS">R$ 0,00</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-success">Valor IS:</label>
+                                <div class="form-control-plaintext text-end bg-success-subtle p-2 rounded">
+                                    <strong id="vIS">R$ 0,00</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Total -->
+                        <div class="totalizador text-center">
+                            <h6 class="text-muted">TOTAL DA NF-e</h6>
+                            <h5 class="text-success" id="vNF">R$ 0,00</h5>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. PAGAMENTO -->
+                <div class="card section-card" id="secao-pagamento" style="display: none;">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">6. Pagamento</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Forma de Pagamento</label>
+                                <select class="form-select" id="tPag" name="tPag">
+                                    <option value="01">01 - Dinheiro</option>
+                                    <option value="02">02 - Cheque</option>
+                                    <option value="03">03 - Cartão de Crédito</option>
+                                    <option value="04">04 - Cartão de Débito</option>
+                                    <option value="05">05 - Crédito Loja</option>
+                                    <option value="15" selected>15 - PIX</option>
+                                    <option value="90">90 - Sem pagamento</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Valor do Pagamento</label>
+                                <input type="number" class="form-control readonly-field" id="vPag" step="0.01" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. INFORMAÇÕES ADICIONAIS -->
+                <div class="card section-card" id="secao-informacoes" style="display: none;">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">7. Informações Adicionais</h5>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label">Informações Complementares</label>
+                        <textarea class="form-control" id="infCpl" name="infCpl" rows="3" 
+                                  placeholder="Informações adicionais de interesse do contribuinte..."></textarea>
+                    </div>
+                </div>
+
+                <!-- BOTÕES -->
+                <div class="card">
+                    <div class="card-body text-end">
+                        <a href="{{ url_for('nfe_emissao.vendas_pendentes') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="button" class="btn btn-primary btn-lg me-2" onclick="salvarNFe(false)">
+                            <i class="fas fa-save"></i> Gravar
+                        </button>
+                        <button type="button" class="btn btn-success btn-lg" onclick="salvarNFe(true)">
+                            <i class="fas fa-paper-plane"></i> Gravar e Emitir
+                        </button>
+                    </div>
+                </div>
+
+                       </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Selecionar Produto -->
+<div class="modal fade" id="modalProduto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Adicionar Produto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Produto *</label>
+                    <select class="form-select" id="modal_produto">
+                        <option value="">Selecione...</option>
+                        {% for produto in produtos %}
+                        <option value="{{ produto.id }}"
+                                data-nome="{{ produto.name }}"
+                                data-ncm="{{ produto.ncm or '00000000' }}"
+                                data-cfop="{{ produto.cfop_out or produto.cfop or '5102' }}"
+                                data-unidade="{{ produto.unit_measure or 'UN' }}"
+                                data-preco="{{ produto.price or 0 }}"
+                                data-cst="{{ produto.cst_csosn or '00' }}"
+                                data-icms="{{ produto.icms_rate or 0 }}"
+                                data-ipi="{{ produto.ipi_rate or 0 }}"
+                                data-pis="{{ produto.pis_rate or 0 }}"
+                                data-cofins="{{ produto.cofins_rate or 0 }}"
+                                data-cst-ipi="{{ produto.cst_ipi or '99' }}"
+                                data-cst-pis="{{ produto.cst_pis or '99' }}"
+                                data-cst-cofins="{{ produto.cst_cofins or '99' }}"
+                                data-cst-ibs="{{ produto.cst_ibs or '' }}"
+                                data-aliq-ibs="{{ produto.aliquota_ibs or 0 }}"
+                                data-cst-cbs="{{ produto.cst_cbs or '' }}"
+                                data-aliq-cbs="{{ produto.aliquota_cbs or 0 }}"
+                                data-cst-is="{{ produto.cst_is or '' }}"
+                                data-aliq-is="{{ produto.aliquota_is or 0 }}"
+                                data-origem="{{ produto.origem_mercadoria or '0' }}"
+                                data-cest="{{ produto.cest or '' }}">
+                            {{ produto.name }} - R$ {{ "%.2f"|format(produto.price or 0) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">NCM</label>
+                        <input type="text" class="form-control" id="modal_ncm" maxlength="8">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">CFOP</label>
+                        <input type="text" class="form-control" id="modal_cfop" maxlength="4">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Unidade</label>
+                        <input type="text" class="form-control" id="modal_unidade" maxlength="6" value="UN">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Quantidade *</label>
+                        <input type="number" class="form-control" id="modal_qtd" value="1" step="0.01" min="0.01" onchange="calcularSubtotalModal()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Valor Unitário *</label>
+                        <input type="number" class="form-control" id="modal_vun" step="0.01" min="0.01" onchange="calcularSubtotalModal()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Desconto (%)</label>
+                        <input type="number" class="form-control" id="modal_desc_perc" value="0" step="0.01" min="0" max="100" onchange="calcularDescontoValor()" placeholder="0.00">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Desconto (R$)</label>
+                        <input type="number" class="form-control" id="modal_desc" value="0" step="0.01" min="0" onchange="calcularDescontoPercentual()" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <div class="alert alert-info py-2">
+                            <small><strong>Subtotal:</strong> <span id="modal_subtotal">R$ 0,00</span> | <strong>Total com Desconto:</strong> <span id="modal_total">R$ 0,00</span></small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IMPOSTOS TRADICIONAIS -->
+                <div class="row mt-3 campo-antigo">
+                    <div class="col-12"><h6 class="text-primary">Impostos Tradicionais</h6></div>
+                </div>
+                <div class="row campo-antigo">
+                    <div class="col-md-3">
+                        <label class="form-label">CST/CSOSN</label>
+                        <input type="text" class="form-control" id="modal_cst" maxlength="3" value="00">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Origem</label>
+                        <select class="form-select" id="modal_origem">
+                            <option value="0">0 - Nacional</option>
+                            <option value="1">1 - Estrangeira - Importação direta</option>
+                            <option value="2">2 - Estrangeira - Adquirida no mercado interno</option>
+                            <option value="3">3 - Nacional com mais de 40% de conteúdo estrangeiro</option>
+                            <option value="4">4 - Nacional produzida através de processos produtivos básicos</option>
+                            <option value="5">5 - Nacional com menos de 40% de conteúdo estrangeiro</option>
+                            <option value="6">6 - Estrangeira - Importação direta sem similar nacional</option>
+                            <option value="7">7 - Estrangeira - Adquirida no mercado interno sem similar nacional</option>
+                            <option value="8">8 - Nacional com mais de 70% de conteúdo estrangeiro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ICMS (%)</label>
+                        <input type="number" class="form-control" id="modal_icms" value="0" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">IPI (%)</label>
+                        <input type="number" class="form-control" id="modal_ipi" value="0" step="0.01">
+                    </div>
+                </div>
+                <div class="row mt-2 campo-antigo">
+                    <div class="col-md-3">
+                        <label class="form-label">CST PIS</label>
+                        <input type="text" class="form-control" id="modal_cst_pis" maxlength="2" value="99">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">PIS (%)</label>
+                        <input type="number" class="form-control" id="modal_pis" value="0" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">CST COFINS</label>
+                        <input type="text" class="form-control" id="modal_cst_cofins" maxlength="2" value="99">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">COFINS (%)</label>
+                        <input type="number" class="form-control" id="modal_cofins" value="0" step="0.01">
+                    </div>
+                </div>
+                
+                <!-- REFORMA TRIBUTÁRIA (IBS, CBS, IS) -->
+                <div class="row mt-3 campo-reforma">
+                    <div class="col-12">
+                        <h6 class="text-success">
+                            <i class="fas fa-star"></i> Reforma Tributária (Lei Complementar 214/2025)
+                        </h6>
+                    </div>
+                </div>
+                
+                <!-- IBS - Imposto sobre Bens e Serviços -->
+                <div class="row mt-2 campo-reforma">
+                    <div class="col-md-4">
+                        <label class="form-label">CST IBS</label>
+                        <select class="form-select" id="modal_cst_ibs">
+                            <option value="">Não se aplica</option>
+                            <option value="00">00 - Tributada integralmente</option>
+                            <option value="10">10 - Tributada com redução de base</option>
+                            <option value="20">20 - Tributada com alíquota zero</option>
+                            <option value="30">30 - Isenta</option>
+                            <option value="40">40 - Não tributada</option>
+                            <option value="41">41 - Imune</option>
+                            <option value="50">50 - Suspensão</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Classe Tributária IBS</label>
+                        <input type="text" class="form-control" id="modal_cclass_ibs" placeholder="Ex: 01.001.00">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Alíquota IBS (%)</label>
+                        <input type="number" class="form-control" id="modal_aliq_ibs" value="0" step="0.01" placeholder="Ex: 26.50">
+                    </div>
+                </div>
+                
+                <!-- CBS - Contribuição sobre Bens e Serviços -->
+                <div class="row mt-2 campo-reforma">
+                    <div class="col-md-4">
+                        <label class="form-label">CST CBS</label>
+                        <select class="form-select" id="modal_cst_cbs">
+                            <option value="">Não se aplica</option>
+                            <option value="00">00 - Tributada integralmente</option>
+                            <option value="10">10 - Tributada com redução de base</option>
+                            <option value="20">20 - Tributada com alíquota zero</option>
+                            <option value="30">30 - Isenta</option>
+                            <option value="40">40 - Não tributada</option>
+                            <option value="41">41 - Imune</option>
+                            <option value="50">50 - Suspensão</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Classe Tributária CBS</label>
+                        <input type="text" class="form-control" id="modal_cclass_cbs" placeholder="Ex: 01.001.00">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Alíquota CBS (%)</label>
+                        <input type="number" class="form-control" id="modal_aliq_cbs" value="0" step="0.01" placeholder="Ex: 8.80">
+                    </div>
+                </div>
+                
+                <!-- IS - Imposto Seletivo -->
+                <div class="row mt-2 campo-reforma">
+                    <div class="col-md-4">
+                        <label class="form-label">CST IS</label>
+                        <select class="form-select" id="modal_cst_is">
+                            <option value="">Não se aplica</option>
+                            <option value="00">00 - Tributada</option>
+                            <option value="20">20 - Alíquota zero</option>
+                            <option value="30">30 - Isenta</option>
+                            <option value="40">40 - Não tributada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Classe Tributária IS</label>
+                        <input type="text" class="form-control" id="modal_cclass_is" placeholder="Ex: 02.001.00">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Alíquota IS (%)</label>
+                        <input type="number" class="form-control" id="modal_aliq_is" value="0" step="0.01" placeholder="Produtos específicos">
+                    </div>
+                </div>
+                
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Alíquotas de referência:</strong> IBS ~26,5% | CBS ~8,8% | IS (produtos específicos: bebidas, cigarros, veículos, etc)
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarProduto()">
+                    <i class="fas fa-plus"></i> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal já está incluído na parte2 -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ url_for('static', filename='js/nfe_badge_ambiente.js') }}"></script>
+<script>
+// Variáveis globais
+let produtos = [];
+let contadorProdutos = 0;
+
+// Função para aplicar visibilidade baseado no modelo (GARANTIDO VIA JS)
+function aplicarVisibilidadeModelo(modelo) {
+    console.log(`%c[NFE] Aplicando visibilidade para modelo: ${modelo}`, 'background: #FF9800; color: white; font-size: 14px; padding: 5px;');
+    
+    // Selecionar TODOS os elementos com as classes
+    const elementosAntigo = document.querySelectorAll('.coluna-antigo, .campo-antigo, .secao-antigo');
+    const elementosReforma = document.querySelectorAll('.coluna-reforma, .campo-reforma, .secao-reforma');
+    
+    if (modelo === 'antigo') {
+        // Mostrar antigo, ocultar reforma
+        elementosAntigo.forEach(el => {
+            el.style.removeProperty('display');
+            el.style.removeProperty('visibility');
+        });
+        elementosReforma.forEach(el => {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
+        console.log(`[NFE] ✓ Ocultados ${elementosReforma.length} elementos de REFORMA`);
+        console.log(`[NFE] ✓ Exibidos ${elementosAntigo.length} elementos ANTIGOS`);
+    } else if (modelo === 'reforma') {
+        // Mostrar reforma, ocultar antigo
+        elementosReforma.forEach(el => {
+            el.style.removeProperty('display');
+            el.style.removeProperty('visibility');
+        });
+        elementosAntigo.forEach(el => {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
+        console.log(`[NFE] ✓ Ocultados ${elementosAntigo.length} elementos ANTIGOS`);
+        console.log(`[NFE] ✓ Exibidos ${elementosReforma.length} elementos de REFORMA`);
+    }
+}
+
+// Funções para calcular desconto no modal
+function calcularSubtotalModal() {
+    const qtd = parseFloat(document.getElementById('modal_qtd').value) || 0;
+    const vun = parseFloat(document.getElementById('modal_vun').value) || 0;
+    const subtotal = qtd * vun;
+    
+    document.getElementById('modal_subtotal').textContent = `R$ ${subtotal.toFixed(2)}`;
+    
+    // Recalcular desconto se houver percentual
+    const descPerc = parseFloat(document.getElementById('modal_desc_perc').value) || 0;
+    if (descPerc > 0) {
+        calcularDescontoValor();
+    } else {
+        calcularDescontoPercentual();
+    }
+}
+
+function calcularDescontoValor() {
+    const qtd = parseFloat(document.getElementById('modal_qtd').value) || 0;
+    const vun = parseFloat(document.getElementById('modal_vun').value) || 0;
+    const subtotal = qtd * vun;
+    const descPerc = parseFloat(document.getElementById('modal_desc_perc').value) || 0;
+    
+    if (subtotal > 0) {
+        const descValor = (subtotal * descPerc) / 100;
+        document.getElementById('modal_desc').value = descValor.toFixed(2);
+        
+        const total = subtotal - descValor;
+        document.getElementById('modal_total').textContent = `R$ ${total.toFixed(2)}`;
+    }
+}
+
+function calcularDescontoPercentual() {
+    const qtd = parseFloat(document.getElementById('modal_qtd').value) || 0;
+    const vun = parseFloat(document.getElementById('modal_vun').value) || 0;
+    const subtotal = qtd * vun;
+    const descValor = parseFloat(document.getElementById('modal_desc').value) || 0;
+    
+    if (subtotal > 0) {
+        const descPerc = (descValor / subtotal) * 100;
+        document.getElementById('modal_desc_perc').value = descPerc.toFixed(2);
+        
+        const total = subtotal - descValor;
+        document.getElementById('modal_total').textContent = `R$ ${total.toFixed(2)}`;
+    }
+}
+
+// Inicializar data atual (sem hora)
+document.addEventListener('DOMContentLoaded', function() {
+    const hoje = new Date();
+    const dataFormatada = hoje.toISOString().slice(0,10); // YYYY-MM-DD
+    const campoData = document.getElementById('dhEmi');
+    
+    if (campoData) {
+        campoData.value = dataFormatada;
+    }
+});
+
+// Ao selecionar empresa
+document.getElementById('empresa_id').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const empresaId = this.value;
+    
+    if (!empresaId) {
+        // Ocultar todas as seções se nenhuma empresa selecionada
+        document.getElementById('secao-emitente').style.display = 'none';
+        document.getElementById('secao-destinatario').style.display = 'none';
+        document.getElementById('secao-produtos').style.display = 'none';
+        document.getElementById('secao-totais').style.display = 'none';
+        document.getElementById('secao-pagamento').style.display = 'none';
+        document.getElementById('secao-informacoes').style.display = 'none';
+        // Remover classes de modelo
+        document.body.classList.remove('modelo-antigo', 'modelo-reforma');
+        return;
+    }
+    
+    // Preencher dados do emitente
+    document.getElementById('emitXNome').value = opt.dataset.razao || '';
+    document.getElementById('emitCNPJ').value = opt.dataset.cnpj || '';
+    document.getElementById('emitIE').value = opt.dataset.ie || '';
+    
+    // Exibir todas as seções
+    document.getElementById('secao-emitente').style.display = 'block';
+    document.getElementById('secao-destinatario').style.display = 'block';
+    document.getElementById('secao-produtos').style.display = 'block';
+    document.getElementById('secao-totais').style.display = 'block';
+    document.getElementById('secao-pagamento').style.display = 'block';
+    document.getElementById('secao-informacoes').style.display = 'block';
+    
+    // Buscar configurações da empresa (ambiente e modelo) do backend
+    fetch(`/nfe/configuracoes-empresa?empresa_id=${empresaId}`)
+        .then(response => response.json())
+        .then(config => {
+            if (config.success) {
+                const modeloNfe = config.modelo_nfe || 'antigo';
+                const ambienteNfe = config.ambiente_texto || 'homologacao';
+                
+                console.log(`%c[NFE] EMPRESA: ${config.nome_fantasia}`, 'background: #9C27B0; color: white; font-size: 14px; padding: 5px;');
+                console.log(`%c[NFE] AMBIENTE: ${ambienteNfe.toUpperCase()} (${config.ambiente_nfe})`, 'background: #FF5722; color: white; font-size: 14px; padding: 5px;');
+                console.log(`%c[NFE] MODELO: ${modeloNfe.toUpperCase()}`, 'background: #4CAF50; color: white; font-size: 14px; padding: 5px;');
+                
+                // Aplicar classe de modelo no body para controlar visibilidade
+                document.body.classList.remove('modelo-antigo', 'modelo-reforma');
+                document.body.classList.add(`modelo-${modeloNfe}`);
+                
+                // APLICAR VISIBILIDADE DIRETAMENTE VIA JAVASCRIPT (garantido)
+                aplicarVisibilidadeModelo(modeloNfe);
+                
+                // Armazenar configurações para uso posterior (ao salvar)
+                window.nfeConfig = {
+                    empresaId: config.empresa_id,
+                    ambiente: config.ambiente_nfe,
+                    ambienteTexto: ambienteNfe,
+                    modelo: modeloNfe
+                };
+                
+                // Exibir badge de ambiente
+                exibirBadgeAmbiente(ambienteNfe, modeloNfe);
+            }
+        })
+        .catch(error => {
+            console.error('[NFE] Erro ao buscar configurações da empresa:', error);
+            // Fallback para valores do dataset
+            const modeloNfe = opt.dataset.modelo || 'antigo';
+            document.body.classList.remove('modelo-antigo', 'modelo-reforma');
+            document.body.classList.add(`modelo-${modeloNfe}`);
+            aplicarVisibilidadeModelo(modeloNfe);
+        });
+    
+    // Buscar próximo número de NF-e
+    if (empresaId) {
+        const serie = document.getElementById('serie').value || 1;
+        
+        fetch(`/nfe/proximo-numero?empresa_id=${empresaId}&serie=${serie}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('nNF').value = data.proximo_numero;
+                    document.getElementById('nNF').placeholder = `Próximo: ${data.proximo_numero}`;
+                }
+            })
+            .catch(error => console.error('[NFE] Erro ao buscar próximo número:', error));
+    }
+});
+
+// Ao selecionar cliente
+document.getElementById('cliente_id').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    document.getElementById('destCPFCNPJ').value = opt.dataset.cnpj || '';
+    document.getElementById('destXLgr').value = opt.dataset.endereco || '';
+    document.getElementById('destNro').value = opt.dataset.numero || '';
+    document.getElementById('destXBairro').value = opt.dataset.bairro || '';
+    document.getElementById('destXMun').value = opt.dataset.cidade || '';
+    document.getElementById('destUF').value = opt.dataset.uf || '';
+    document.getElementById('destCEP').value = opt.dataset.cep || '';
+    document.getElementById('destIE').value = opt.dataset.ie || '';
+    document.getElementById('destEmail').value = opt.dataset.email || '';
+    document.getElementById('destFone').value = opt.dataset.phone || '';
+    document.getElementById('indIEDest').value = opt.dataset.indie || '9';
+});
+
+// Ao selecionar produto no modal
+document.getElementById('modal_produto').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (opt.value) {
+        // Dados básicos
+        document.getElementById('modal_ncm').value = opt.dataset.ncm || '';
+        document.getElementById('modal_cfop').value = opt.dataset.cfop || '';
+        document.getElementById('modal_unidade').value = opt.dataset.unidade || '';
+        document.getElementById('modal_vun').value = opt.dataset.preco || '';
+        
+        // Impostos tradicionais
+        document.getElementById('modal_cst').value = opt.dataset.cst || '00';
+        document.getElementById('modal_origem').value = opt.dataset.origem || '0';
+        document.getElementById('modal_icms').value = opt.dataset.icms || '0';
+        document.getElementById('modal_ipi').value = opt.dataset.ipi || '0';
+        document.getElementById('modal_cst_pis').value = opt.dataset.cstPis || '99';
+        document.getElementById('modal_pis').value = opt.dataset.pis || '0';
+        document.getElementById('modal_cst_cofins').value = opt.dataset.cstCofins || '99';
+        document.getElementById('modal_cofins').value = opt.dataset.cofins || '0';
+        
+        // Reforma tributária (IBS, CBS, IS)
+        document.getElementById('modal_cst_ibs').value = opt.dataset.cstIbs || '';
+        document.getElementById('modal_aliq_ibs').value = opt.dataset.aliqIbs || '0';
+        document.getElementById('modal_cst_cbs').value = opt.dataset.cstCbs || '';
+        document.getElementById('modal_aliq_cbs').value = opt.dataset.aliqCbs || '0';
+        document.getElementById('modal_cst_is').value = opt.dataset.cstIs || '';
+        document.getElementById('modal_aliq_is').value = opt.dataset.aliqIs || '0';
+    }
+});
+
+function adicionarProduto() {
+    // Limpar flag de edição
+    window.produtoEditandoId = null;
+    
+    document.getElementById('modal_produto').value = '';
+    document.getElementById('modal_qtd').value = '1';
+    document.getElementById('modal_desc').value = '0';
+    document.getElementById('modal_desc_perc').value = '0';
+    document.getElementById('modal_subtotal').textContent = 'R$ 0,00';
+    document.getElementById('modal_total').textContent = 'R$ 0,00';
+    const modal = new bootstrap.Modal(document.getElementById('modalProduto'));
+    modal.show();
+}
+
+function confirmarProduto() {
+    const prodSelect = document.getElementById('modal_produto');
+    const prodOpt = prodSelect.options[prodSelect.selectedIndex];
+    
+    if (!prodSelect.value) {
+        Swal.fire('Atenção', 'Selecione um produto', 'warning');
+        return;
+    }
+    
+    const qtd = parseFloat(document.getElementById('modal_qtd').value) || 0;
+    const vun = parseFloat(document.getElementById('modal_vun').value) || 0;
+    const desc = parseFloat(document.getElementById('modal_desc').value) || 0;
+    
+    if (qtd <= 0 || vun <= 0) {
+        Swal.fire('Atenção', 'Quantidade e valor devem ser maiores que zero', 'warning');
+        return;
+    }
+    
+    // Verificar se está editando ou adicionando
+    if (window.produtoEditandoId) {
+        // EDITANDO produto existente
+        const index = produtos.findIndex(p => p.id === window.produtoEditandoId);
+        if (index !== -1) {
+            produtos[index] = {
+                id: window.produtoEditandoId,
+                produto_id: prodSelect.value,
+                nome: prodOpt.dataset.nome,
+                ncm: document.getElementById('modal_ncm').value,
+                cfop: document.getElementById('modal_cfop').value,
+                unidade: document.getElementById('modal_unidade').value,
+                qtd: qtd,
+                vun: vun,
+                desc: desc,
+                total: (qtd * vun) - desc,
+                icms: parseFloat(document.getElementById('modal_icms').value) || 0,
+                ipi: parseFloat(document.getElementById('modal_ipi').value) || 0,
+                cst: document.getElementById('modal_cst').value,
+                origem: document.getElementById('modal_origem').value,
+                cst_pis: document.getElementById('modal_cst_pis').value,
+                pis: parseFloat(document.getElementById('modal_pis').value) || 0,
+                cst_cofins: document.getElementById('modal_cst_cofins').value,
+                cofins: parseFloat(document.getElementById('modal_cofins').value) || 0,
+                cst_ibs: document.getElementById('modal_cst_ibs').value,
+                cclass_ibs: document.getElementById('modal_cclass_ibs').value,
+                aliq_ibs: parseFloat(document.getElementById('modal_aliq_ibs').value) || 0,
+                cst_cbs: document.getElementById('modal_cst_cbs').value,
+                cclass_cbs: document.getElementById('modal_cclass_cbs').value,
+                aliq_cbs: parseFloat(document.getElementById('modal_aliq_cbs').value) || 0,
+                cst_is: document.getElementById('modal_cst_is').value,
+                cclass_is: document.getElementById('modal_cclass_is').value,
+                aliq_is: parseFloat(document.getElementById('modal_aliq_is').value) || 0
+            };
+        }
+        window.produtoEditandoId = null;
+    } else {
+        // ADICIONANDO novo produto
+        const prod = {
+            id: ++contadorProdutos,
+            produto_id: prodSelect.value,
+            nome: prodOpt.dataset.nome,
+            ncm: document.getElementById('modal_ncm').value,
+            cfop: document.getElementById('modal_cfop').value,
+            unidade: document.getElementById('modal_unidade').value,
+            qtd: qtd,
+            vun: vun,
+            desc: desc,
+            total: (qtd * vun) - desc,
+            icms: parseFloat(document.getElementById('modal_icms').value) || 0,
+            ipi: parseFloat(document.getElementById('modal_ipi').value) || 0,
+            cst: document.getElementById('modal_cst').value,
+            origem: document.getElementById('modal_origem').value,
+            cst_pis: document.getElementById('modal_cst_pis').value,
+            pis: parseFloat(document.getElementById('modal_pis').value) || 0,
+            cst_cofins: document.getElementById('modal_cst_cofins').value,
+            cofins: parseFloat(document.getElementById('modal_cofins').value) || 0,
+            cst_ibs: document.getElementById('modal_cst_ibs').value,
+            cclass_ibs: document.getElementById('modal_cclass_ibs').value,
+            aliq_ibs: parseFloat(document.getElementById('modal_aliq_ibs').value) || 0,
+            cst_cbs: document.getElementById('modal_cst_cbs').value,
+            cclass_cbs: document.getElementById('modal_cclass_cbs').value,
+            aliq_cbs: parseFloat(document.getElementById('modal_aliq_cbs').value) || 0,
+            cst_is: document.getElementById('modal_cst_is').value,
+            cclass_is: document.getElementById('modal_cclass_is').value,
+            aliq_is: parseFloat(document.getElementById('modal_aliq_is').value) || 0
+        };
+        
+        produtos.push(prod);
+    }
+    atualizarTabelaProdutos();
+    bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
+    calcularTotais();
+}
+
+function atualizarTabelaProdutos() {
+    const tbody = document.getElementById('produtosBody');
+    tbody.innerHTML = '';
+    
+    if (produtos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted">Nenhum produto adicionado.</td></tr>';
+        return;
+    }
+    
+    produtos.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${p.nome}</td>
+            <td>${p.ncm}</td>
+            <td>${p.cfop}</td>
+            <td class="text-center coluna-antigo">${p.icms.toFixed(2)}%</td>
+            <td class="text-center coluna-antigo">${p.ipi.toFixed(2)}%</td>
+            <td class="text-center coluna-antigo">${p.pis.toFixed(2)}%</td>
+            <td class="text-center coluna-antigo">${p.cofins.toFixed(2)}%</td>
+            <td class="text-center coluna-reforma">${p.aliq_ibs.toFixed(2)}%</td>
+            <td class="text-center coluna-reforma">${p.aliq_cbs.toFixed(2)}%</td>
+            <td class="text-center coluna-reforma">${p.aliq_is.toFixed(2)}%</td>
+            <td class="text-end">${p.qtd.toFixed(2)}</td>
+            <td>${p.unidade}</td>
+            <td class="text-end">R$ ${p.vun.toFixed(2)}</td>
+            <td class="text-end">R$ ${p.desc.toFixed(2)}</td>
+            <td class="text-end"><strong>R$ ${p.total.toFixed(2)}</strong></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-primary me-1" onclick="editarProduto(${p.id})" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removerProduto(${p.id})" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // REAPLICAR VISIBILIDADE após atualizar a tabela
+    const empresaSelect = document.getElementById('empresa_id');
+    const modeloNfe = empresaSelect.options[empresaSelect.selectedIndex]?.dataset.modelo || 'antigo';
+    aplicarVisibilidadeModelo(modeloNfe);
+}
+
+function editarProduto(id) {
+    // Buscar produto na lista
+    const produto = produtos.find(p => p.id === id);
+    if (!produto) return;
+    
+    // Preencher modal com dados do produto
+    document.getElementById('modal_produto').value = produto.produto_id;
+    document.getElementById('modal_ncm').value = produto.ncm;
+    document.getElementById('modal_cfop').value = produto.cfop;
+    document.getElementById('modal_unidade').value = produto.unidade;
+    document.getElementById('modal_qtd').value = produto.qtd;
+    document.getElementById('modal_vun').value = produto.vun;
+    document.getElementById('modal_desc').value = produto.desc;
+    
+    // Calcular percentual de desconto
+    const subtotal = produto.qtd * produto.vun;
+    const descPerc = subtotal > 0 ? (produto.desc / subtotal) * 100 : 0;
+    document.getElementById('modal_desc_perc').value = descPerc.toFixed(2);
+    
+    // Atualizar displays
+    document.getElementById('modal_subtotal').textContent = `R$ ${subtotal.toFixed(2)}`;
+    document.getElementById('modal_total').textContent = `R$ ${produto.total.toFixed(2)}`;
+    
+    // Impostos tradicionais
+    document.getElementById('modal_cst').value = produto.cst;
+    document.getElementById('modal_origem').value = produto.origem;
+    document.getElementById('modal_icms').value = produto.icms;
+    document.getElementById('modal_ipi').value = produto.ipi;
+    document.getElementById('modal_cst_pis').value = produto.cst_pis;
+    document.getElementById('modal_pis').value = produto.pis;
+    document.getElementById('modal_cst_cofins').value = produto.cst_cofins;
+    document.getElementById('modal_cofins').value = produto.cofins;
+    
+    // Reforma tributária
+    document.getElementById('modal_cst_ibs').value = produto.cst_ibs || '';
+    document.getElementById('modal_cclass_ibs').value = produto.cclass_ibs || '';
+    document.getElementById('modal_aliq_ibs').value = produto.aliq_ibs;
+    document.getElementById('modal_cst_cbs').value = produto.cst_cbs || '';
+    document.getElementById('modal_cclass_cbs').value = produto.cclass_cbs || '';
+    document.getElementById('modal_aliq_cbs').value = produto.aliq_cbs;
+    document.getElementById('modal_cst_is').value = produto.cst_is || '';
+    document.getElementById('modal_cclass_is').value = produto.cclass_is || '';
+    document.getElementById('modal_aliq_is').value = produto.aliq_is;
+    
+    // Guardar ID para atualizar depois
+    window.produtoEditandoId = id;
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalProduto'));
+    modal.show();
+}
+
+function removerProduto(id) {
+    if (confirm('Remover este produto?')) {
+        produtos = produtos.filter(p => p.id !== id);
+        atualizarTabelaProdutos();
+        calcularTotais();
+    }
+}
+
+function calcularTotais() {
+    let vProd = 0, vDesc = 0, vBC = 0, vICMS = 0, vIPI = 0, vPIS = 0, vCOFINS = 0;
+    let vIBS = 0, vCBS = 0, vIS = 0;
+    
+    console.log('%c[TOTAIS] Calculando totais...', 'background: #9C27B0; color: white; padding: 5px;');
+    
+    produtos.forEach(p => {
+        const subtotal = p.qtd * p.vun;
+        const totalComDesconto = subtotal - p.desc;
+        
+        vProd += subtotal;
+        vDesc += p.desc;
+        vBC += totalComDesconto;
+        
+        // Impostos tradicionais (calculados sobre o total COM desconto)
+        vICMS += totalComDesconto * (p.icms / 100);
+        vIPI += totalComDesconto * (p.ipi / 100);
+        vPIS += totalComDesconto * (p.pis / 100);
+        vCOFINS += totalComDesconto * (p.cofins / 100);
+        
+        // Reforma tributária (calculados sobre o total COM desconto)
+        vIBS += totalComDesconto * (p.aliq_ibs / 100);
+        vCBS += totalComDesconto * (p.aliq_cbs / 100);
+        vIS += totalComDesconto * (p.aliq_is / 100);
+        
+        console.log(`[PRODUTO] ${p.nome}: Subtotal=${subtotal.toFixed(2)} | Desc=${p.desc.toFixed(2)} | Total=${totalComDesconto.toFixed(2)}`);
+        console.log(`  IBS=${p.aliq_ibs}% (R$ ${(totalComDesconto * (p.aliq_ibs / 100)).toFixed(2)}) | CBS=${p.aliq_cbs}% (R$ ${(totalComDesconto * (p.aliq_cbs / 100)).toFixed(2)})`);
+    });
+    
+    const vFrete = parseFloat(document.getElementById('vFrete').value) || 0;
+    const vSeg = parseFloat(document.getElementById('vSeg').value) || 0;
+    const vOutro = parseFloat(document.getElementById('vOutro').value) || 0;
+    const vDescAdicional = parseFloat(document.getElementById('vDescAdicional').value) || 0;
+    
+    // Total da NF-e = Subtotal - Desconto Produtos - Desconto Adicional + Frete + Seguro + Outras Despesas
+    const vNF = vProd - vDesc - vDescAdicional + vFrete + vSeg + vOutro;
+    
+    console.log(`[TOTAIS] Subtotal: R$ ${vProd.toFixed(2)} | Desc Produtos: R$ ${vDesc.toFixed(2)} | Desc Adicional: R$ ${vDescAdicional.toFixed(2)} | Total NF: R$ ${vNF.toFixed(2)}`);
+    console.log(`[IMPOSTOS] IBS: R$ ${vIBS.toFixed(2)} | CBS: R$ ${vCBS.toFixed(2)} | IS: R$ ${vIS.toFixed(2)}`);
+    
+    // Atualizar valores
+    document.getElementById('vProd').textContent = `R$ ${vProd.toFixed(2)}`;
+    document.getElementById('vDesc').textContent = `R$ ${vDesc.toFixed(2)}`;
+    document.getElementById('vBC').textContent = `R$ ${vBC.toFixed(2)}`;
+    
+    // Impostos tradicionais
+    document.getElementById('vICMS').textContent = `R$ ${vICMS.toFixed(2)}`;
+    document.getElementById('vIPI').textContent = `R$ ${vIPI.toFixed(2)}`;
+    document.getElementById('vPIS').textContent = `R$ ${vPIS.toFixed(2)}`;
+    document.getElementById('vCOFINS').textContent = `R$ ${vCOFINS.toFixed(2)}`;
+    
+    // Reforma tributária
+    document.getElementById('vIBS').textContent = `R$ ${vIBS.toFixed(2)}`;
+    document.getElementById('vCBS').textContent = `R$ ${vCBS.toFixed(2)}`;
+    document.getElementById('vIS').textContent = `R$ ${vIS.toFixed(2)}`;
+    
+    document.getElementById('vNF').textContent = `R$ ${vNF.toFixed(2)}`;
+    document.getElementById('vPag').value = vNF.toFixed(2);
+}
+
+function salvarNFe(emitir) {
+    if (!document.getElementById('empresa_id').value) {
+        Swal.fire('Atenção', 'Selecione uma empresa', 'warning');
+        return;
+    }
+    
+    if (!document.getElementById('cliente_id').value) {
+        Swal.fire('Atenção', 'Selecione um cliente', 'warning');
+        return;
+    }
+    
+    if (produtos.length === 0) {
+        Swal.fire('Atenção', 'Adicione pelo menos um produto', 'warning');
+        return;
+    }
+    
+    const formData = {
+        venda_id: document.getElementById('venda_id') ? document.getElementById('venda_id').value : null,
+        empresa_id: document.getElementById('empresa_id').value,
+        cliente_id: document.getElementById('cliente_id').value,
+        serie: document.getElementById('serie').value,
+        numero_nfe: document.getElementById('nNF').value || null,
+        data_emissao: document.getElementById('dhEmi').value,
+        natureza_operacao: document.querySelector('[name="natOp"]').value,
+        tipo_operacao: document.querySelector('[name="tpNF"]').value,
+        finalidade: document.querySelector('[name="finNFe"]').value,
+        consumidor_final: document.querySelector('[name="indFinal"]').value,
+        presenca: document.querySelector('[name="indPres"]').value,
+        forma_pagamento: document.getElementById('tPag').value,
+        observacoes: document.getElementById('infCpl').value,
+        emitir_agora: emitir,
+        itens: produtos.map(p => ({
+            produto_id: p.produto_id,
+            quantidade: p.qtd,
+            valor_unitario: p.vun,
+            desconto: p.desc,
+            total: p.total,
+            ncm: p.ncm,
+            cfop: p.cfop,
+            unidade: p.unidade,
+            aliq_icms: p.icms,
+            aliq_ipi: p.ipi
+        })),
+        totais: {
+            valor_produtos: parseFloat(document.getElementById('vProd').textContent.replace('R$ ', '').replace(',', '.')),
+            valor_desconto: parseFloat(document.getElementById('vDesc').textContent.replace('R$ ', '').replace(',', '.')),
+            valor_desconto_adicional: parseFloat(document.getElementById('vDescAdicional').value) || 0,
+            valor_frete: parseFloat(document.getElementById('vFrete').value) || 0,
+            valor_seguro: parseFloat(document.getElementById('vSeg').value) || 0,
+            outras_despesas: parseFloat(document.getElementById('vOutro').value) || 0,
+            valor_total: parseFloat(document.getElementById('vNF').textContent.replace('R$ ', '').replace(',', '.'))
+        }
+    };
+
+    Swal.fire({
+        title: emitir ? 'Gravando e Emitindo NF-e...' : 'Gravando NF-e...',
+        text: 'Aguarde',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+    
+    fetch('/nfe/salvar-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (emitir) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'NF-e Emitida!',
+                    html: `<p><strong>Número:</strong> ${data.nfe_numero}</p><p><strong>Série:</strong> ${data.nfe_serie}</p><p><strong>Chave:</strong> ${data.nfe_chave || 'Aguardando'}</p>`,
+                    confirmButtonText: 'Ver Histórico'
+                }).then(() => { window.location.href = '/nfe/historico'; });
+            } else {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'NF-e Gravada!',
+                    text: 'A NF-e foi salva com sucesso. Você pode emiti-la posteriormente.',
+                    confirmButtonText: 'OK'
+                }).then(() => { window.location.href = '/nfe/historico'; });
+            }
+        } else {
+            Swal.fire('Erro', data.message || 'Erro ao processar NF-e', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        Swal.fire('Erro', 'Erro ao comunicar com o servidor', 'error');
+    });
+}
+
+// ========================================
+// CARREGAR DADOS PARA EDIÇÃO
+// ========================================
+{% if modo_edicao and venda_existente and itens_existentes %}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[EDIÇÃO] Carregando dados da NFe para edição...');
+    
+    // Aguardar 500ms para garantir que o formulário está pronto
+    setTimeout(function() {
+        // Preencher campos da venda
+        {% if venda_existente.empresa_id %}
+        const empresaSelect = document.getElementById('empresa_id');
+        empresaSelect.value = '{{ venda_existente.empresa_id }}';
+        // Disparar evento change para mostrar seções e aplicar modelo
+        empresaSelect.dispatchEvent(new Event('change'));
+        {% endif %}
+        
+        {% if venda_existente.customer_id %}
+        const clienteSelect = document.getElementById('cliente_id');
+        clienteSelect.value = '{{ venda_existente.customer_id }}';
+        // Disparar evento change para mostrar seção do destinatário
+        clienteSelect.dispatchEvent(new Event('change'));
+        {% endif %}
+        
+        {% if venda_existente.sale_date %}
+        document.getElementById('dhEmi').value = '{{ venda_existente.sale_date.strftime("%Y-%m-%d") }}';
+        {% endif %}
+        
+        {% if venda_existente.payment_method %}
+        document.getElementById('tPag').value = '{{ venda_existente.payment_method }}';
+        {% endif %}
+        
+        // Carregar itens diretamente no array (sem abrir modal)
+        {% for item in itens_existentes %}
+        produtos.push({
+            id: Date.now() + Math.random(),
+            produto_id: {{ item.product_id }},
+            nome: '{{ item.product_name or "Produto" }}',
+            qtd: {{ item.quantity }},
+            vun: {{ item.unit_price }},
+            desc: {{ item.discount_value or 0 }},
+            total: {{ item.total_price }},
+            ncm: '{{ item.ncm or "" }}',
+            cfop: '{{ item.cfop or "" }}',
+            unidade: '{{ item.unit_measure or "UN" }}',
+            icms: {{ item.aliquota_icms or 0 }},
+            ipi: {{ item.aliquota_ipi or 0 }},
+            pis: {{ item.aliquota_pis or 0 }},
+            cofins: {{ item.aliquota_cofins or 0 }},
+            aliq_ibs: {{ item.aliquota_ibs or 0 }},
+            aliq_cbs: {{ item.aliquota_cbs or 0 }},
+            aliq_is: 0,
+            cst: '00',
+            origem: '0',
+            cst_pis: '01',
+            cst_cofins: '01',
+            cst_ibs: '',
+            cclass_ibs: '',
+            cst_cbs: '',
+            cclass_cbs: '',
+            cst_is: '',
+            cclass_is: ''
+        });
+        {% endfor %}
+        
+        // Atualizar tabela de produtos
+        atualizarTabelaProdutos();
+        
+        // Recalcular totais
+        calcularTotais();
+        
+        console.log('[EDIÇÃO] Dados carregados com sucesso!');
+        
+        // Mostrar alerta informando que está em modo edição
+        Swal.fire({
+            icon: 'info',
+            title: 'Modo Edição',
+            text: 'Você está editando uma NFe gravada. Faça as alterações necessárias e clique em "Gravar" ou "Gravar e Emitir".',
+            confirmButtonText: 'OK'
+        });
+    }, 500);
+});
+{% endif %}
+</script>
+{% endblock %}

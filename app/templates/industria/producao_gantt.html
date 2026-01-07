@@ -1,0 +1,1269 @@
+{% extends "base.html" %}
+
+{% block title %}Produção (Gantt){% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-2 px-2 producao-gantt-page">
+    <div class="row">
+        <div class="col-12">
+            <div class="card producao-gantt-card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-project-diagram"></i> Produção (Gantt)</h4>
+                    <div>
+                        <a href="{{ url_for('ordem_producao.etapas_lista') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-stream"></i> Etapas
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-2 producao-gantt-card-body">
+                    <form method="get" id="formFiltrosProducao" class="row g-2 mb-2 align-items-end">
+                        <div class="col-12 col-lg-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-select form-select-sm" name="status">
+                                <option value="" {% if not status_filtro %}selected{% endif %}>Todos</option>
+                                <option value="pendente" {% if status_filtro=='pendente' %}selected{% endif %}>Pendente</option>
+                                <option value="em_producao" {% if status_filtro=='em_producao' %}selected{% endif %}>Em Produção</option>
+                                <option value="concluida" {% if status_filtro=='concluida' %}selected{% endif %}>Concluída</option>
+                                <option value="cancelada" {% if status_filtro=='cancelada' %}selected{% endif %}>Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-2">
+                            <label class="form-label">Grupo de Etapas</label>
+                            <select class="form-select form-select-sm" name="grupo_etapas_id">
+                                <option value="" {% if not grupo_etapas_filtro %}selected{% endif %}>Todos</option>
+                                {% for g in (grupos_etapas or []) %}
+                                <option value="{{ g.id }}" {% if grupo_etapas_filtro and (grupo_etapas_filtro|int == g.id) %}selected{% endif %}>{{ g.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-2">
+                            <label class="form-label">Etapa</label>
+                            <select class="form-select form-select-sm" name="etapa_id">
+                                <option value="" {% if not etapa_filtro %}selected{% endif %}>Todas</option>
+                                {% for e in etapas %}
+                                <option value="{{ e.id }}" {% if etapa_filtro and etapa_filtro|int == e.id %}selected{% endif %}>{{ e.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-3">
+                            <label class="form-label">Colunas (Etapas visíveis)</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="btnEtapasDropdown">
+                                    Selecionar etapas
+                                </button>
+                                <div class="dropdown-menu p-2" style="width: 100%; max-height: 260px; overflow-y: auto;">
+                                    <div class="mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="filtroEtapas" placeholder="Filtrar etapas...">
+                                    </div>
+                                    <div id="listaEtapasCheckbox">
+                                        {% for e in (etapas_todas or etapas) %}
+                                        <div class="form-check">
+                                            <input class="form-check-input etapa-visivel" type="checkbox" value="{{ e.id }}" id="etapaVisivel{{ e.id }}" {% if etapas_visiveis and (e.id in etapas_visiveis) %}checked{% endif %}>
+                                            <label class="form-check-label" for="etapaVisivel{{ e.id }}">{{ e.nome }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button type="button" class="btn btn-sm btn-light w-100" id="btnEtapasLimpar">Limpar</button>
+                                        <button type="button" class="btn btn-sm btn-primary w-100" id="btnEtapasAplicar">Aplicar</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted d-none d-xl-block">Selecione 3-4 etapas e clique em Aplicar.</small>
+                        </div>
+                        <div class="col-12 col-lg-3">
+                            <label class="form-label">Cliente / Produto</label>
+                            <input type="text" class="form-control form-control-sm" name="q" value="{{ q_filtro }}" placeholder="Buscar...">
+                        </div>
+                        <div class="col-12 col-lg-2">
+                            <button class="btn btn-primary btn-sm w-100" type="submit" id="btnFiltrar"><i class="fas fa-search"></i> Filtrar</button>
+                        </div>
+                    </form>
+
+                    <div class="gantt-matriz-wrapper" id="ganttMatrizWrapper">
+                        <svg class="gantt-connectors" id="ganttConnectors" aria-hidden="true"></svg>
+                        <div class="gantt-matriz" id="ganttMatriz" data-etapas-count="{{ etapas|length }}">
+                            <div class="gantt-header gantt-sticky-top gantt-sticky-left gantt-header-left">Romaneio de Produção</div>
+                            {% if grupos_header %}
+                                {% for gh in grupos_header %}
+                                <div class="gantt-header gantt-sticky-top gantt-header-grupo gantt-header-grupo-etapas" data-span="{{ gh.count }}" {% if gh.cor_hex %}data-grupo-cor="{{ gh.cor_hex }}"{% endif %} data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ gh.nome }}{% if gh.descricao %}\n{{ gh.descricao }}{% endif %}">
+                                    <span class="gantt-grupo-etapas-nome">{{ gh.nome }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for e in etapas %}
+                                <div class="gantt-header gantt-sticky-top gantt-header-grupo gantt-header-grupo-etapas" data-span="1">
+                                    <span class="gantt-grupo-etapas-nome">&nbsp;</span>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                            {% for e in etapas %}
+                            <div class="gantt-header gantt-sticky-top gantt-header-etapa gantt-header-etapa-linha" data-etapa-id="{{ e.id }}" {% if e.cor_hex %}data-etapa-cor="{{ e.cor_hex }}"{% endif %} data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ e.nome }}">
+                                {% if e.icone %}<i class="{{ e.icone }}"></i>{% endif %}
+                                <span class="gantt-etapa-cod">{{ '%02d' % (e.ordem or 0) }}</span>
+                                <span class="gantt-etapa-nome">{{ e.nome }}</span>
+                            </div>
+                            {% endfor %}
+
+                            {% if grupos %}
+                                {% for g in grupos %}
+                                    <div class="gantt-row-header gantt-sticky-left gantt-grupo-compact"
+                                         data-bs-toggle="tooltip"
+                                         data-bs-placement="right"
+                                         title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}"
+                                         {% if g.orcamento_id %}data-grupo-url="{{ url_for('ordem_producao.grupo_orcamento', orcamento_id=g.orcamento_id) }}"{% endif %}>
+                                        <div class="gantt-grupo-code">{{ g.orcamento_numero or '-' }}</div>
+                                    </div>
+
+                                    {% for e in etapas %}
+                                    <div class="gantt-cell gantt-dropzone gantt-cell-etapa" data-etapa-id="{{ e.id }}" data-grupo-id="{{ g.grupo_id }}" {% if e.cor_hex %}data-etapa-cor="{{ e.cor_hex }}"{% endif %}>
+                                        {% set cell_ops = (ops_por_grupo_etapa[g.grupo_id][e.id] if ops_por_grupo_etapa and (g.grupo_id in ops_por_grupo_etapa) else []) %}
+                                        {% if cell_ops %}
+                                            {% for op in cell_ops %}
+                                            <div class="kanban-card kanban-card-compact" draggable="true"
+                                                 data-lote-id="{{ op.lote_id }}"
+                                                 data-op-id="{{ op.op_id }}"
+                                                 data-grupo-id="{{ g.grupo_id }}"
+                                                 data-op-url="{{ url_for('ordem_producao.visualizar_op', id=op.op_id) }}"
+                                                 data-etapa-atual-id="{{ op.lote_etapa_atual_id or '' }}"
+                                                 data-quantidade="{{ op.lote_quantidade or '' }}"
+                                                 data-op-total="{{ op.op_quantidade_total or '' }}"
+                                                 data-align="{{ op.lote_align_side or 'full' }}"
+                                                 data-cliente="{{ op.cliente_nome or '-' }}"
+                                                 data-produto="{{ op.produto_nome or '-' }}"
+                                                 data-status="{{ op.status or '-' }}"
+                                                 data-status-operador="{{ op.status_operador or '' }}"
+                                                 data-pausa-inicio="{{ op.pausa_inicio.isoformat() if op.pausa_inicio else '' }}"
+                                                 data-inicio-producao="{{ op.data_inicio_operador.isoformat() if op.data_inicio_operador else '' }}"
+                                                 data-atribuicao="{{ op.data_atribuicao.isoformat() if op.data_atribuicao else '' }}"
+                                                 data-inicio-producao-op="{{ op.data_inicio_producao.isoformat() if op.data_inicio_producao else '' }}"
+                                                 data-chegada-etapa="{{ op.data_chegada_etapa.isoformat() if op.data_chegada_etapa else '' }}"
+                                                 data-bs-toggle="tooltip"
+                                                 data-bs-placement="top"
+                                                 data-bs-html="true"
+                                                 title="{{ op.numero_op }} | Lote: {{ op.lote_sequencia }}&lt;br&gt;Qtd: {{ op.lote_quantidade or '-' }}/{{ op.op_quantidade_total or '-' }}&lt;br&gt;{{ op.cliente_nome or '-' }}&lt;br&gt;{{ op.produto_nome or '-' }}&lt;br&gt;Status OP: {{ op.status or '-' }}{% if op.lider_nome %}&lt;br&gt;&lt;b&gt;Líder:&lt;/b&gt; {{ op.lider_nome }}{% endif %}{% if op.operador_nome %}&lt;br&gt;&lt;b&gt;Operador:&lt;/b&gt; {{ op.operador_nome }}{% endif %}{% if op.status_operador %}&lt;br&gt;&lt;b&gt;Status:&lt;/b&gt; {{ op.status_operador }}{% endif %}{% if op.pausa_id %}&lt;br&gt;&lt;span style='color: #f59e0b; font-weight: bold;'&gt;⏸️ PAUSADO: {{ op.pausa_motivo }}&lt;/span&gt;{% endif %}{% if op.arara %}&lt;br&gt;&lt;b&gt;Arara:&lt;/b&gt; {{ op.arara }}{% endif %}{% if op.data_atribuicao %}&lt;br&gt;&lt;b&gt;Atribuído:&lt;/b&gt; {{ op.data_atribuicao.strftime('%d/%m %H:%M') if op.data_atribuicao else '-' }}{% endif %}{% if op.data_inicio_operador %}&lt;br&gt;&lt;b&gt;Início:&lt;/b&gt; {{ op.data_inicio_operador.strftime('%d/%m %H:%M') if op.data_inicio_operador else '-' }}{% endif %}"
+                                                 {% if op.pausa_id %}style="border: 2px solid #f59e0b !important; background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%) !important;"{% endif %}>
+                                                <div class="kanban-card-ratio" data-role="pct"></div>
+                                                <div class="kanban-card-code">{% if op.pausa_id %}<i class="fas fa-pause-circle text-warning me-1" title="Pausado: {{ op.pausa_motivo }}"></i>{% endif %}{{ op.numero_op }} ({{ op.lote_quantidade or '-' }})</div>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="gantt-empty text-muted">Nenhum grupo encontrado com os filtros atuais.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="text-muted mt-2" id="ganttDicaRodape">
+                        <small>Arraste os cards entre etapas para mover a OP (gera log com data/hora e usuário). Clique no card para mudar etapa com observação.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Mudar Etapa -->
+<div class="modal fade" id="modalMudarEtapaGantt" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mudar Etapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMudarEtapaGantt">
+                    <input type="hidden" id="gantt_op_id" name="op_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nova Etapa</label>
+                        <select class="form-select" id="gantt_etapa_nova_id" name="etapa_nova_id" required>
+                            <option value="">Selecione...</option>
+                            {% for e in etapas %}
+                            <option value="{{ e.id }}">{{ e.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observação (opcional)</label>
+                        <textarea class="form-control" id="gantt_etapa_observacao" name="observacao" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarMudancaEtapaGantt()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Mover Lote (parcial) -->
+<div class="modal fade" id="modalMoverLote" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mover Lote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMoverLote">
+                    <input type="hidden" id="mover_lote_id" name="lote_id">
+                    <input type="hidden" id="mover_etapa_nova_id" name="etapa_nova_id">
+
+                    <div class="mb-2">
+                        <div class="small text-muted" id="mover_lote_info"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Quantidade a mover</label>
+                        <input type="number" step="0.0001" class="form-control" id="mover_quantidade" name="quantidade" required>
+                        <div class="form-text" id="mover_quantidade_hint"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observação (opcional)</label>
+                        <textarea class="form-control" id="mover_observacao" name="observacao" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmarMoverLote">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let modalMudarEtapaGantt;
+let modalMoverLote;
+
+let draggedCard = null;
+
+const moverLoteUrlBase = "{{ url_for('ordem_producao.mover_lote', lote_id=0) }}";
+
+document.addEventListener('DOMContentLoaded', function() {
+    modalMudarEtapaGantt = new bootstrap.Modal(document.getElementById('modalMudarEtapaGantt'));
+    modalMoverLote = new bootstrap.Modal(document.getElementById('modalMoverLote'));
+
+    const btnConfirmarMoverLote = document.getElementById('btnConfirmarMoverLote');
+    if (btnConfirmarMoverLote) {
+        btnConfirmarMoverLote.addEventListener('click', function() {
+            confirmarMoverLote();
+        });
+    }
+
+    // Header de Grupo de Etapas (evitar style inline com Jinja)
+    document.querySelectorAll('.gantt-header-grupo[data-span]').forEach(el => {
+        const span = parseInt(el.getAttribute('data-span') || '1', 10) || 1;
+        el.style.gridColumn = `span ${span}`;
+        const cor = el.getAttribute('data-grupo-cor');
+        if (cor) {
+            el.style.background = cor;
+            el.style.color = '#fff';
+        }
+    });
+
+    function ajustarStickyHeadersDuasLinhas() {
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        if (!wrapper) return;
+        const hGrupo = document.querySelector('.gantt-header-grupo-etapas');
+        if (!hGrupo) return;
+        const h = Math.ceil(hGrupo.getBoundingClientRect().height || 0);
+        if (h > 0) {
+            wrapper.style.setProperty('--gantt-header-grupo-h', `${h}px`);
+        }
+    }
+    ajustarStickyHeadersDuasLinhas();
+
+    const ganttMatriz = document.getElementById('ganttMatriz');
+
+    function ajustarGridLarguras() {
+        if (!ganttMatriz) return;
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        const n = parseInt(ganttMatriz.getAttribute('data-etapas-count') || '0', 10) || 0;
+        if (!wrapper || !n) return;
+
+        const w = wrapper.clientWidth || 0;
+        const grupoMin = 140;
+        const grupoMax = 200;
+        const grupoW = Math.max(grupoMin, Math.min(grupoMax, Math.floor(w * 0.18)));
+        const colMin = 60;
+        ganttMatriz.style.width = '100%';
+        ganttMatriz.style.gridTemplateColumns = `${grupoW}px repeat(${n}, minmax(${colMin}px, 1fr))`;
+
+        // Depois de recalcular colunas, recalcular altura do header 1 para sticky da linha 2.
+        ajustarStickyHeadersDuasLinhas();
+    }
+
+    function ajustarModoHeaderEtapas() {
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        if (!wrapper) return;
+
+        const header = document.querySelector('.gantt-header-etapa');
+        if (!header) return;
+
+        // Se a coluna estiver larga o suficiente, mostrar nome completo; senão, mostrar código.
+        const w = header.getBoundingClientRect().width || 0;
+        if (w >= 140) {
+            wrapper.classList.add('gantt-header-full');
+        } else {
+            wrapper.classList.remove('gantt-header-full');
+        }
+    }
+
+    // Tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        try {
+            new bootstrap.Tooltip(el);
+        } catch (e) {
+            // ignore
+        }
+    });
+
+    // Visual tipo "barra": altura proporcional ao % do lote (quantidade / total OP)
+    function parseDecimalBR(v) {
+        if (v === null || v === undefined) return 0;
+        let s = String(v).trim();
+        if (!s) return 0;
+        // aceita "1.234,56" e "1234.56" e "1234,56"
+        if (s.includes(',') && s.includes('.')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        } else if (s.includes(',')) {
+            s = s.replace(',', '.');
+        }
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    // Paleta sem colisão (na tela): cada OP visível recebe uma cor distinta.
+    const opIdToHue = new Map();
+    const opIds = [];
+    document.querySelectorAll('.kanban-card[data-op-id]').forEach(card => {
+        const id = card.getAttribute('data-op-id');
+        if (!id) return;
+        if (!opIdToHue.has(id)) {
+            opIds.push(id);
+            opIdToHue.set(id, 0);
+        }
+    });
+    const golden = 137.508;
+    opIds.forEach((id, idx) => {
+        // offset para não começar sempre no mesmo tom
+        const hue = Math.round((idx * golden + 28) % 360);
+        opIdToHue.set(id, hue);
+    });
+
+    document.querySelectorAll('.kanban-card[data-quantidade][data-op-total]').forEach(card => {
+        const el = card.querySelector('[data-role="pct"]');
+        const qtd = parseDecimalBR(card.getAttribute('data-quantidade'));
+        const tot = parseDecimalBR(card.getAttribute('data-op-total'));
+
+        const opId = card.getAttribute('data-op-id') || '';
+        if (opId && opIdToHue.has(opId)) {
+            const hue = opIdToHue.get(opId);
+            card.style.setProperty('--lot-accent', `hsl(${hue} 72% 42%)`);
+            card.style.setProperty('--lot-bg', `hsl(${hue} 72% 97%)`);
+        }
+
+        let pct = 0;
+        if (tot > 0) {
+            pct = (qtd / tot) * 100;
+        }
+        if (!Number.isFinite(pct)) pct = 0;
+        pct = Math.max(0, Math.min(100, pct));
+
+        // Rótulo
+        if (el) {
+            el.textContent = Math.round(pct) + '%';
+        }
+
+        // Altura proporcional
+        const minH = 26;   // px (mínimo visual)
+        const maxH = 110;  // px (máximo visual)
+        const h = Math.round(minH + (maxH - minH) * (pct / 100));
+        card.style.height = h + 'px';
+
+        // Largura: ocupa toda a coluna (sem lacunas). O alinhamento fica pela borda.
+        card.style.width = '100%';
+
+        // Bordas por alinhamento
+        const align = (card.getAttribute('data-align') || 'full').toLowerCase();
+        card.classList.remove('bar-left', 'bar-right', 'bar-full');
+        if (align === 'left') card.classList.add('bar-left');
+        else if (align === 'right') card.classList.add('bar-right');
+        else card.classList.add('bar-full');
+    });
+
+    function atualizarTransformConectores() {
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        const svg = document.getElementById('ganttConnectors');
+        if (!wrapper || !svg) return;
+        svg.style.transform = `translate(${-wrapper.scrollLeft}px, ${-wrapper.scrollTop}px)`;
+    }
+
+    function desenharConectoresMesmoLote() {
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        const matriz = document.getElementById('ganttMatriz');
+        const svg = document.getElementById('ganttConnectors');
+        if (!wrapper || !matriz || !svg) return;
+
+        const contentW = matriz.scrollWidth || matriz.offsetWidth || 0;
+        const contentH = matriz.scrollHeight || matriz.offsetHeight || 0;
+        svg.setAttribute('width', String(contentW));
+        svg.setAttribute('height', String(contentH));
+        svg.setAttribute('viewBox', `0 0 ${contentW} ${contentH}`);
+        svg.innerHTML = '';
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+
+        // Agrupar cards por grupo|op, mas separar por etapa para não conectar lotes na mesma coluna
+        const groups = new Map();
+        document.querySelectorAll('.kanban-card[data-op-id][data-grupo-id]').forEach(card => {
+            const opId = card.getAttribute('data-op-id') || '';
+            const grupoId = card.getAttribute('data-grupo-id') || '';
+            const etapaId = card.getAttribute('data-etapa-atual-id') || '';
+            if (!opId || !grupoId) return;
+            const rect = card.getBoundingClientRect();
+            const x = (rect.left - wrapperRect.left) + wrapper.scrollLeft + (rect.width / 2);
+            const y = (rect.top - wrapperRect.top) + wrapper.scrollTop + (rect.height / 2);
+            const key = `${grupoId}|${opId}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push({ card, x, y, etapaId });
+        });
+
+        groups.forEach(points => {
+            if (points.length < 2) return;
+            
+            // Agrupar por etapa - pegar apenas 1 ponto representativo por etapa
+            const porEtapa = new Map();
+            points.forEach(p => {
+                const etapa = p.etapaId || 'sem';
+                if (!porEtapa.has(etapa)) {
+                    porEtapa.set(etapa, p);
+                } else {
+                    // Se já existe um ponto nesta etapa, usar a média Y para centralizar
+                    const existente = porEtapa.get(etapa);
+                    existente.y = (existente.y + p.y) / 2;
+                }
+            });
+            
+            // Converter para array e ordenar por X
+            const pontosUnicos = Array.from(porEtapa.values());
+            if (pontosUnicos.length < 2) return;
+            
+            pontosUnicos.sort((a, b) => a.x - b.x);
+            const color = (getComputedStyle(pontosUnicos[0].card).getPropertyValue('--lot-accent') || '#0d6efd').trim();
+
+            for (let i = 0; i < pontosUnicos.length - 1; i++) {
+                const p1 = pontosUnicos[i];
+                const p2 = pontosUnicos[i + 1];
+                
+                // Só desenhar se estiverem em etapas diferentes (X significativamente diferente)
+                if (Math.abs(p2.x - p1.x) < 30) continue;
+                
+                const dx = Math.max(24, Math.min(140, (p2.x - p1.x) / 2));
+                const d = `M ${p1.x} ${p1.y} C ${p1.x + dx} ${p1.y}, ${p2.x - dx} ${p2.y}, ${p2.x} ${p2.y}`;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', color);
+                path.setAttribute('stroke-width', '3');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('opacity', '0.35');
+                svg.appendChild(path);
+            }
+        });
+
+        atualizarTransformConectores();
+    }
+
+    // Desenhar conectores após layout e ao redimensionar/rolar
+    setTimeout(desenharConectoresMesmoLote, 60);
+    window.addEventListener('resize', function() {
+        setTimeout(desenharConectoresMesmoLote, 80);
+    });
+    const ganttWrapper = document.getElementById('ganttMatrizWrapper');
+    if (ganttWrapper) {
+        ganttWrapper.addEventListener('scroll', function() {
+            atualizarTransformConectores();
+        });
+    }
+
+    document.querySelectorAll('.kanban-card[data-op-id]').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            const opId = this.getAttribute('data-op-id');
+            if (!opId) return;
+            document.querySelectorAll(`.kanban-card[data-op-id="${opId}"]`).forEach(el => el.classList.add('same-lot-active'));
+        });
+        card.addEventListener('mouseleave', function() {
+            const opId = this.getAttribute('data-op-id');
+            if (!opId) return;
+            document.querySelectorAll(`.kanban-card[data-op-id="${opId}"]`).forEach(el => el.classList.remove('same-lot-active'));
+        });
+    });
+
+    // Drag and drop (lotes)
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        let wasDragged = false;
+        card.addEventListener('dragstart', function(ev) {
+            draggedCard = this;
+            wasDragged = true;
+            ev.dataTransfer.setData('text/plain', this.getAttribute('data-lote-id') || '');
+            this.classList.add('dragging');
+        });
+        card.addEventListener('dragend', function() {
+            setTimeout(() => { wasDragged = false; }, 0);
+            this.classList.remove('dragging');
+        });
+        card.addEventListener('click', function(e) {
+            if (wasDragged) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Popover no clique do card (infos + ação)
+            if (popoverElAberto === this) {
+                fecharPopoverAberto();
+                return;
+            }
+            fecharPopoverAberto();
+
+            const opUrl = this.getAttribute('data-op-url') || '';
+            const opNum = (this.querySelector('.kanban-card-code') || {}).textContent || '';
+            const cliente = this.getAttribute('data-cliente') || '-';
+            const produto = this.getAttribute('data-produto') || '-';
+            const status = this.getAttribute('data-status') || '-';
+            const qtd = this.getAttribute('data-quantidade') || '-';
+            const total = this.getAttribute('data-op-total') || '-';
+
+            const content = `
+                <div style="min-width: 260px;">
+                    <div class="fw-bold">${opNum}</div>
+                    <div class="small text-muted" style="white-space: normal;">${cliente}</div>
+                    <div class="small" style="white-space: normal;">${produto}</div>
+                    <div class="small mt-1">Qtd lote: <span class="fw-bold">${qtd}</span> / OP: <span class="fw-bold">${total}</span></div>
+                    <div class="small">Status: <span class="fw-bold">${status}</span></div>
+                    <div class="d-flex gap-2 mt-2">
+                        ${opUrl ? `<a class="btn btn-sm btn-primary w-100" href="${opUrl}">Visualizar OP</a>` : `<button class="btn btn-sm btn-secondary w-100" disabled>Sem link</button>`}
+                    </div>
+                </div>
+            `;
+
+            popoverElAberto = this;
+            popoverAberto = new bootstrap.Popover(this, {
+                container: 'body',
+                html: true,
+                trigger: 'manual',
+                placement: 'auto',
+                content: content
+            });
+            popoverAberto.show();
+        });
+    });
+
+    document.querySelectorAll('.gantt-dropzone').forEach(zone => {
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', function() {
+            this.classList.remove('dragover');
+        });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            if (!draggedCard) return;
+
+            const loteId = draggedCard.getAttribute('data-lote-id');
+            const etapaNovaId = this.getAttribute('data-etapa-id');
+            if (!loteId || !etapaNovaId) return;
+            abrirModalMoverLote(draggedCard, etapaNovaId);
+        });
+    });
+
+function abrirModalMoverLote(card, etapaNovaId) {
+    const loteId = card.getAttribute('data-lote-id');
+    const opNum = (card.querySelector('.kanban-card-code') || {}).textContent || '';
+    const qtd = card.getAttribute('data-quantidade') || '';
+    const opTotal = card.getAttribute('data-op-total') || '';
+    const etapaAtualId = card.getAttribute('data-etapa-atual-id') || '';
+
+    document.getElementById('mover_lote_id').value = loteId;
+    document.getElementById('mover_etapa_nova_id').value = etapaNovaId || '';
+
+    const info = `Lote ${opNum}`;
+    document.getElementById('mover_lote_info').textContent = info;
+
+    const inp = document.getElementById('mover_quantidade');
+    const qtdNum = parseDecimalBR(qtd);
+    inp.value = qtdNum ? String(qtdNum) : '';
+    inp.max = qtdNum ? String(qtdNum) : '';
+    inp.min = '0.0001';
+    document.getElementById('mover_quantidade_hint').textContent = `Disponível neste lote: ${qtd}${opTotal ? ` (OP total: ${opTotal})` : ''}`;
+
+    document.getElementById('mover_observacao').value = '';
+    modalMoverLote.show();
+}
+
+function confirmarMoverLote() {
+    const loteId = document.getElementById('mover_lote_id').value;
+    const etapaNovaId = document.getElementById('mover_etapa_nova_id').value;
+    const qtd = document.getElementById('mover_quantidade').value;
+    const obs = document.getElementById('mover_observacao').value;
+
+    if (!loteId || !etapaNovaId) {
+        alert('Lote/Etapa inválidos.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('etapa_nova_id', etapaNovaId);
+    formData.append('quantidade', qtd);
+    if (obs) formData.append('observacao', obs);
+
+    // url_for garante o prefixo correto do blueprint
+    const url = moverLoteUrlBase.replace('/0', `/${loteId}`);
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.sucesso) {
+            window.location.reload();
+        } else {
+            alert('Erro ao mover lote: ' + ((data && data.erro) ? data.erro : 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro ao mover lote: ' + err));
+}
+
+    // Popover/Menu simples no clique (reutilizado por cards e grupos)
+    let popoverAberto = null;
+    let popoverElAberto = null;
+
+    function fecharPopoverAberto() {
+        if (popoverAberto) {
+            try { popoverAberto.hide(); } catch (e) {}
+        }
+        popoverAberto = null;
+        popoverElAberto = null;
+    }
+
+    document.addEventListener('click', function(ev) {
+        if (popoverElAberto && popoverElAberto.contains(ev.target)) return;
+        const pop = document.querySelector('.popover');
+        if (pop && pop.contains(ev.target)) return;
+        fecharPopoverAberto();
+    });
+
+    // Popover para Romaneio de Produção (linha)
+    document.querySelectorAll('.gantt-grupo-compact').forEach(row => {
+        row.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const grupoUrl = this.getAttribute('data-grupo-url') || '';
+            const title = this.getAttribute('title') || '';
+            const linhas = title.split('\n');
+            const orc = (linhas[0] || '').trim() || '-';
+            const cliente = (linhas[1] || '').trim() || '-';
+
+            if (popoverElAberto === this) {
+                fecharPopoverAberto();
+                return;
+            }
+            fecharPopoverAberto();
+
+            const content = `
+                <div style="min-width: 220px;">
+                    <div class="fw-bold">${orc}</div>
+                    <div class="small text-muted" style="white-space: normal;">${cliente}</div>
+                    <div class="d-flex gap-2 mt-2">
+                        ${grupoUrl ? `<a class="btn btn-sm btn-outline-primary w-100" href="${grupoUrl}">Abrir Grupo</a>` : `<button class="btn btn-sm btn-outline-secondary w-100" disabled>Sem Grupo</button>`}
+                    </div>
+                </div>
+            `;
+
+            popoverElAberto = this;
+            popoverAberto = new bootstrap.Popover(this, {
+                container: 'body',
+                html: true,
+                trigger: 'manual',
+                placement: 'auto',
+                content: content
+            });
+            popoverAberto.show();
+        });
+    });
+
+    function hexToRgba(hex, alpha) {
+        if (!hex) return null;
+        const h = String(hex).replace('#', '').trim();
+        if (!(h.length === 6 || h.length === 3)) return null;
+        const full = (h.length === 3)
+            ? h.split('').map(ch => ch + ch).join('')
+            : h;
+        const r = parseInt(full.substring(0, 2), 16);
+        const g = parseInt(full.substring(2, 4), 16);
+        const b = parseInt(full.substring(4, 6), 16);
+        if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function aplicarCoresColunas() {
+        document.querySelectorAll('.gantt-header-etapa[data-etapa-id]').forEach(header => {
+            const cor = header.getAttribute('data-etapa-cor');
+            const etapaId = header.getAttribute('data-etapa-id');
+            const bg = hexToRgba(cor, 0.18);
+            const border = hexToRgba(cor, 0.55);
+            if (bg) header.style.background = bg;
+            if (border) header.style.borderTop = `3px solid ${border}`;
+            if (etapaId) {
+                document.querySelectorAll(`.gantt-cell-etapa[data-etapa-id="${etapaId}"]`).forEach(cell => {
+                    const bgCell = hexToRgba(cor, 0.07);
+                    if (bgCell) cell.style.background = bgCell;
+                });
+            }
+        });
+    }
+
+    function ajustarAlturaWrapper() {
+        const wrapper = document.getElementById('ganttMatrizWrapper');
+        if (!wrapper) return;
+        const rect = wrapper.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+        const dica = document.getElementById('ganttDicaRodape');
+        const dicaH = dica ? (dica.offsetHeight || 0) : 0;
+        const bottomGap = 12 + dicaH;
+        const h = Math.max(240, Math.floor(vh - rect.top - bottomGap));
+        wrapper.style.height = h + 'px';
+    }
+
+    aplicarCoresColunas();
+    requestAnimationFrame(() => {
+        ajustarGridLarguras();
+        ajustarModoHeaderEtapas();
+        requestAnimationFrame(ajustarGridLarguras);
+        requestAnimationFrame(ajustarModoHeaderEtapas);
+        setTimeout(ajustarGridLarguras, 250);
+        setTimeout(ajustarModoHeaderEtapas, 250);
+    });
+    ajustarAlturaWrapper();
+    window.addEventListener('resize', function() {
+        ajustarGridLarguras();
+        ajustarModoHeaderEtapas();
+        ajustarAlturaWrapper();
+    });
+
+    const sidebarBtn = document.getElementById('sidebarCollapse');
+    if (sidebarBtn) {
+        sidebarBtn.addEventListener('click', function() {
+            setTimeout(ajustarGridLarguras, 350);
+            setTimeout(ajustarModoHeaderEtapas, 350);
+            setTimeout(ajustarAlturaWrapper, 350);
+        });
+    }
+
+    // Foco em uma OP específica (quando vier da tela Visualizar OP)
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const opFocusId = params.get('op_id');
+        if (opFocusId) {
+            // garante layout calculado antes de focar
+            setTimeout(() => {
+                const card = document.querySelector(`.kanban-card[data-op-id="${opFocusId}"]`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                    card.classList.add('gantt-op-highlight');
+                    setTimeout(() => card.classList.remove('gantt-op-highlight'), 3000);
+                }
+            }, 450);
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    const formFiltros = document.getElementById('formFiltrosProducao');
+    const btnEtapasAplicar = document.getElementById('btnEtapasAplicar');
+    const btnEtapasLimpar = document.getElementById('btnEtapasLimpar');
+    const btnEtapasDropdown = document.getElementById('btnEtapasDropdown');
+    const filtroEtapas = document.getElementById('filtroEtapas');
+
+    function getEtapasSelecionadas() {
+        return Array.from(document.querySelectorAll('.etapa-visivel:checked')).map(el => el.value);
+    }
+
+    function atualizarTextoDropdown() {
+        const ids = getEtapasSelecionadas();
+        if (!btnEtapasDropdown) return;
+        if (!ids.length) {
+            btnEtapasDropdown.textContent = 'Todas as etapas';
+        } else {
+            btnEtapasDropdown.textContent = ids.length + ' etapa(s) selecionada(s)';
+        }
+    }
+
+    function limparHiddenEtapas() {
+        if (!formFiltros) return;
+        formFiltros.querySelectorAll('input[name="etapas"]').forEach(el => el.remove());
+    }
+
+    function aplicarSelecaoEtapas() {
+        if (!formFiltros) return;
+        limparHiddenEtapas();
+        const ids = getEtapasSelecionadas();
+        ids.forEach(id => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'etapas';
+            inp.value = id;
+            formFiltros.appendChild(inp);
+        });
+        atualizarTextoDropdown();
+        formFiltros.submit();
+    }
+
+    if (btnEtapasAplicar) {
+        btnEtapasAplicar.addEventListener('click', function() {
+            aplicarSelecaoEtapas();
+        });
+    }
+
+    if (btnEtapasLimpar) {
+        btnEtapasLimpar.addEventListener('click', function() {
+            document.querySelectorAll('.etapa-visivel').forEach(el => { el.checked = false; });
+            atualizarTextoDropdown();
+        });
+    }
+
+    if (filtroEtapas) {
+        filtroEtapas.addEventListener('input', function() {
+            const q = (this.value || '').trim().toLowerCase();
+            document.querySelectorAll('#listaEtapasCheckbox .form-check').forEach(row => {
+                const label = row.textContent.trim().toLowerCase();
+                row.style.display = (!q || label.includes(q)) ? '' : 'none';
+            });
+        });
+    }
+
+    // Quando o usuário clicar em Filtrar, garantir que a seleção atual de etapas seja enviada
+    if (formFiltros) {
+        formFiltros.addEventListener('submit', function() {
+            limparHiddenEtapas();
+            const ids = getEtapasSelecionadas();
+            ids.forEach(id => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'etapas';
+                inp.value = id;
+                formFiltros.appendChild(inp);
+            });
+        });
+    }
+
+    // Recalcular textos
+    atualizarTextoDropdown();
+});
+
+function confirmarMudancaEtapaGantt() {
+    const opId = document.getElementById('gantt_op_id').value;
+    const etapaNovaId = document.getElementById('gantt_etapa_nova_id').value;
+    const observacao = document.getElementById('gantt_etapa_observacao').value;
+
+    const formData = new FormData();
+    formData.append('etapa_nova_id', etapaNovaId);
+    if (observacao) formData.append('observacao', observacao);
+
+    fetch(`/industria/ordem-producao/${opId}/mudar-etapa`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.sucesso) {
+            location.reload();
+        } else {
+            alert('Erro ao mudar etapa: ' + (data.erro || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao mudar etapa: ' + error);
+    });
+}
+
+// ===== TEMPORIZADORES =====
+function formatarTempo(ms) {
+    if (ms < 0) ms = 0;
+    const totalSeg = Math.floor(ms / 1000);
+    const totalMin = Math.floor(totalSeg / 60);
+    const horas = Math.floor(totalMin / 60);
+    const minutos = totalMin % 60;
+    
+    if (horas > 0) {
+        return horas + 'h' + String(minutos).padStart(2, '0') + 'm';
+    }
+    return minutos + 'm' + String(totalSeg % 60).padStart(2, '0') + 's';
+}
+
+function atualizarTemporizadores() {
+    const agora = new Date().getTime();
+    
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        const pausaInicio = card.dataset.pausaInicio;
+        const inicioProducao = card.dataset.inicioProducao;
+        const atribuicao = card.dataset.atribuicao;
+        const inicioProducaoOp = card.dataset.inicioProducaoOp;
+        const chegadaEtapa = card.dataset.chegadaEtapa;
+        const statusOperador = card.dataset.statusOperador;
+        
+        let tempoProducao = '--';
+        let tempoEtapa = '--';
+        let statusLabel = '';
+        
+        // Timer 1: Tempo total de produção (desde início da OP)
+        if (inicioProducaoOp) {
+            const diffProducao = agora - new Date(inicioProducaoOp).getTime();
+            tempoProducao = formatarTempo(diffProducao);
+        }
+        
+        // Timer 2: Tempo na etapa atual
+        let timestampEtapa = null;
+        
+        if (pausaInicio) {
+            timestampEtapa = new Date(pausaInicio).getTime();
+            statusLabel = '⏸️ Pausado';
+        } else if (statusOperador === 'em_producao' && inicioProducao) {
+            timestampEtapa = new Date(inicioProducao).getTime();
+            statusLabel = '⚙️ Produzindo';
+        } else if (statusOperador === 'em_espera' && atribuicao) {
+            timestampEtapa = new Date(atribuicao).getTime();
+            statusLabel = '⏳ Em espera';
+        } else if (chegadaEtapa) {
+            timestampEtapa = new Date(chegadaEtapa).getTime();
+            statusLabel = '⏳ Na etapa';
+        } else if (inicioProducaoOp) {
+            timestampEtapa = new Date(inicioProducaoOp).getTime();
+            statusLabel = '⏳ Na etapa';
+        }
+        
+        if (timestampEtapa) {
+            const diffEtapa = agora - timestampEtapa;
+            tempoEtapa = formatarTempo(diffEtapa);
+        }
+        
+        // Atualizar tooltip com os tempos
+        const tooltipInstance = bootstrap.Tooltip.getInstance(card);
+        if (tooltipInstance) {
+            // Pegar título base (sem tempos) do data attribute
+            let baseTitle = card.dataset.baseTitle;
+            if (!baseTitle) {
+                baseTitle = card.getAttribute('data-bs-original-title') || card.getAttribute('title') || '';
+                card.dataset.baseTitle = baseTitle;
+            }
+            
+            // Adicionar tempos ao título
+            let novoTitle = baseTitle;
+            if (tempoProducao !== '--' || tempoEtapa !== '--') {
+                novoTitle += '<br><hr style="margin: 4px 0; border-color: #ccc;">';
+                novoTitle += '<b>🏭 Produção:</b> ' + tempoProducao;
+                if (statusLabel && tempoEtapa !== '--') {
+                    novoTitle += '<br><b>' + statusLabel + ':</b> ' + tempoEtapa;
+                }
+            }
+            
+            tooltipInstance.setContent({ '.tooltip-inner': novoTitle });
+        }
+    });
+}
+
+// Inicializar tooltips e temporizadores
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips Bootstrap
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el);
+    });
+    
+    // Atualizar a cada segundo
+    setInterval(atualizarTemporizadores, 1000);
+    // Primeira atualização imediata
+    setTimeout(atualizarTemporizadores, 500);
+});
+</script>
+
+<style>
+.producao-gantt-page {
+    max-width: 100%;
+}
+.producao-gantt-card {
+    height: auto;
+}
+.producao-gantt-card-body {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.gantt-matriz-wrapper {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    background: #ffffff;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 240px;
+    position: relative;
+}
+.gantt-connectors {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+.gantt-matriz {
+    position: relative;
+    z-index: 3;
+}
+.gantt-matriz {
+    display: grid;
+    grid-auto-rows: minmax(70px, auto);
+    grid-auto-flow: row;
+    gap: 0;
+}
+.gantt-header {
+    position: relative;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    background: #f8f9fa;
+    font-weight: 600;
+    min-width: 0;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gantt-header-grupo-etapas {
+    white-space: normal;
+    align-items: center;
+}
+.gantt-header-grupo-etapas .gantt-grupo-etapas-nome {
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.1;
+    max-height: 2.2em;
+}
+.producao-gantt-page .form-label {
+    margin-bottom: 2px;
+    font-size: 0.8rem;
+}
+.producao-gantt-page .form-select,
+.producao-gantt-page .form-control,
+.producao-gantt-page .btn {
+    min-height: 34px;
+}
+.producao-gantt-page #btnEtapasDropdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.kanban-card {
+    padding: 8px;
+}
+.kanban-card-compact {
+    padding: 6px;
+    border-radius: 8px;
+}
+.kanban-card-code {
+    font-weight: 700;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gantt-op-highlight {
+    outline: 3px solid #0d6efd;
+    box-shadow: 0 0 0 6px rgba(13,110,253,0.15);
+}
+.gantt-etapa-cod {
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.gantt-etapa-nome {
+    display: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#ganttMatrizWrapper.gantt-header-full .gantt-etapa-cod {
+    display: none;
+}
+#ganttMatrizWrapper.gantt-header-full .gantt-etapa-nome {
+    display: inline;
+}
+.kanban-card .fw-bold {
+    font-size: 0.85rem;
+}
+.kanban-card .small {
+    font-size: 0.75rem;
+}
+.gantt-row-header {
+    padding: 6px 6px;
+    border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    background: #ffffff;
+    min-width: 0;
+}
+.gantt-cell {
+    padding: 6px;
+    border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    min-width: 0;
+    background: #ffffff;
+    display: flex;
+    gap: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+.kanban-card {
+    flex: 0 0 auto;
+    max-width: 100%;
+    min-width: 54px;
+}
+.kanban-card[data-align="right"] {
+    align-self: flex-end;
+}
+.kanban-card[data-align="left"] {
+    align-self: flex-start;
+}
+.kanban-card[data-align="full"] {
+    width: 100% !important;
+}
+.gantt-grupo-compact {
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+}
+.gantt-grupo-code {
+    font-weight: 800;
+    font-size: 0.78rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.gantt-cell.dragover {
+    background: #e7f1ff;
+}
+.gantt-sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+.gantt-sticky-left {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+}
+.gantt-sticky-top.gantt-sticky-left {
+    z-index: 7;
+}
+
+/* Cabeçalho em 2 linhas: (1) Grupo de Etapas, (2) Etapas */
+.gantt-header-left {
+    grid-row: span 2;
+}
+.gantt-header-grupo-etapas.gantt-sticky-top {
+    top: 0;
+}
+.gantt-header-etapa-linha.gantt-sticky-top {
+    top: var(--gantt-header-grupo-h, 38px);
+}
+.gantt-empty {
+    padding: 16px;
+}
+.kanban-card {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 0;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    position: relative;
+    background: var(--lot-bg, #ffffff);
+    border-color: color-mix(in srgb, var(--lot-accent, #dee2e6) 35%, #dee2e6);
+}
+.kanban-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4px;
+    background: var(--lot-accent, transparent);
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+    opacity: 0.9;
+}
+.kanban-card.same-lot-active {
+    outline: 2px solid var(--lot-accent, #0d6efd);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--lot-accent, #0d6efd) 18%, transparent);
+}
+.kanban-card.bar-left {
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-right-radius: 18px;
+    border-bottom-left-radius: 4px;
+}
+.kanban-card.bar-right {
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 4px;
+}
+.kanban-card.bar-full {
+    border-radius: 18px;
+}
+.kanban-card-ratio {
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #6c757d;
+    margin-bottom: 4px;
+}
+.kanban-card.dragging {
+    opacity: 0.6;
+}
+.kanban-etapa-pill {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #0d6efd;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

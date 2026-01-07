@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Cliente{% endblock %}
+
+{% block extra_css %}
+<style>
+    .view-container {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .view-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .view-value {
+        margin-bottom: 15px;
+    }
+    .equipment-card {
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Visualizar Cliente</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('cliente.cliente_editar', id=cliente.id) }}" class="btn btn-sm btn-warning me-2">
+            <i class="fas fa-edit"></i> Editar
+        </a>
+        <a href="{{ url_for('cliente.clientes') }}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="view-container">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="view-label">Codigo</div>
+                    <div class="view-value">{{ cliente.id }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="view-label">Nome da Empresa</div>
+                    <div class="view-value">{{ cliente.name }}</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="view-label">CNPJ</div>
+                    <div class="view-value">{{ cliente.cnpj }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="view-label">Telefone</div>
+                    <div class="view-value">{{ cliente.phone }}</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="view-label">Email</div>
+                    <div class="view-value">{{ cliente.email }}</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="view-label">Endereco</div>
+                    <div class="view-value">{{ cliente.address }}</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="view-label">Cidade</div>
+                    <div class="view-value">{{ cliente.city }}</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="view-label">Estado</div>
+                    <div class="view-value">{{ cliente.state }}</div>
+                </div>
+            </div>
+        </div>
+        
+        {% if equipamentos %}
+        <div class="view-container">
+            <h4>Equipamentos Instalados</h4>
+            <div class="row">
+                {% for equipamento in equipamentos %}
+                <div class="col-md-6">
+                    <div class="card equipment-card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ equipamento.name }}</h5>
+                            <p class="card-text">
+                                <strong>Instalacao:</strong> {{ equipamento.installation_date }}
+                            </p>
+                            <a href="{{ url_for('equipamento.equipamento_visualizar', id=equipamento.id) }}" class="btn btn-sm btn-info">
+                                <i class="fas fa-eye"></i> Detalhes
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            Este cliente nao possui equipamentos instalados.
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="view-container">
+            <h5><i class="fas fa-info-circle"></i> Informacoes</h5>
+            <p>Visualizando detalhes do cliente.</p>
+            <p>Para editar os dados, clique no botao "Editar".</p>
+            <p>Para voltar a lista de clientes, clique em "Voltar".</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

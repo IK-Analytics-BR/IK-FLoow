@@ -1,0 +1,305 @@
+<!-- ABA 1: DADOS DO ORCAMENTO -->
+<div class="row">
+    <!-- COLUNA ESQUERDA -->
+    <div class="col-md-8">
+        <!-- GRADE: Dados do Movimento -->
+        <div class="grade">
+            <div class="grade-header azul"><i class="fas fa-file-alt"></i>Dados do Movimento</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <label class="form-label">Tipo de Movimento</label>
+                        <select class="form-select" name="tipo_movimento">
+                            <option value="venda_revenda">VENDA PARA REVENDA</option>
+                            <option value="venda_consumidor">VENDA CONSUMIDOR FINAL</option>
+                            <option value="venda_industria">VENDA PARA INDUSTRIA</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Emissao</label>
+                        <input type="date" class="form-control field-highlight" name="data_emissao" value="{{ hoje }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Serie</label>
+                        <select class="form-select" name="serie_nfe">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Validade</label>
+                        <input type="date" class="form-control" name="data_validade" 
+                               value="{{ orcamento.data_validade.strftime('%Y-%m-%d') if orcamento and orcamento.data_validade else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Previsões -->
+        <div class="grade">
+            <div class="grade-header" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white;">
+                <i class="fas fa-calendar-check"></i>Previsões de Prazo
+                <button type="button" class="btn btn-sm btn-light float-end" onclick="calcularPrevisaoAutomatica()" title="Calcular previsão baseada nos itens">
+                    <i class="fas fa-calculator"></i> Calcular
+                </button>
+            </div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-industry text-primary me-1"></i>Prev. Produção
+                        </label>
+                        <input type="date" class="form-control" name="data_previsao_producao" id="data_previsao_producao"
+                               value="{{ orcamento.data_previsao_producao.strftime('%Y-%m-%d') if orcamento and orcamento.data_previsao_producao else '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            <i class="fas fa-truck text-secondary me-1"></i>Dias Transp.
+                        </label>
+                        <input type="number" class="form-control text-center" name="dias_transporte" id="dias_transporte"
+                               value="{{ orcamento.dias_transporte if orcamento and orcamento.dias_transporte else '0' }}"
+                               min="0" max="90" onchange="calcularPrevisaoEntrega()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-shipping-fast text-success me-1"></i>Prev. Entrega
+                        </label>
+                        <input type="date" class="form-control" name="data_previsao_entrega" id="data_previsao_entrega"
+                               value="{{ orcamento.data_previsao_entrega.strftime('%Y-%m-%d') if orcamento and orcamento.data_previsao_entrega else '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Tempo Est.</label>
+                        <input type="text" class="form-control text-center" id="tempo_estimado_display" readonly 
+                               style="background:#f8f9fa;font-weight:bold;color:#6366f1;" placeholder="--">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="form-check mt-2">
+                            <input type="checkbox" class="form-check-input" name="previsao_manual" id="previsao_manual" value="1"
+                                   {{ 'checked' if orcamento and orcamento.previsao_manual else '' }}>
+                            <label class="form-check-label small" for="previsao_manual">Manual</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="fas fa-lightbulb text-warning me-1"></i>
+                            <span id="previsao_info">Clique em "Calcular" para obter previsão baseada nos itens e fila de produção.</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Cliente -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-user"></i>Cliente</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Filial</label>
+                        <select class="form-select" name="empresa_id" id="empresa_id" required>
+                            {% for emp in empresas %}
+                            <option value="{{ emp.id }}" {{ 'selected' if orcamento and orcamento.empresa_id|int == emp.id|int }}>{{ emp.razao_social }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Codigo</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control field-highlight" id="cliente_codigo" 
+                                   value="{{ cliente.id if cliente else '' }}" placeholder="F2 buscar">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="buscarCliente()" title="Buscar cliente (F2)">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <input type="hidden" name="cliente_id" id="cliente_id" value="{{ cliente.id if cliente else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="cliente_nome" 
+                               value="{{ cliente.name if cliente else '' }}" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="btn-group w-100">
+                            <button type="button" class="btn btn-outline-info btn-sm" title="Central Info" onclick="centralInfoCliente()"><i class="fas fa-info-circle"></i></button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" title="Limite Credito" onclick="verLimiteCredito()"><i class="fas fa-credit-card"></i></button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" title="Detalhar" onclick="detalharCliente()"><i class="fas fa-user"></i></button>
+                            <button type="button" class="btn btn-outline-success btn-sm" title="Novo Cliente" onclick="novoCliente()"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-12">
+                        <label class="form-label">Obs. Cadastrais</label>
+                        <div class="alert alert-warning py-1 mb-0 small">
+                            <span id="cliente_obs">Nenhuma observacao</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Vendedor e Contato -->
+        <div class="grade">
+            <div class="grade-header roxo"><i class="fas fa-user-tie"></i>Vendedor e Contato</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <label class="form-label">Vendedor 1</label>
+                        <select class="form-select" name="vendedor_id" id="vendedor_id">
+                            <option value="">-- Selecione --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" {{ 'selected' if orcamento and orcamento.vendedor_id|int == v.id|int }}>{{ v.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Vendedor 2</label>
+                        <select class="form-select" name="vendedor2_id" id="vendedor2_id">
+                            <option value="">-- Nenhum --</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" {{ 'selected' if orcamento and orcamento.vendedor2_id and orcamento.vendedor2_id|int == v.id|int }}>{{ v.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="abrirContatos()">
+                            <i class="fas fa-address-book"></i> Contatos
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">Contato</label>
+                        <input type="text" class="form-control" name="contato" 
+                               value="{{ orcamento.contato if orcamento and orcamento.contato else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo Pedido</label>
+                        <select class="form-select" name="tipo_pedido">
+                            <option value="">--</option>
+                            <option value="balcao" {{ 'selected' if orcamento and orcamento.tipo_pedido == 'balcao' }}>Balcao</option>
+                            <option value="telefone" {{ 'selected' if orcamento and orcamento.tipo_pedido == 'telefone' }}>Telefone</option>
+                            <option value="whatsapp" {{ 'selected' if orcamento and orcamento.tipo_pedido == 'whatsapp' }}>WhatsApp</option>
+                            <option value="email" {{ 'selected' if orcamento and orcamento.tipo_pedido == 'email' }}>E-mail</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Canal</label>
+                        <select class="form-select" name="canal_relacionamento">
+                            <option value="">--</option>
+                            <option value="direto" {{ 'selected' if orcamento and orcamento.canal_relacionamento == 'direto' }}>Direto</option>
+                            <option value="indicacao" {{ 'selected' if orcamento and orcamento.canal_relacionamento == 'indicacao' }}>Indicacao</option>
+                            <option value="marketing" {{ 'selected' if orcamento and orcamento.canal_relacionamento == 'marketing' }}>Marketing</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div class="col-md-4">
+        <!-- GRADE: Impostos -->
+        <div class="grade">
+            <div class="grade-header laranja"><i class="fas fa-calculator"></i>Impostos</div>
+            <div class="grade-body">
+                <div class="row g-1">
+                    <div class="col-6">
+                        <label class="form-label">Base ICMS</label>
+                        <input type="text" class="form-control text-end" value="0,00" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Valor ICMS</label>
+                        <input type="text" class="form-control text-end" value="0,00" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Base ST</label>
+                        <input type="text" class="form-control text-end" value="0,00" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Valor ST</label>
+                        <input type="text" class="form-control text-end" value="0,00" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Valor IPI</label>
+                        <input type="text" class="form-control text-end" value="0,00" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Totais -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-dollar-sign"></i>Totais</div>
+            <div class="grade-body">
+                <div class="row g-1">
+                    <div class="col-4">
+                        <label class="form-label">Frete</label>
+                        <input type="number" class="form-control text-end" name="valor_frete" id="valor_frete" 
+                               value="{{ orcamento.valor_frete if orcamento else '0.00' }}" step="0.01">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Seguro</label>
+                        <input type="number" class="form-control text-end" name="valor_seguro" 
+                               value="{{ orcamento.valor_seguro if orcamento else '0.00' }}" step="0.01">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">% Desconto</label>
+                        <input type="number" class="form-control text-end" name="percentual_desconto" id="percentual_desconto" 
+                               value="{{ orcamento.percentual_desconto if orcamento else '0' }}" step="0.01" max="100">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Desp. Acess.</label>
+                        <input type="number" class="form-control text-end" value="0.00" step="0.01">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Servicos</label>
+                        <input type="text" class="form-control text-end" id="total_servicos" value="0,00" readonly>
+                    </div>
+                </div>
+                <hr class="my-2">
+                <div class="row g-1">
+                    <div class="col-6">
+                        <label class="form-label">Produtos</label>
+                        <input type="text" class="form-control text-end" id="total_produtos" value="0,00" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold">TOTAL</label>
+                        <input type="text" class="form-control text-end fw-bold field-highlight" id="total_documento" value="0,00" readonly style="font-size:1rem;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Auditoria -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-history"></i>Auditoria</div>
+            <div class="grade-body small text-muted">
+                <div><strong>Criado:</strong> {{ orcamento.created_at if orcamento else 'N/A' }}</div>
+                <div><strong>Atualizado:</strong> {{ orcamento.updated_at if orcamento else 'N/A' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Buscar Cliente -->
+<div class="modal fade" id="modalBuscarCliente" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Buscar Cliente</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-2" id="busca_cliente" placeholder="Digite nome ou CNPJ...">
+                <div id="resultado_clientes"></div>
+            </div>
+        </div>
+    </div>
+</div>

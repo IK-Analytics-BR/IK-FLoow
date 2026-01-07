@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Moedas e Câmbio{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-coins me-2"></i>Moedas e Câmbio</h4>
+        <a href="{{ url_for('currency.nova') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Nova Moeda
+        </a>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:80px">Código</th>
+                            <th>Nome</th>
+                            <th style="width:120px">Símbolo</th>
+                            <th style="width:120px">Decimais</th>
+                            <th style="width:100px">Status</th>
+                            <th style="width:120px" class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in moedas %}
+                        <tr>
+                            <td><strong>{{ m.code }}</strong></td>
+                            <td>{{ m.name }}</td>
+                            <td>{{ m.symbol or '-' }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ m.decimal_places }} casa(s)</span>
+                            </td>
+                            <td>
+                                {% if m.active %}
+                                <span class="badge bg-success">Ativa</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inativa</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('currency.editar', code=m.code) }}"
+                                   class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if m.active %}
+                                <form action="{{ url_for('currency.excluir', code=m.code) }}"
+                                      method="POST" class="d-inline"
+                                      onsubmit="return confirm('Deseja desativar esta moeda?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Desativar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                Nenhuma moeda cadastrada.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer text-muted">
+            Total: {{ moedas|length }} moeda(s)
+        </div>
+    </div>
+</div>
+{% endblock %}

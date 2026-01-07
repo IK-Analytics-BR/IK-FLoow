@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Kardex - {{ produto.produto_nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">
+        <i class="fas fa-history me-2"></i>Kardex do Produto
+    </h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.inventory_list') }}">Estoque</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('kardex.kardex_index') }}">Kardex</a></li>
+        <li class="breadcrumb-item active">{{ produto.produto_nome }}</li>
+    </ol>
+    
+    <!-- Informações do Produto -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-box me-1"></i> Dados do Produto
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Nome:</strong> {{ produto.produto_nome }}</p>
+                            <p><strong>Código:</strong> {{ produto.codigo or '-' }}</p>
+                            <p><strong>Código de Barras:</strong> {{ produto.barcode or '-' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Unidade:</strong> {{ produto.unidade or 'UN' }}</p>
+                            <p><strong>Categoria:</strong> {{ produto.categoria_nome or '-' }}</p>
+                            <p><strong>Custo:</strong> R$ {{ "%.2f"|format(produto.custo or 0) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6>Estoque Atual</h6>
+                    <h1 class="display-4">{{ "%.2f"|format(produto.estoque_atual) }}</h1>
+                    <p class="mb-0">{{ produto.unidade or 'UN' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumo -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h6><i class="fas fa-arrow-up"></i> Total Entradas</h6>
+                    <h3>{{ "%.2f"|format(totais.total_entradas or 0) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h6><i class="fas fa-arrow-down"></i> Total Saídas</h6>
+                    <h3>{{ "%.2f"|format(totais.total_saidas or 0) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h6><i class="fas fa-list"></i> Total Movimentações</h6>
+                    <h3>{{ totais.total_movimentacoes or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i> Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Data Início</label>
+                    <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Data Fim</label>
+                    <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tipo de Movimentação</label>
+                    <select name="tipo" class="form-select">
+                        <option value="">Todos os tipos</option>
+                        <option value="entrada" {% if tipo_filtro == 'entrada' %}selected{% endif %}>Entrada</option>
+                        <option value="saida" {% if tipo_filtro == 'saida' %}selected{% endif %}>Saída</option>
+                        <option value="ajuste_positivo" {% if tipo_filtro == 'ajuste_positivo' %}selected{% endif %}>Ajuste (+)</option>
+                        <option value="ajuste_negativo" {% if tipo_filtro == 'ajuste_negativo' %}selected{% endif %}>Ajuste (-)</option>
+                        <option value="venda" {% if tipo_filtro == 'venda' %}selected{% endif %}>Venda</option>
+                        <option value="entrada_producao" {% if tipo_filtro == 'entrada_producao' %}selected{% endif %}>Entrada Produção</option>
+                        <option value="baixa_producao" {% if tipo_filtro == 'baixa_producao' %}selected{% endif %}>Baixa Produção</option>
+                        <option value="reserva" {% if tipo_filtro == 'reserva' %}selected{% endif %}>Reserva</option>
+                        <option value="devolucao" {% if tipo_filtro == 'devolucao' %}selected{% endif %}>Devolução</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Tabela Kardex -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i> Histórico de Movimentações (Kardex)
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-sm" id="tabelaKardex">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Tipo</th>
+                            <th>Origem</th>
+                            <th>Referência</th>
+                            <th class="text-end">Entrada</th>
+                            <th class="text-end">Saída</th>
+                            <th class="text-end">Saldo Anterior</th>
+                            <th class="text-end">Saldo Posterior</th>
+                            <th>Usuário</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimentacoes %}
+                        <tr>
+                            <td>{{ mov.created_at.strftime('%d/%m/%Y %H:%M') if mov.created_at else '-' }}</td>
+                            <td>
+                                {% if mov.tipo in ['entrada', 'ajuste_positivo', 'entrada_producao', 'devolucao', 'liberacao_reserva'] %}
+                                <span class="badge bg-success">{{ mov.tipo_descricao }}</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ mov.tipo_descricao }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ mov.origem_tela or '-' }}</small>
+                            </td>
+                            <td>
+                                {% if mov.referencia_codigo %}
+                                <span class="badge bg-info">{{ mov.referencia_codigo }}</span>
+                                {% elif mov.referencia_tipo %}
+                                <small>{{ mov.referencia_tipo }} #{{ mov.referencia_id }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if mov.tipo in ['entrada', 'ajuste_positivo', 'entrada_producao', 'devolucao', 'liberacao_reserva'] %}
+                                <span class="text-success fw-bold">+{{ "%.2f"|format(mov.quantidade) }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if mov.tipo in ['saida', 'ajuste_negativo', 'baixa_producao', 'venda', 'reserva', 'transferencia'] %}
+                                <span class="text-danger fw-bold">-{{ "%.2f"|format(mov.quantidade) }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ "%.2f"|format(mov.estoque_anterior or 0) }}</td>
+                            <td class="text-end fw-bold">{{ "%.2f"|format(mov.estoque_posterior or 0) }}</td>
+                            <td><small>{{ mov.usuario_nome or '-' }}</small></td>
+                            <td>
+                                {% if mov.observacao %}
+                                <small class="text-muted" title="{{ mov.observacao }}">
+                                    {{ mov.observacao[:50] }}{% if mov.observacao|length > 50 %}...{% endif %}
+                                </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>Nenhuma movimentação encontrada para este produto.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-4">
+        <a href="{{ url_for('kardex.kardex_index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-primary">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#tabelaKardex').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'
+        },
+        pageLength: 50,
+        order: [[0, 'desc']],
+        dom: 'Bfrtip',
+        buttons: ['excel', 'pdf', 'print']
+    });
+});
+</script>
+{% endblock %}

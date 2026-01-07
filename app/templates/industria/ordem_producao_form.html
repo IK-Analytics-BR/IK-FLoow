@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}{% if op %}Editar{% else %}Nova{% endif %} Ordem de Produção{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus"></i> {% if op %}Editar{% else %}Nova{% endif %} Ordem de Produção
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('ordem_producao.salvar_op') }}" id="formOP">
+                        {% if op %}
+                        <input type="hidden" name="op_id" value="{{ op.id }}">
+                        {% endif %}
+                        
+                        <!-- ABAS -->
+                        <ul class="nav nav-tabs" id="opTabs" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active" id="dados-tab" data-bs-toggle="tab" data-bs-target="#dados" type="button">
+                                    📋 Dados Gerais
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="cliente-tab" data-bs-toggle="tab" data-bs-target="#cliente" type="button">
+                                    👤 Cliente
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="produto-tab" data-bs-toggle="tab" data-bs-target="#produto" type="button">
+                                    📦 Produto
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="servicos-tab" data-bs-toggle="tab" data-bs-target="#servicos" type="button">
+                                    🔧 Mão de Obra
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="insumos-tab" data-bs-toggle="tab" data-bs-target="#insumos" type="button">
+                                    📦 Matéria Prima
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="consumo-tab" data-bs-toggle="tab" data-bs-target="#consumo" type="button">
+                                    🧰 Consumo Interno
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="custos-tab" data-bs-toggle="tab" data-bs-target="#custos" type="button">
+                                    💰 Análise de Custos
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <!-- CONTEÚDO DAS ABAS -->
+                        <div class="tab-content border border-top-0 p-3" id="opTabsContent">
+                            
+                            <!-- ABA 1: DADOS GERAIS -->
+                            <div class="tab-pane fade show active" id="dados">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Empresa *</label>
+                                        <select name="empresa_id" class="form-select" required>
+                                            <option value="">Selecione...</option>
+                                            {% for empresa in empresas %}
+                                            <option value="{{ empresa.id }}" {% if op and op.empresa_id == empresa.id %}selected{% endif %}>{{ empresa.nome_fantasia }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Data Solicitação *</label>
+                                        <input type="date" name="data_solicitacao" class="form-control" value="{% if op %}{{ op.data_solicitacao.strftime('%Y-%m-%d') if op.data_solicitacao else '' }}{% endif %}" required>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Data Prevista</label>
+                                        <input type="date" name="data_prevista" class="form-control" value="{% if op %}{{ op.data_prevista.strftime('%Y-%m-%d') if op.data_prevista else '' }}{% endif %}">
+                                    </div>
+                                    
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Observações</label>
+                                        <textarea name="observacoes" class="form-control" rows="3">{% if op %}{{ op.observacoes or '' }}{% endif %}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 2: CLIENTE -->
+                            <div class="tab-pane fade" id="cliente">
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">Cliente *</label>
+                                        <select name="cliente_id" id="cliente_id" class="form-select" required>
+                                            <option value="">Selecione...</option>
+                                            {% for cliente in clientes %}
+                                            <option value="{{ cliente.id }}" {% if op and op.cliente_id == cliente.id %}selected{% endif %}>{{ cliente.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 3: PRODUTO -->
+                            <div class="tab-pane fade" id="produto">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Produto a Produzir *</label>
+                                        <input type="hidden" name="produto_id" id="produto_id" value="{{ produto_selecionado.id if produto_selecionado else (op.produto_id if op else '') }}" required>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="produto_codigo" placeholder="Código" value="{{ produto_selecionado.codigo if produto_selecionado else '' }}" readonly>
+                                            <input type="text" class="form-control" id="produto_nome" placeholder="Nome do produto" value="{{ produto_selecionado.nome if produto_selecionado else '' }}" readonly>
+                                            <button type="button" class="btn btn-outline-secondary" id="btnBuscarProduto" title="Buscar (F2)">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-3 mb-3">
+                                        <label class="form-label">Quantidade *</label>
+                                        <input type="number" name="quantidade" class="form-control" step="0.01" min="0.01" value="{% if op %}{{ op.quantidade }}{% endif %}" required>
+                                    </div>
+                                    
+                                    <div class="col-md-3 mb-3 d-flex align-items-end">
+                                        <button type="button" class="btn btn-info w-100" onclick="verificarTemplate()">
+                                            🎯 Verificar Ficha Técnica
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-lightbulb"></i> 
+                                            <strong>Dica:</strong> Clique em "Verificar Ficha Técnica" para carregar automaticamente os itens de produção.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 4: MÃO DE OBRA -->
+                            <div class="tab-pane fade" id="servicos">
+                                <button type="button" class="btn btn-primary mb-3" onclick="adicionarItem('servico')">
+                                    <i class="fas fa-plus"></i> Adicionar Serviço
+                                </button>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="35%">Serviço</th>
+                                                <th width="15%">Quantidade</th>
+                                                <th width="10%">Unidade</th>
+                                                <th width="15%">Custo Unit.</th>
+                                                <th width="15%">Total</th>
+                                                <th width="10%">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-servicos">
+                                            <tr class="empty-row">
+                                                <td colspan="6" class="text-center text-muted">
+                                                    Nenhum serviço adicionado.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-primary">
+                                                <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                                <td><strong id="subtotal-servicos">R$ 0,00</strong></td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 5: MATÉRIA PRIMA -->
+                            <div class="tab-pane fade" id="insumos">
+                                <button type="button" class="btn btn-success mb-3" onclick="adicionarItem('materia_prima')">
+                                    <i class="fas fa-plus"></i> Adicionar Matéria Prima
+                                </button>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="35%">Matéria Prima</th>
+                                                <th width="15%">Quantidade</th>
+                                                <th width="10%">Unidade</th>
+                                                <th width="15%">Custo Unit.</th>
+                                                <th width="15%">Total</th>
+                                                <th width="10%">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-materia">
+                                            <tr class="empty-row">
+                                                <td colspan="6" class="text-center text-muted">
+                                                    Nenhuma matéria prima adicionada.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-success">
+                                                <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                                <td><strong id="subtotal-materia">R$ 0,00</strong></td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 6: CONSUMO INTERNO -->
+                            <div class="tab-pane fade" id="consumo">
+                                <button type="button" class="btn btn-warning mb-3" onclick="adicionarItem('consumo_interno')">
+                                    <i class="fas fa-plus"></i> Adicionar Item
+                                </button>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="35%">Item</th>
+                                                <th width="15%">Quantidade</th>
+                                                <th width="10%">Unidade</th>
+                                                <th width="15%">Custo Unit.</th>
+                                                <th width="15%">Total</th>
+                                                <th width="10%">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-consumo">
+                                            <tr class="empty-row">
+                                                <td colspan="6" class="text-center text-muted">
+                                                    Nenhum item adicionado.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="table-warning">
+                                                <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                                <td><strong id="subtotal-consumo">R$ 0,00</strong></td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- ABA 7: ANÁLISE DE CUSTOS -->
+                            <div class="tab-pane fade" id="custos">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h5>💰 Resumo de Custos</h5>
+                                        <table class="table table-bordered">
+                                            <tr>
+                                                <td>🔧 Mão de Obra:</td>
+                                                <td class="text-end"><strong id="resumo-servicos">R$ 0,00</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <td>📦 Matéria Prima:</td>
+                                                <td class="text-end"><strong id="resumo-materia">R$ 0,00</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <td>🧰 Consumo Interno:</td>
+                                                <td class="text-end"><strong id="resumo-consumo">R$ 0,00</strong></td>
+                                            </tr>
+                                            <tr class="table-primary">
+                                                <td><strong>TOTAL GERAL:</strong></td>
+                                                <td class="text-end"><h4 class="mb-0" id="total-geral">R$ 0,00</h4></td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6>📊 Estatísticas</h6>
+                                                <p class="mb-1"><strong>Total de Itens:</strong> <span id="total-itens">0</span></p>
+                                                <p class="mb-1"><strong>Serviços:</strong> <span id="qtd-servicos">0</span></p>
+                                                <p class="mb-1"><strong>Matérias Primas:</strong> <span id="qtd-materia">0</span></p>
+                                                <p class="mb-0"><strong>Consumo:</strong> <span id="qtd-consumo">0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos ocultos -->
+                        <input type="hidden" name="usou_template" id="usou_template" value="0">
+                        <input type="hidden" name="template_usado_id" id="template_usado_id" value="">
+                        <input type="hidden" name="custo_total_template" id="custo_total_template" value="0">
+                        
+                        <!-- Botões -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-save"></i> Salvar Ordem de Produção
+                                </button>
+                                <a href="{{ url_for('ordem_producao.listar_ops') }}" class="btn btn-secondary btn-lg">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalBuscaProduto" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buscar Produto (Produção)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control" id="busca_produto_input" placeholder="Digite código, nome ou código de barras...">
+                    <button type="button" class="btn btn-primary" id="btnPesquisarProduto">Buscar</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 20%">Código</th>
+                                <th>Nome</th>
+                                <th style="width: 15%">Unidade</th>
+                                <th style="width: 15%" class="text-end">Custo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyProdutos">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Digite para buscar...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="btnSelecionarProduto">Selecionar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Adicionar Item -->
+<div class="modal fade" id="modalAdicionarItem" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAdicionarItemTitulo">Adicionar Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label">Produto/Serviço *</label>
+                        <select class="form-select" id="modal_produto_id" required>
+                            <option value="">Carregando...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Quantidade *</label>
+                        <input type="number" class="form-control" id="modal_quantidade" step="0.01" min="0.01" required>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Unidade</label>
+                        <input type="text" class="form-control" id="modal_unidade" readonly>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Custo Unitário *</label>
+                        <input type="number" class="form-control" id="modal_custo_unitario" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <strong>Total:</strong> R$ <span id="modal_total_preview">0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarAdicaoItem()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Ficha Técnica Encontrada -->
+<div class="modal fade" id="modalTemplate" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">🎯 Ficha Técnica Encontrada!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="conteudoTemplate"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Começar do Zero</button>
+                <button type="button" class="btn btn-primary" onclick="usarTemplate()">Usar Ficha Técnica</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script src="{{ url_for('static', filename='js/ordem_producao_form.js') }}"></script>
+
+{% if op and itens %}
+<script type="application/json" id="itensExistentesJson">{{ itens | tojson }}</script>
+<script>
+// Carregar itens existentes ao editar
+document.addEventListener('DOMContentLoaded', function() {
+    // Aguardar o JavaScript principal carregar
+    setTimeout(function() {
+        const itensExistentes = JSON.parse(document.getElementById('itensExistentesJson').textContent || '[]');
+        
+        itensExistentes.forEach(function(item) {
+            const tipo = item.tipo_item;
+            const tbody = document.getElementById('tbody-' + (tipo === 'materia_prima' ? 'materia' : tipo === 'consumo_interno' ? 'consumo' : 'servicos'));
+            
+            if (!tbody) return;
+            
+            // Remover linha vazia se existir
+            const emptyRow = tbody.querySelector('.empty-row');
+            if (emptyRow) emptyRow.remove();
+            
+            // Ajustar nome do campo para backend
+            const fieldName = tipo === 'materia_prima' ? 'materia' : tipo === 'consumo_interno' ? 'consumo' : 'servico';
+            
+            // Criar nova linha
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    ${item.descricao}
+                    <input type="hidden" name="${fieldName}_produto_id[]" value="${item.produto_id}">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           name="${fieldName}_quantidade[]" 
+                           value="${item.quantidade}" 
+                           step="0.01" min="0.01" 
+                           onchange="calcularTotais()">
+                </td>
+                <td>${item.unidade_medida || '-'}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           name="${fieldName}_custo_unitario[]" 
+                           value="${item.custo_unitario_atual}" 
+                           step="0.01" min="0" 
+                           onchange="calcularTotais()">
+                    <input type="hidden" name="${fieldName}_custo_template[]" value="${item.custo_unitario_template || ''}">
+                    <input type="hidden" name="${fieldName}_veio_template[]" value="${item.veio_template || 0}">
+                </td>
+                <td class="total-item">R$ ${parseFloat(item.custo_total).toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removerItem(this, '${tipo}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(tr);
+        });
+        
+        // Atualizar contadores e totais
+        calcularTotais();
+    }, 500);
+});
+</script>
+{% endif %}
+{% endblock %}

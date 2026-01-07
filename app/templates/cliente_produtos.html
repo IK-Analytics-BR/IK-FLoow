@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Produtos do Cliente — Vínculos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Produtos do Cliente</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('cliente.clientes') }}">Clientes</a></li>
+    <li class="breadcrumb-item active">{{ cliente.name }}</li>
+  </ol>
+
+  <!-- Lista de vínculos -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div><i class="fas fa-sitemap me-1"></i> Produtos Pai vinculados</div>
+      <div class="d-flex align-items-center" style="gap:8px;">
+        <div class="input-group input-group-sm" style="width:260px;">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input id="searchLink" type="text" class="form-control" placeholder="Buscar produto pai">
+        </div>
+        <button id="btnNovoVinculo" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Cadastrar</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle" id="linksTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Produto Pai</th>
+              <th>Série</th>
+              <th>Instalação</th>
+              <th style="width:200px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="text-center text-muted">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form de novo vínculo -->
+  <div class="card mb-4" id="novoVinculoCard" style="display:none;">
+    <div class="card-header">
+      <i class="fas fa-plus me-1"></i> Cadastrar vínculo de Produto Pai
+    </div>
+    <div class="card-body">
+      <form id="formNovoVinculo" class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label" for="product_id">Produto Pai</label>
+          <select id="product_id" name="product_id" class="form-select">
+            {% for p in parent_candidates %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="serial_number">Nº de Série</label>
+          <input id="serial_number" name="serial_number" type="text" class="form-control" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="installed_at">Instalação</label>
+          <input id="installed_at" name="installed_at" type="date" class="form-control" />
+        </div>
+        <div class="col-md-1 d-grid">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Detalhe dos insumos do vínculo selecionado -->
+  <div class="card" id="insumosCard" style="display:none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-boxes-packing me-1"></i> Insumos do vínculo: <strong id="vinculoTitulo"></strong>
+      </div>
+      <small class="text-muted">Atualize datas de troca e intervalos específicos do cliente</small>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Filho</th>
+              <th>Qtde (padrão)</th>
+              <th>Última troca</th>
+              <th>Intervalo (dias)</th>
+              <th>Próxima troca</th>
+              <th style="width:120px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="insumosTableBody">
+            <tr><td colspan="6" class="text-center text-muted">Selecione um vínculo para visualizar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  $(function(){
+    const customerId = {{ cliente.id }};
+
+    // Buscar vínculos do cliente
+    function loadLinks(){
+      $.getJSON(`/clientes/${customerId}/produtos`, function(rows){
+        const $tb = $('#linksTable tbody');
+        const trs = rows.map(function(r){
+          const inst = r.installed_at ? (new Date(r.installed_at)).toLocaleDateString() : '';
+          return '<tr data-cp-id="'+r.id+'" data-product-id="'+r.product_id+'" data-product-name="'+ (r.product_name||'') +'">'
+            + '<td>'+ r.id +'</td>'
+            + '<td>'+ (r.product_name||'') +'</td>'
+            + '<td>'+ (r.serial_number||'') +'</td>'
+            + '<td>'+ inst +'</td>'
+            + '<td>'
+              + '<button class="btn btn-outline-secondary btn-sm me-1" data-action="insumos"><i class="fas fa-list"></i> Insumos</button>'
+              + '<button class="btn btn-danger btn-sm" data-action="del"><i class="fas fa-trash"></i></button>'
+            + '</td>'
+          + '</tr>';
+        });
+        $tb.html(trs.length ? trs.join('') : '<tr><td colspan="5" class="text-center text-muted">Nenhum vínculo cadastrado.</td></tr>');
+      });
+    }
+
+    loadLinks();
+
+    // Filtro
+    $('#searchLink').on('input', function(){
+      const q = $(this).val().toLowerCase();
+      $('#linksTable tbody tr').each(function(){
+        const name = $(this).find('td:nth-child(2)').text().toLowerCase();
+        $(this).toggle(!q || name.includes(q));
+      });
+    });
+
+    // Toggle novo vínculo
+    $('#btnNovoVinculo').on('click', function(){
+      $('#novoVinculoCard').toggle();
+    });
+
+    // Salvar novo vínculo
+    $('#formNovoVinculo').on('submit', function(e){
+      e.preventDefault();
+      const data = {
+        product_id: $('#product_id').val(),
+        serial_number: $('#serial_number').val(),
+        installed_at: $('#installed_at').val()
+      };
+      $.ajax({
+        url: `/clientes/${customerId}/produtos`,
+        method: 'POST',
+        data: data,
+        success: function(){
+          $('#novoVinculoCard').hide();
+          $('#formNovoVinculo')[0].reset();
+          loadLinks();
+        },
+        error: function(xhr){
+          alert('Erro ao vincular: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText));
+        }
+      });
+    });
+
+    // Ações por linha (insumos / deletar)
+    $('#linksTable').on('click', '[data-action] ', function(){
+      const $tr = $(this).closest('tr');
+      const cpId = $tr.data('cp-id');
+      const productName = $tr.data('product-name');
+      const action = $(this).data('action');
+
+      if (action === 'del'){
+        if(!confirm('Remover vínculo?')) return;
+        $.ajax({
+          url: `/clientes/${customerId}/produtos/${cpId}`,
+          method: 'DELETE',
+          success: function(){ loadLinks(); $('#insumosCard').hide(); },
+          error: function(xhr){ alert('Erro ao remover: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText)); }
+        });
+        return;
+      }
+
+      if (action === 'insumos'){
+        $('#vinculoTitulo').text(productName + ' (ID ' + cpId + ')');
+        $('#insumosCard').show();
+        loadInsumos(cpId);
+      }
+    });
+
+    // Carregar insumos do vínculo
+    function loadInsumos(cpId){
+      const $tb = $('#insumosTableBody');
+      $tb.html('<tr><td colspan="6" class="text-center text-muted">Carregando...</td></tr>');
+      $.getJSON(`/clientes/${customerId}/produtos/${cpId}/insumos`, function(rows){
+        const trs = rows.map(function(ch){
+          const last = ch.last_replacement_at ? ch.last_replacement_at.substring(0,10) : '';
+          const next = ch.next_due_at ? ch.next_due_at.substring(0,10) : '';
+          const qty = (ch.quantity != null ? Number(ch.quantity).toFixed(2) : '');
+          const intv = (ch.interval_days != null ? ch.interval_days : '');
+          return '<tr data-child-id="'+ch.child_product_id+'" data-cp-id="'+cpId+'">'
+            + '<td>'+ (ch.child_name||ch.child_product_id) +'</td>'
+            + '<td>'+ qty +'</td>'
+            + '<td><input type="date" class="form-control form-control-sm" value="'+ last +'" data-field="last_replacement_at" /></td>'
+            + '<td><input type="number" min="0" step="1" class="form-control form-control-sm" value="'+ intv +'" data-field="interval_days" /></td>'
+            + '<td>'+ next +'</td>'
+            + '<td><button class="btn btn-sm btn-primary" data-action="save-status"><i class="fas fa-save"></i></button></td>'
+          + '</tr>';
+        });
+        $tb.html(trs.length ? trs.join('') : '<tr><td colspan="6" class="text-center text-muted">Sem insumos para este vínculo.</td></tr>');
+      }).fail(function(){
+        $tb.html('<tr><td colspan="6" class="text-center text-danger">Erro ao carregar.</td></tr>');
+      });
+    }
+
+    // Salvar status do insumo
+    $('#insumosTableBody').on('click', '[data-action="save-status"]', function(){
+      const $tr = $(this).closest('tr');
+      const cpId = $tr.data('cp-id');
+      const childId = $tr.data('child-id');
+      const last = $tr.find('input[data-field="last_replacement_at"]').val();
+      const intv = $tr.find('input[data-field="interval_days"]').val();
+      $.ajax({
+        url: `/clientes/${customerId}/produtos/${cpId}/insumos/${childId}/status`,
+        method: 'POST',
+        data: { last_replacement_at: last, interval_days: intv },
+        success: function(){ loadInsumos(cpId); },
+        error: function(xhr){ alert('Erro ao salvar: ' + ((xhr.responseJSON && xhr.responseJSON.error) || xhr.statusText)); }
+      });
+    });
+  });
+</script>
+{% endblock %}

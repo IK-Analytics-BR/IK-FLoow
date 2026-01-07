@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Estoque - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Estoque</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Estoque</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-boxes me-1"></i>
+            Posição de Estoque
+            <div class="float-end">
+                <a href="{{ url_for('inventory.inventory_adjustment') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus-minus"></i> Ajustar Estoque
+                </a>
+                <a href="{{ url_for('inventory.inventory_transfer') }}" class="btn btn-info btn-sm">
+                    <i class="fas fa-exchange-alt"></i> Transferir
+                </a>
+                <a href="{{ url_for('inventory.inventory_report') }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-chart-bar"></i> Relatórios
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <form id="filterForm" method="get" action="{{ url_for('inventory.inventory_list') }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="input-group">
+                                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar produto...">
+                                    <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="categoryFilter" name="category_id" class="form-select" onchange="this.form.submit()">
+                                    <option value="">Todas as categorias</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if category_id|int == category.id %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="locationFilter" name="location_id" class="form-select" onchange="this.form.submit()">
+                                    <option value="">Todos os locais</option>
+                                    {% for location in locations %}
+                                    <option value="{{ location.id }}" {% if location_id|int == location.id %}selected{% endif %}>
+                                        {{ location.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="statusFilter" name="status" class="form-select" onchange="this.form.submit()">
+                                    <option value="all" {% if status == 'all' %}selected{% endif %}>Todos os status</option>
+                                    <option value="low" {% if status == 'low' %}selected{% endif %}>Abaixo do mínimo</option>
+                                    <option value="high" {% if status == 'high' %}selected{% endif %}>Acima do máximo</option>
+                                    <option value="out" {% if status == 'out' %}selected{% endif %}>Sem estoque</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th>Local</th>
+                            <th>Quantidade</th>
+                            <th>Unidade</th>
+                            <th>Mínimo</th>
+                            <th>Máximo</th>
+                            <th>Valor Unitário</th>
+                            <th>Valor Total</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock_items %}
+                        <tr class="
+                            {% if item.quantity <= item.min_stock and item.min_stock > 0 %}table-danger{% endif %}
+                            {% if item.quantity >= item.max_stock and item.max_stock > 0 %}table-warning{% endif %}
+                            {% if item.quantity == 0 %}table-secondary{% endif %}
+                        ">
+                            <td>{{ item.code or item.sku or '-' }}</td>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.category_name if item.category_name else '-' }}</td>
+                            <td>{{ item.location_name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.unit }}</td>
+                            <td>{{ item.min_stock }}</td>
+                            <td>{{ item.max_stock }}</td>
+                            <td>R$ {{ "%.2f"|format(item.sale_price) if item.sale_price else '0.00' }}</td>
+                            <td>R$ {{ "%.2f"|format(item.sale_price * item.quantity) if item.sale_price else '0.00' }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('inventory.inventory_configure', product_id=item.product_id) }}" class="btn btn-primary btn-sm" title="Configurar Estoque">
+                                        <i class="fas fa-cog"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-info btn-sm" title="Ver Movimentações" 
+                                            onclick="window.location.href='{{ url_for('inventory.inventory_movements') }}?product_id={{ item.product_id }}'">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-sm" title="Ajustar Estoque" 
+                                            onclick="prepareAdjustment('{{ item.product_id }}', '{{ item.product_name }}', '{{ item.quantity }}')">
+                                        <i class="fas fa-plus-minus"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not stock_items %}
+            <div class="alert alert-info">
+                Nenhum item em estoque encontrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Valor de Estoque por Categoria
+                </div>
+                <div class="card-body">
+                    <canvas id="stockByCategory" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Distribuição de Estoque por Local
+                </div>
+                <div class="card-body">
+                    <canvas id="stockByLocation" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Ajuste Rápido -->
+    <div class="modal fade" id="quickAdjustModal" tabindex="-1" aria-labelledby="quickAdjustModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="quickAdjustModalLabel">Ajuste Rápido de Estoque</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('inventory.inventory_adjustment') }}" method="post">
+                    <div class="modal-body">
+                        <input type="hidden" id="adjustProductId" name="product_id">
+                        <input type="hidden" name="location_id" value="{{ location_id or 1 }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Produto</label>
+                            <input type="text" class="form-control" id="adjustProductName" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Estoque Atual</label>
+                            <input type="text" class="form-control" id="adjustCurrentStock" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="adjustment_type" class="form-label">Tipo de Ajuste</label>
+                            <select class="form-select" id="adjustment_type" name="adjustment_type" required>
+                                <option value="add">Adicionar</option>
+                                <option value="subtract">Subtrair</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">Quantidade</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="2" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Ajustar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#stockTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Preparar dados para os gráficos
+        var categoryData = {};
+        var locationData = {};
+        
+        {% for item in stock_items %}
+            // Dados por categoria
+            var category = "{{ item.category_name or 'Sem Categoria' }}";
+            var itemValue = {{ (item.sale_price or 0) * item.quantity }};
+            
+            if (categoryData[category]) {
+                categoryData[category] += itemValue;
+            } else {
+                categoryData[category] = itemValue;
+            }
+            
+            // Dados por local
+            var location = "{{ item.location_name }}";
+            
+            if (locationData[location]) {
+                locationData[location] += itemValue;
+            } else {
+                locationData[location] = itemValue;
+            }
+        {% endfor %}
+        
+        // Gráfico de valor de estoque por categoria
+        var ctxCategory = document.getElementById("stockByCategory");
+        if (ctxCategory) {
+            var categoryLabels = Object.keys(categoryData);
+            var categoryValues = Object.values(categoryData);
+            var categoryColors = generateColors(categoryLabels.length);
+            
+            new Chart(ctxCategory, {
+                type: "bar",
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: "Valor de Estoque (R$)",
+                        backgroundColor: categoryColors,
+                        borderColor: categoryColors.map(color => color.replace("0.8", "1")),
+                        borderWidth: 1,
+                        data: categoryValues
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    var value = context.raw || 0;
+                                    return label + ': R$ ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de distribuição de estoque por local
+        var ctxLocation = document.getElementById("stockByLocation");
+        if (ctxLocation) {
+            var locationLabels = Object.keys(locationData);
+            var locationValues = Object.values(locationData);
+            var locationColors = generateColors(locationLabels.length);
+            
+            new Chart(ctxLocation, {
+                type: "pie",
+                data: {
+                    labels: locationLabels,
+                    datasets: [{
+                        backgroundColor: locationColors,
+                        data: locationValues
+                    }]
+                },
+                options: {
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.label || '';
+                                    var value = context.raw || 0;
+                                    var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    var percentage = Math.round((value / total) * 100);
+                                    return label + ': R$ ' + value.toFixed(2) + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+    
+    // Função para gerar cores aleatórias
+    function generateColors(count) {
+        var colors = [];
+        for (var i = 0; i < count; i++) {
+            var r = Math.floor(Math.random() * 200) + 55;
+            var g = Math.floor(Math.random() * 200) + 55;
+            var b = Math.floor(Math.random() * 200) + 55;
+            colors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+        }
+        return colors;
+    }
+    
+    // Função para preparar o modal de ajuste rápido
+    function prepareAdjustment(productId, productName, currentStock) {
+        document.getElementById('adjustProductId').value = productId;
+        document.getElementById('adjustProductName').value = productName;
+        document.getElementById('adjustCurrentStock').value = currentStock;
+        document.getElementById('quantity').value = '';
+        document.getElementById('reason').value = '';
+        
+        var modal = new bootstrap.Modal(document.getElementById('quickAdjustModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}

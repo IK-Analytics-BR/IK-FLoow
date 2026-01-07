@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Novo Cenário de Simulação{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Criar Novo Cenário de Simulação</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('simulator.simulator_dashboard') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-plus-circle me-1"></i>
+                    Novo Cenário
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('simulator.new_scenario') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label">Nome do Cenário</label>
+                                {{ form.name(class="form-control", placeholder="Ex: Manutenção Preventiva - Equipamento X") }}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Descrição</label>
+                                {{ form.description(class="form-control", rows=3, placeholder="Descreva o objetivo deste cenário de simulação") }}
+                                {% if form.description.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.description.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="equipment_id" class="form-label">Equipamento</label>
+                                {{ form.equipment_id(class="form-select") }}
+                                {% if form.equipment_id.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.equipment_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="simulation_period" class="form-label">Período de Simulação (meses)</label>
+                                {{ form.simulation_period(class="form-control", type="number", min=1, max=60) }}
+                                {% if form.simulation_period.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.simulation_period.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="usage_pattern" class="form-label">Padrão de Uso</label>
+                                {{ form.usage_pattern(class="form-select") }}
+                                {% if form.usage_pattern.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.usage_pattern.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Define a intensidade de uso do equipamento, afetando a taxa de desgaste.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="maintenance_strategy" class="form-label">Estratégia de Manutenção</label>
+                                {{ form.maintenance_strategy(class="form-select") }}
+                                {% if form.maintenance_strategy.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.maintenance_strategy.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Define quando a manutenção será realizada com base no desgaste dos componentes.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Criar Cenário
+                                </button>
+                                <a href="{{ url_for('simulator.simulator_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <h5>Padrões de Uso</h5>
+                    <ul>
+                        <li><strong>Leve:</strong> 4 horas por dia em média</li>
+                        <li><strong>Moderado:</strong> 8 horas por dia em média</li>
+                        <li><strong>Pesado:</strong> 16 horas por dia em média</li>
+                    </ul>
+                    
+                    <h5>Estratégias de Manutenção</h5>
+                    <ul>
+                        <li><strong>Reativa:</strong> Manutenção apenas quando o componente falha (100% de desgaste)</li>
+                        <li><strong>Preventiva:</strong> Manutenção quando o componente atinge 80% de desgaste</li>
+                        <li><strong>Preditiva:</strong> Manutenção baseada em previsão de falha (70% de desgaste)</li>
+                    </ul>
+                    
+                    <h5>Dicas</h5>
+                    <p>Para resultados mais precisos, recomendamos:</p>
+                    <ul>
+                        <li>Período de simulação entre 6 e 24 meses</li>
+                        <li>Equipamentos com histórico de uso e manutenção</li>
+                        <li>Componentes com parâmetros de desgaste configurados</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

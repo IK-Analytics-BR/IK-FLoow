@@ -1,0 +1,654 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios Financeiros - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ title }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('reports.reports_dashboard') }}">Relatórios</a></li>
+        <li class="breadcrumb-item active">Relatórios Financeiros</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+            <div class="float-end">
+                <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="printReport()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" action="{{ url_for('reports.financial_reports') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="type" class="form-label">Tipo de Relatório</label>
+                        <select class="form-select" id="type" name="type" onchange="this.form.submit()">
+                            <option value="revenue" {% if report_type == 'revenue' %}selected{% endif %}>Receitas</option>
+                            <option value="expenses" {% if report_type == 'expenses' %}selected{% endif %}>Despesas</option>
+                            <option value="cash_flow" {% if report_type == 'cash_flow' %}selected{% endif %}>Fluxo de Caixa</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="period" class="form-label">Período</label>
+                        <select class="form-select" id="period" name="period" onchange="updatePeriodFields()">
+                            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Mensal</option>
+                            <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Trimestral</option>
+                            <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Anual</option>
+                            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="yearField">
+                        <label for="year" class="form-label">Ano</label>
+                        <select class="form-select" id="year" name="year">
+                            {% for y in range(now().year-5, now().year+1) %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="monthField">
+                        <label for="month" class="form-label">Mês</label>
+                        <select class="form-select" id="month" name="month">
+                            {% for m in range(1, 13) %}
+                            <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="applyFilter">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row mt-3" id="customDateFields" style="display: none;">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Data Final</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        {% if report_type == 'revenue' %}
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Receitas</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">{{ report_data.items|length }} recebimentos no período</div>
+                    </div>
+                </div>
+            </div>
+        {% elif report_type == 'expenses' %}
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-danger text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Despesas</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">{{ report_data.items|length }} pagamentos no período</div>
+                    </div>
+                </div>
+            </div>
+        {% elif report_type == 'cash_flow' %}
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Entradas</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total_income) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">{{ report_data.income|length }} entradas no período</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-danger text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Saídas</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total_expenses) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">{{ report_data.expenses|length }} saídas no período</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card {{ 'bg-primary' if report_data.balance >= 0 else 'bg-warning' }} text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Saldo</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.balance) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Saldo do período (Entradas - Saídas)</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-table me-1"></i>
+                    {% if report_type == 'revenue' %}
+                        Receitas no Período
+                    {% elif report_type == 'expenses' %}
+                        Despesas no Período
+                    {% elif report_type == 'cash_flow' %}
+                        Fluxo de Caixa no Período
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="reportTable">
+                            <thead>
+                                {% if report_type == 'revenue' %}
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Cliente</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Método</th>
+                                    <th>Banco</th>
+                                </tr>
+                                {% elif report_type == 'expenses' %}
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Fornecedor</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Método</th>
+                                    <th>Banco</th>
+                                </tr>
+                                {% elif report_type == 'cash_flow' %}
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Banco</th>
+                                </tr>
+                                {% endif %}
+                            </thead>
+                            <tbody>
+                                {% if report_type == 'revenue' %}
+                                    {% for item in report_data.items %}
+                                    <tr>
+                                        <td>{{ item.payment_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.customer_name }}</td>
+                                        <td>{{ item.description }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.bank_account_name if item.bank_account_name else '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% elif report_type == 'expenses' %}
+                                    {% for item in report_data.items %}
+                                    <tr>
+                                        <td>{{ item.payment_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.supplier_name }}</td>
+                                        <td>{{ item.description }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.bank_account_name if item.bank_account_name else '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% elif report_type == 'cash_flow' %}
+                                    {% for item in report_data.income %}
+                                    <tr class="table-success">
+                                        <td>{{ item.date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.description }}</td>
+                                        <td><span class="badge bg-success">Entrada</span></td>
+                                        <td>R$ {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.bank_account_name }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% for item in report_data.expenses %}
+                                    <tr class="table-danger">
+                                        <td>{{ item.date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.description }}</td>
+                                        <td><span class="badge bg-danger">Saída</span></td>
+                                        <td>R$ {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.bank_account_name }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    <th colspan="3">Total</th>
+                                    <th>
+                                        {% if report_type == 'revenue' or report_type == 'expenses' %}
+                                            R$ {{ "%.2f"|format(report_data.total) }}
+                                        {% elif report_type == 'cash_flow' %}
+                                            R$ {{ "%.2f"|format(report_data.balance) }}
+                                        {% endif %}
+                                    </th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    {% if report_type == 'revenue' %}
+                        Receitas por Cliente
+                    {% elif report_type == 'expenses' %}
+                        Despesas por Fornecedor
+                    {% elif report_type == 'cash_flow' %}
+                        Entradas vs Saídas
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartOne" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    {% if report_type == 'revenue' %}
+                        Receitas por Data
+                    {% elif report_type == 'expenses' %}
+                        Despesas por Data
+                    {% elif report_type == 'cash_flow' %}
+                        Saldo Acumulado
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartTwo" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Atualizar campos de período
+        updatePeriodFields();
+        
+        // Gráficos
+        {% if report_type == 'revenue' %}
+            // Gráfico de receitas por cliente
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var customerLabels = [];
+                var customerData = [];
+                var customerColors = [];
+                
+                {% for customer, amount in report_data.customer_data.items() %}
+                    customerLabels.push("{{ customer }}");
+                    customerData.push({{ amount }});
+                    // Gerar cor aleatória
+                    var r = Math.floor(Math.random() * 200) + 55;
+                    var g = Math.floor(Math.random() * 200) + 55;
+                    var b = Math.floor(Math.random() * 200) + 55;
+                    customerColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+                {% endfor %}
+                
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: customerLabels,
+                        datasets: [{
+                            label: "Valor (R$)",
+                            backgroundColor: customerColors,
+                            borderColor: customerColors.map(color => color.replace("0.8", "1")),
+                            borderWidth: 1,
+                            data: customerData
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de receitas por data
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                var dateLabels = [];
+                var dateData = [];
+                
+                {% for date, amount in report_data.date_data.items() %}
+                    dateLabels.push("{{ date }}");
+                    dateData.push({{ amount }});
+                {% endfor %}
+                
+                new Chart(ctxTwo, {
+                    type: "line",
+                    data: {
+                        labels: dateLabels,
+                        datasets: [{
+                            label: "Valor (R$)",
+                            backgroundColor: "rgba(40, 167, 69, 0.2)",
+                            borderColor: "rgba(40, 167, 69, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "rgba(40, 167, 69, 1)",
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: dateData
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        {% elif report_type == 'expenses' %}
+            // Gráfico de despesas por fornecedor
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var supplierLabels = [];
+                var supplierData = [];
+                var supplierColors = [];
+                
+                {% for supplier, amount in report_data.supplier_data.items() %}
+                    supplierLabels.push("{{ supplier }}");
+                    supplierData.push({{ amount }});
+                    // Gerar cor aleatória
+                    var r = Math.floor(Math.random() * 200) + 55;
+                    var g = Math.floor(Math.random() * 200) + 55;
+                    var b = Math.floor(Math.random() * 200) + 55;
+                    supplierColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+                {% endfor %}
+                
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: supplierLabels,
+                        datasets: [{
+                            label: "Valor (R$)",
+                            backgroundColor: supplierColors,
+                            borderColor: supplierColors.map(color => color.replace("0.8", "1")),
+                            borderWidth: 1,
+                            data: supplierData
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de despesas por data
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                var dateLabels = [];
+                var dateData = [];
+                
+                {% for date, amount in report_data.date_data.items() %}
+                    dateLabels.push("{{ date }}");
+                    dateData.push({{ amount }});
+                {% endfor %}
+                
+                new Chart(ctxTwo, {
+                    type: "line",
+                    data: {
+                        labels: dateLabels,
+                        datasets: [{
+                            label: "Valor (R$)",
+                            backgroundColor: "rgba(220, 53, 69, 0.2)",
+                            borderColor: "rgba(220, 53, 69, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "rgba(220, 53, 69, 1)",
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: dateData
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        {% elif report_type == 'cash_flow' %}
+            // Gráfico de entradas vs saídas
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: ["Entradas", "Saídas", "Saldo"],
+                        datasets: [{
+                            label: "Valor (R$)",
+                            backgroundColor: [
+                                "rgba(40, 167, 69, 0.8)",
+                                "rgba(220, 53, 69, 0.8)",
+                                "{{ 'rgba(13, 110, 253, 0.8)' if report_data.balance >= 0 else 'rgba(255, 193, 7, 0.8)' }}"
+                            ],
+                            borderColor: [
+                                "rgba(40, 167, 69, 1)",
+                                "rgba(220, 53, 69, 1)",
+                                "{{ 'rgba(13, 110, 253, 1)' if report_data.balance >= 0 else 'rgba(255, 193, 7, 1)' }}"
+                            ],
+                            borderWidth: 1,
+                            data: [
+                                {{ report_data.total_income }},
+                                {{ report_data.total_expenses }},
+                                {{ report_data.balance }}
+                            ]
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de saldo acumulado
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                var dateLabels = [];
+                var balanceData = [];
+                
+                {% for date, data in report_data.date_data.items() %}
+                    dateLabels.push("{{ date }}");
+                    balanceData.push({{ data.balance }});
+                {% endfor %}
+                
+                new Chart(ctxTwo, {
+                    type: "line",
+                    data: {
+                        labels: dateLabels,
+                        datasets: [{
+                            label: "Saldo Acumulado (R$)",
+                            backgroundColor: "rgba(13, 110, 253, 0.2)",
+                            borderColor: "rgba(13, 110, 253, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: function(context) {
+                                var value = context.dataset.data[context.dataIndex];
+                                return value < 0 ? "rgba(220, 53, 69, 1)" : "rgba(40, 167, 69, 1)";
+                            },
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: balanceData
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+    
+    // Função para atualizar campos de período
+    function updatePeriodFields() {
+        var period = $('#period').val();
+        
+        if (period === 'monthly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'quarterly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'yearly') {
+            $('#yearField').show();
+            $('#monthField').hide();
+            $('#customDateFields').hide();
+        } else if (period === 'custom') {
+            $('#yearField').hide();
+            $('#monthField').hide();
+            $('#customDateFields').show();
+        }
+    }
+    
+    // Função para exportar para PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // Criar novo documento PDF
+        const doc = new jsPDF();
+        
+        // Título
+        doc.setFontSize(18);
+        doc.text('{{ title }}', 14, 22);
+        
+        // Informações do relatório
+        doc.setFontSize(10);
+        doc.text('Data do relatório: ' + new Date().toLocaleDateString(), 14, 30);
+        
+        {% if report_type == 'revenue' %}
+            doc.text('Total de receitas: R$ {{ "%.2f"|format(report_data.total) }}', 14, 35);
+            doc.text('Quantidade de recebimentos: {{ report_data.items|length }}', 14, 40);
+        {% elif report_type == 'expenses' %}
+            doc.text('Total de despesas: R$ {{ "%.2f"|format(report_data.total) }}', 14, 35);
+            doc.text('Quantidade de pagamentos: {{ report_data.items|length }}', 14, 40);
+        {% elif report_type == 'cash_flow' %}
+            doc.text('Total de entradas: R$ {{ "%.2f"|format(report_data.total_income) }}', 14, 35);
+            doc.text('Total de saídas: R$ {{ "%.2f"|format(report_data.total_expenses) }}', 14, 40);
+            doc.text('Saldo: R$ {{ "%.2f"|format(report_data.balance) }}', 14, 45);
+        {% endif %}
+        
+        // Tabela de dados
+        doc.autoTable({
+            html: '#reportTable',
+            startY: 50,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            footStyles: { fillColor: [52, 152, 219], textColor: 255 },
+            styles: { fontSize: 8 }
+        });
+        
+        // Salvar o PDF
+        doc.save('relatorio_financeiro_{{ report_type }}.pdf');
+    }
+    
+    // Função para exportar para Excel
+    function exportToExcel() {
+        // Criar uma nova planilha
+        const wb = XLSX.utils.book_new();
+        
+        // Converter a tabela para uma planilha
+        const ws = XLSX.utils.table_to_sheet(document.getElementById('reportTable'));
+        
+        // Adicionar a planilha ao livro
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+        
+        // Salvar o arquivo
+        XLSX.writeFile(wb, 'relatorio_financeiro_{{ report_type }}.xlsx');
+    }
+    
+    // Função para imprimir o relatório
+    function printReport() {
+        window.print();
+    }
+</script>
+
+<style media="print">
+    @page {
+        size: landscape;
+    }
+    
+    .card-header, .breadcrumb, form, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    table {
+        width: 100% !important;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+    }
+</style>
+{% endblock %}

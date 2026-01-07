@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block title %}Orçamentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-file-invoice-dollar text-primary me-2"></i>
+                Orçamentos
+            </h1>
+            <p class="text-muted mb-0">Gerencie seus orçamentos e propostas comerciais</p>
+        </div>
+        <a href="{{ url_for('orcamentos.novo') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Novo Orçamento
+        </a>
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Total (30 dias)</div>
+                    <div class="h4 mb-0 text-dark">{{ stats.total or 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Rascunhos</div>
+                    <div class="h4 mb-0 text-primary">{{ stats.rascunhos or 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Enviados</div>
+                    <div class="h4 mb-0 text-warning">{{ stats.enviados or 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Aprovados</div>
+                    <div class="h4 mb-0 text-success">{{ stats.aprovados or 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-info border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Convertidos</div>
+                    <div class="h4 mb-0 text-info">{{ stats.convertidos or 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Valor Total</div>
+                    <div class="h5 mb-0 text-dark">R$ {{ "{:,.2f}".format(stats.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('orcamentos.lista') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small">Buscar</label>
+                        <input type="text" name="busca" class="form-control" 
+                               placeholder="Número ou cliente..." value="{{ filtros.busca }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Cliente</label>
+                        <select name="cliente_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for c in clientes %}
+                            <option value="{{ c.id }}" {% if filtros.cliente_id == c.id|string %}selected{% endif %}>
+                                {{ c.name[:30] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Vendedor</label>
+                        <select name="vendedor_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for v in vendedores %}
+                            <option value="{{ v.id }}" {% if filtros.vendedor_id == v.id|string %}selected{% endif %}>
+                                {{ v.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="rascunho" {% if filtros.status == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                            <option value="enviado" {% if filtros.status == 'enviado' %}selected{% endif %}>Enviado</option>
+                            <option value="aprovado" {% if filtros.status == 'aprovado' %}selected{% endif %}>Aprovado</option>
+                            <option value="reprovado" {% if filtros.status == 'reprovado' %}selected{% endif %}>Reprovado</option>
+                            <option value="convertido" {% if filtros.status == 'convertido' %}selected{% endif %}>Convertido</option>
+                            <option value="vencido" {% if filtros.status == 'vencido' %}selected{% endif %}>Vencido</option>
+                            <option value="cancelado" {% if filtros.status == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-1"></i>Filtrar
+                        </button>
+                        <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Limpar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Orçamentos -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th class="text-center">Itens</th>
+                            <th class="text-end">Valor</th>
+                            <th class="text-center">Emissão</th>
+                            <th class="text-center">Prev. Produção</th>
+                            <th class="text-center">Prev. Entrega</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center" width="150">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if orcamentos %}
+                            {% for o in orcamentos %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('orcamentos.visualizar', id=o.id) }}" class="fw-semibold text-decoration-none">
+                                        {{ o.numero }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div>{{ o.cliente_nome[:35] }}{% if o.cliente_nome|length > 35 %}...{% endif %}</div>
+                                    <small class="text-muted">{{ o.cliente_documento }}</small>
+                                </td>
+                                <td>{{ o.vendedor_nome }}</td>
+                                <td class="text-center">{{ o.qtd_itens }}</td>
+                                <td class="text-end fw-semibold">
+                                    R$ {{ "{:,.2f}".format(o.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                </td>
+                                <td class="text-center">
+                                    {{ o.data_emissao.strftime('%d/%m/%Y') if o.data_emissao else '-' }}
+                                </td>
+                                <td class="text-center">
+                                    {% if o.data_previsao_producao %}
+                                        <span class="text-primary" title="Previsão de conclusão da produção">
+                                            <i class="fas fa-industry me-1" style="font-size: 10px;"></i>
+                                            {{ o.data_previsao_producao.strftime('%d/%m/%Y') if o.data_previsao_producao else '-' }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if o.data_previsao_entrega %}
+                                        <span class="text-success" title="Previsão de entrega ao cliente">
+                                            <i class="fas fa-truck me-1" style="font-size: 10px;"></i>
+                                            {{ o.data_previsao_entrega.strftime('%d/%m/%Y') if o.data_previsao_entrega else '-' }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if o.status == 'rascunho' %}
+                                        <span class="badge bg-secondary">Rascunho</span>
+                                    {% elif o.status == 'enviado' %}
+                                        <span class="badge bg-warning text-dark">Enviado</span>
+                                    {% elif o.status == 'aprovado' %}
+                                        <span class="badge bg-success">Aprovado</span>
+                                    {% elif o.status == 'reprovado' %}
+                                        <span class="badge bg-danger">Reprovado</span>
+                                    {% elif o.status == 'convertido' %}
+                                        <span class="badge bg-info">
+                                            Convertido
+                                            {% if o.pedido_id %}
+                                            <br><small>#{{ o.pedido_id }}</small>
+                                            {% endif %}
+                                        </span>
+                                    {% elif o.status == 'vencido' %}
+                                        <span class="badge bg-dark">Vencido</span>
+                                    {% elif o.status == 'cancelado' %}
+                                        <span class="badge bg-secondary">Cancelado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ o.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('orcamentos.visualizar', id=o.id) }}" 
+                                           class="btn btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if o.status == 'rascunho' %}
+                                        <form action="{{ url_for('orcamentos.enviar', id=o.id) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-warning" title="Enviar ao Cliente">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </form>
+                                        {% elif o.status == 'enviado' %}
+                                        <a href="{{ url_for('orcamentos.pre_aprovar', id=o.id) }}" class="btn btn-outline-success" title="Aprovar">
+                                            <i class="fas fa-check"></i>
+                                        </a>
+                                        <form action="{{ url_for('orcamentos.reprovar', id=o.id) }}" method="POST" class="d-inline"
+                                              onsubmit="return confirm('Deseja reprovar este orçamento?')">
+                                            <input type="hidden" name="motivo" value="">
+                                            <button type="submit" class="btn btn-outline-danger" title="Reprovar">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% if o.status in ['rascunho', 'enviado'] %}
+                                        <a href="{{ url_for('orcamentos.editar', id=o.id) }}" 
+                                           class="btn btn-outline-secondary" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('orcamentos.gerar_pdf', id=o.id) }}" target="_blank"
+                                           class="btn btn-outline-danger" title="Gerar PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info" title="Enviar por Email"
+                                                data-orcamento-id="{{ o.id }}"
+                                                data-orcamento-numero="{{ o.numero }}"
+                                                data-cliente-email="{{ o.cliente_email or '' }}"
+                                                data-empresa-id="{{ o.empresa_id or 1 }}"
+                                                onclick="abrirModalEmailFromButton(this)">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Mais opções">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                {% if o.status == 'rascunho' %}
+                                                <li>
+                                                    <form action="{{ url_for('orcamentos.enviar', id=o.id) }}" method="POST" class="d-inline">
+                                                        <button type="submit" class="dropdown-item text-warning">
+                                                            <i class="fas fa-paper-plane me-2"></i>Enviar ao Cliente
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% elif o.status == 'enviado' %}
+                                                <li>
+                                                    <a href="{{ url_for('orcamentos.pre_aprovar', id=o.id) }}" class="dropdown-item text-success">
+                                                        <i class="fas fa-check me-2"></i>Aprovar
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <form action="{{ url_for('orcamentos.reprovar', id=o.id) }}" method="POST" class="d-inline"
+                                                          onsubmit="return confirm('Deseja reprovar este orçamento?')">
+                                                        <input type="hidden" name="motivo" value="">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="fas fa-times me-2"></i>Reprovar
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                {% endif %}
+                                                <li>
+                                                    <form action="{{ url_for('orcamentos.duplicar', id=o.id) }}" method="POST" class="d-inline">
+                                                        <button type="submit" class="dropdown-item">
+                                                            <i class="fas fa-copy me-2 text-info"></i>Duplicar
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('orcamentos.download_pdf', id=o.id) }}">
+                                                        <i class="fas fa-download me-2 text-secondary"></i>Baixar PDF
+                                                    </a>
+                                                </li>
+                                                {% if o.status == 'aprovado' and not o.pedido_id %}
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form action="{{ url_for('orcamentos.converter_em_pedido', id=o.id) }}" method="POST" class="d-inline">
+                                                        <button type="submit" class="dropdown-item text-success">
+                                                            <i class="fas fa-exchange-alt me-2"></i>Converter em Pedido
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% endif %}
+                                                {% if o.status in ['rascunho', 'enviado'] %}
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form action="{{ url_for('orcamentos.cancelar', id=o.id) }}" method="POST" 
+                                                          onsubmit="return confirm('Deseja realmente cancelar este orçamento?')">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="fas fa-times me-2"></i>Cancelar
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="fas fa-file-invoice fa-3x mb-3 d-block opacity-50"></i>
+                                    Nenhum orçamento encontrado.
+                                    <br>
+                                    <a href="{{ url_for('orcamentos.novo') }}" class="btn btn-primary btn-sm mt-3">
+                                        <i class="fas fa-plus me-1"></i>Criar Novo Orçamento
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {% if orcamentos %}
+        <div class="card-footer bg-light">
+            <small class="text-muted">
+                Exibindo {{ orcamentos|length }} orçamento(s)
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Enviar Email -->
+<div class="modal fade" id="modalEnviarEmail" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-envelope me-2"></i>Enviar Orçamento por Email</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEnviarEmail" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Orçamento</label>
+                        <input type="text" class="form-control" id="emailOrcamentoNumero" readonly>
+                        <input type="hidden" name="orcamento_id" id="emailOrcamentoId">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email do Destinatário <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" id="emailDestinatario" required
+                               placeholder="email@cliente.com.br">
+                        <small class="text-muted">Pode alterar o email se necessário</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Assunto</label>
+                        <input type="text" class="form-control" name="assunto" id="emailAssunto" 
+                               placeholder="Orçamento">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mensagem (opcional)</label>
+                        <textarea class="form-control" name="mensagem" id="emailMensagem" rows="4"
+                                  placeholder="Prezado cliente, segue em anexo o orçamento solicitado..."></textarea>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        O PDF do orçamento será anexado automaticamente ao email.
+                        <br><small>Configurações de email da empresa serão usadas para envio.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info" id="btnEnviarEmail">
+                        <i class="fas fa-paper-plane me-1"></i>Enviar Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Atualizar status vencidos automaticamente
+document.addEventListener('DOMContentLoaded', function() {
+    // Marcar visualmente os vencidos
+    document.querySelectorAll('tr').forEach(function(row) {
+        const statusBadge = row.querySelector('.badge');
+        if (statusBadge && statusBadge.textContent.includes('Enviado')) {
+            const validadeCell = row.querySelector('td:nth-child(7)');
+            if (validadeCell && validadeCell.textContent.includes('Vencido')) {
+                statusBadge.classList.remove('bg-warning', 'text-dark');
+                statusBadge.classList.add('bg-dark');
+                statusBadge.textContent = 'Vencido';
+            }
+        }
+    });
+});
+
+// Abrir modal de envio de email
+function abrirModalEmailFromButton(btn) {
+    const orcamentoId = btn.getAttribute('data-orcamento-id');
+    const numero = btn.getAttribute('data-orcamento-numero');
+    const emailCliente = btn.getAttribute('data-cliente-email');
+    const empresaId = btn.getAttribute('data-empresa-id');
+    abrirModalEmail(orcamentoId, numero, emailCliente, empresaId);
+}
+
+// Abrir modal de envio de email
+function abrirModalEmail(orcamentoId, numero, emailCliente, empresaId) {
+    document.getElementById('emailOrcamentoId').value = orcamentoId;
+    document.getElementById('emailOrcamentoNumero').value = numero;
+    document.getElementById('emailDestinatario').value = emailCliente || '';
+    document.getElementById('emailAssunto').value = 'Orçamento ' + numero;
+    document.getElementById('emailMensagem').value = 'Prezado cliente,\n\nSegue em anexo o orçamento solicitado.\n\nQualquer dúvida, estamos à disposição.\n\nAtenciosamente.';
+    
+    // Atualizar action do form com o ID do orçamento
+    document.getElementById('formEnviarEmail').action = '/orcamentos/' + orcamentoId + '/enviar-email';
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalEnviarEmail'));
+    modal.show();
+}
+
+// Submit do formulário de email
+document.getElementById('formEnviarEmail').addEventListener('submit', function(e) {
+    const btn = document.getElementById('btnEnviarEmail');
+    const email = document.getElementById('emailDestinatario').value;
+    
+    if (!email) {
+        e.preventDefault();
+        alert('Por favor, informe o email do destinatário.');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+});
+</script>
+{% endblock %}

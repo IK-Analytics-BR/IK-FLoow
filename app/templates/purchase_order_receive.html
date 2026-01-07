@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Receber Mercadoria - Pedido #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h1><i class="fas fa-truck-loading"></i> Receber Mercadoria</h1>
+                <p class="text-muted">Pedido de Compra #{{ order.id }} - {{ order.supplier_name }}</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('purchase_order.purchase_order_receive', order_id=order.id) }}">
+                
+                <!-- Informações do Pedido -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> Informações do Pedido</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Fornecedor:</strong><br>
+                                {{ order.supplier_name }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Status:</strong><br>
+                                <span class="badge badge-warning">{{ order.status }}</span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Valor Total:</strong><br>
+                                R$ {{ "%.2f"|format(order.total_value or 0) }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Data do Pedido:</strong><br>
+                                {{ order.order_date }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dados do Recebimento -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Dados do Recebimento</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="received_date">Data de Recebimento *</label>
+                                    <input type="date" class="form-control" id="received_date" name="received_date" 
+                                           value="{{ request.form.get('received_date', '') or '' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="invoice_number">Número da Nota Fiscal</label>
+                                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
+                                           value="{{ request.form.get('invoice_number', '') }}" placeholder="Ex: 12345">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="invoice_date">Data da NF</label>
+                                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" 
+                                           value="{{ request.form.get('invoice_date', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="notes">Observações</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="2" 
+                                              placeholder="Observações sobre o recebimento (opcional)">{{ request.form.get('notes', '') }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Itens do Pedido -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-boxes"></i> Itens para Receber</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th width="5%">#</th>
+                                        <th width="40%">Produto</th>
+                                        <th width="10%">UN</th>
+                                        <th width="15%">Qtd Pedida</th>
+                                        <th width="15%">Qtd Recebida *</th>
+                                        <th width="15%">Preço Unit.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td class="text-center">{{ loop.index }}</td>
+                                        <td>
+                                            <strong>{{ item.product_name }}</strong>
+                                            {% if item.product_code %}
+                                            <br><small class="text-muted">Código: {{ item.product_code }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">{{ item.unit or '-' }}</td>
+                                        <td class="text-center">
+                                            <span class="badge badge-info">{{ item.quantity }}</span>
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   name="qty_received_{{ item.id }}" 
+                                                   id="qty_received_{{ item.id }}"
+                                                   min="0" 
+                                                   max="{{ item.quantity }}" 
+                                                   step="0.01"
+                                                   value="{{ item.quantity }}"
+                                                   placeholder="0.00">
+                                        </td>
+                                        <td class="text-right">
+                                            R$ {{ "%.2f"|format(item.unit_price or 0) }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Importante:</strong> Ao confirmar o recebimento, o estoque será atualizado automaticamente 
+                            e será criado um lançamento em <strong>Contas a Pagar</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 text-right">
+                                <a href="{{ url_for('purchase_order.purchase_order_view', order_id=order.id) }}" 
+                                   class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check"></i> Confirmar Recebimento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Script para calcular total ao preencher quantidades
+document.addEventListener('DOMContentLoaded', function() {
+    // Opcional: adicionar validações ou cálculos automáticos
+    const inputs = document.querySelectorAll('input[name^="qty_received_"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (parseFloat(this.value) < 0) {
+                this.value = 0;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

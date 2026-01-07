@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Novo Plano de Manutenção' if not plan else 'Editar Plano de Manutenção' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">{{ 'Novo Plano de Manutenção' if not plan else 'Editar Plano de Manutenção' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('maintenance_plan.maintenance_plan_list') }}">Planos de Manutenção</a></li>
+        <li class="breadcrumb-item active">{{ 'Novo Plano' if not plan else 'Editar Plano' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-clipboard-list me-1"></i>
+            {{ 'Novo Plano de Manutenção' if not plan else 'Editar Plano de Manutenção' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('maintenance_plan.maintenance_plan_add') if not plan else url_for('maintenance_plan.maintenance_plan_edit', plan_id=plan.id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="customer_id" class="form-label">Cliente <span class="text-danger">*</span></label>
+                        <select class="form-select" id="customer_id" name="customer_id" required>
+                            <option value="">Selecione um cliente</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}" {% if plan and plan.customer_id == customer.id %}selected{% endif %}>
+                                {{ customer.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="equipment_id" class="form-label">Equipamento <span class="text-danger">*</span></label>
+                        <select class="form-select" id="equipment_id" name="equipment_id" required>
+                            <option value="">Selecione um equipamento</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}" 
+                                    data-customer="{{ equipment.customer_id }}" 
+                                    {% if plan and plan.equipment_id == equipment.id %}selected{% endif %}
+                                    class="equipment-option">
+                                {{ equipment.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="supply_id" class="form-label">Componente</label>
+                        <select class="form-select" id="supply_id" name="supply_id">
+                            <option value="">Selecione um componente (opcional)</option>
+                            {% for supply in supplies %}
+                            <option value="{{ supply.id }}" {% if plan and plan.supply_id == supply.id %}selected{% endif %}>
+                                {{ supply.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional. Se não selecionado, o plano será para o equipamento como um todo.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="type" class="form-label">Tipo de Manutenção <span class="text-danger">*</span></label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="">Selecione um tipo</option>
+                            <option value="preventive" {% if plan and plan.type == 'preventive' %}selected{% endif %}>Preventiva</option>
+                            <option value="corrective" {% if plan and plan.type == 'corrective' %}selected{% endif %}>Corretiva</option>
+                            <option value="predictive" {% if plan and plan.type == 'predictive' %}selected{% endif %}>Preditiva</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="trigger_type" class="form-label">Tipo de Gatilho <span class="text-danger">*</span></label>
+                        <select class="form-select" id="trigger_type" name="trigger_type" required>
+                            <option value="">Selecione um tipo de gatilho</option>
+                            <option value="hours" {% if plan and plan.trigger_type == 'hours' %}selected{% endif %}>Horas de Operação</option>
+                            <option value="cycles" {% if plan and plan.trigger_type == 'cycles' %}selected{% endif %}>Ciclos</option>
+                            <option value="time" {% if plan and plan.trigger_type == 'time' %}selected{% endif %}>Tempo (dias)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="trigger_value" class="form-label">Valor do Gatilho <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="trigger_value" name="trigger_value" 
+                               value="{{ plan.trigger_value if plan else '' }}" min="1" required>
+                        <div class="form-text trigger-help">Informe o valor do gatilho (horas, ciclos ou dias).</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="task" class="form-label">Tarefa <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="task" name="task" 
+                               value="{{ plan.task if plan else '' }}" required>
+                        <div class="form-text">Ex: Troca de óleo, Inspeção, Limpeza, etc.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="standard_execution_time" class="form-label">Tempo Padrão de Execução (minutos)</label>
+                        <input type="number" class="form-control" id="standard_execution_time" name="standard_execution_time" 
+                               value="{{ plan.standard_execution_time if plan else '60' }}" min="1">
+                        <div class="form-text">Tempo estimado para execução da tarefa em minutos.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="instructions" class="form-label">Instruções</label>
+                        <textarea class="form-control" id="instructions" name="instructions" rows="5">{{ plan.instructions if plan else '' }}</textarea>
+                        <div class="form-text">Instruções detalhadas para execução da tarefa.</div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('maintenance_plan.maintenance_plan_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtrar equipamentos por cliente
+        $('#customer_id').change(function() {
+            var customerId = $(this).val();
+            
+            // Esconder todos os equipamentos
+            $('.equipment-option').hide();
+            
+            // Mostrar apenas os equipamentos do cliente selecionado
+            $('.equipment-option[data-customer="' + customerId + '"]').show();
+            
+            // Limpar a seleção atual
+            $('#equipment_id').val('');
+        });
+        
+        // Atualizar texto de ajuda do gatilho
+        $('#trigger_type').change(function() {
+            var triggerType = $(this).val();
+            var helpText = '';
+            
+            switch(triggerType) {
+                case 'hours':
+                    helpText = 'Informe o número de horas de operação entre manutenções.';
+                    break;
+                case 'cycles':
+                    helpText = 'Informe o número de ciclos entre manutenções.';
+                    break;
+                case 'time':
+                    helpText = 'Informe o número de dias entre manutenções.';
+                    break;
+                default:
+                    helpText = 'Informe o valor do gatilho (horas, ciclos ou dias).';
+            }
+            
+            $('.trigger-help').text(helpText);
+        });
+        
+        // Inicializar o filtro de equipamentos se um cliente já estiver selecionado
+        if ($('#customer_id').val()) {
+            $('#customer_id').trigger('change');
+        }
+        
+        // Inicializar o texto de ajuda do gatilho se um tipo já estiver selecionado
+        if ($('#trigger_type').val()) {
+            $('#trigger_type').trigger('change');
+        }
+    });
+</script>
+{% endblock %}

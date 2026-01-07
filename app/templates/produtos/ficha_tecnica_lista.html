@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Fichas Técnicas - Produtos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <i class="fas fa-clipboard-list text-primary me-2"></i>
+            Fichas Técnicas de Produção
+        </h4>
+        <a href="{{ url_for('ficha_tecnica.novo') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Nova Ficha
+        </a>
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total de Fichas</h6>
+                            <h3 class="mb-0">{{ stats.total or 0 }}</h3>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Fichas Ativas</h6>
+                            <h3 class="mb-0">{{ stats.ativos or 0 }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-secondary text-white">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Fichas Inativas</h6>
+                            <h3 class="mb-0">{{ stats.inativos or 0 }}</h3>
+                        </div>
+                        <i class="fas fa-pause-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Buscar</label>
+                    <input type="text" class="form-control form-control-sm" name="busca" 
+                           value="{{ filtros.busca }}" placeholder="Nome, código ou descrição...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Tipo</label>
+                    <select class="form-select form-select-sm" name="tipo">
+                        <option value="">Todos</option>
+                        <option value="CS" {% if filtros.tipo == 'CS' %}selected{% endif %}>CS - Sincronizada</option>
+                        <option value="PV" {% if filtros.tipo == 'PV' %}selected{% endif %}>PV - Poly-V</option>
+                        <option value="CP" {% if filtros.tipo == 'CP' %}selected{% endif %}>CP - Plana</option>
+                        <option value="CT" {% if filtros.tipo == 'CT' %}selected{% endif %}>CT - Transportadora</option>
+                        <option value="HTD" {% if filtros.tipo == 'HTD' %}selected{% endif %}>HTD</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Status</label>
+                    <select class="form-select form-select-sm" name="ativos">
+                        <option value="1" {% if filtros.ativos %}selected{% endif %}>Apenas Ativos</option>
+                        <option value="0" {% if not filtros.ativos %}selected{% endif %}>Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('ficha_tecnica.listar') }}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fas fa-times me-1"></i>Limpar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Fichas -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:80px">ID</th>
+                            <th style="width:100px">Código</th>
+                            <th>Produto / Template</th>
+                            <th class="text-center" style="width:60px">Itens</th>
+                            <th class="text-end" style="width:120px">Custo Base</th>
+                            <th class="text-center" style="width:80px">Tempo</th>
+                            <th class="text-center" style="width:60px">Ver.</th>
+                            <th class="text-center" style="width:80px">Status</th>
+                            <th class="text-center" style="width:150px">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ficha in fichas %}
+                        <tr>
+                            <td>{{ ficha.id }}</td>
+                            <td><code>{{ ficha.produto_codigo or '-' }}</code></td>
+                            <td>
+                                <strong>{{ ficha.produto_nome }}</strong>
+                                <br>
+                                <small class="text-muted">{{ ficha.nome_template }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ ficha.qtd_itens }}</span>
+                            </td>
+                            <td class="text-end">
+                                R$ {{ "%.2f"|format(ficha.custo_total_base or 0) }}
+                            </td>
+                            <td class="text-center">{{ ficha.tempo_producao_horas or 0 }}h</td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">v{{ ficha.versao }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if ficha.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('ficha_tecnica.visualizar', id=ficha.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Visualizar">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('ficha_tecnica.editar', id=ficha.id) }}" 
+                                   class="btn btn-sm btn-outline-warning" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmarExclusao({{ ficha.id }}, '{{ ficha.produto_nome }}')" title="Excluir">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                Nenhuma ficha técnica encontrada
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir a ficha técnica do produto:</p>
+                <p class="fw-bold" id="nomeProdutoExcluir"></p>
+                <p class="text-danger"><small>Esta ação não pode ser desfeita!</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExcluir" method="POST" style="display:inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmarExclusao(id, nome) {
+    document.getElementById('nomeProdutoExcluir').textContent = nome;
+    document.getElementById('formExcluir').action = `/produtos/fichas-tecnicas/${id}/excluir`;
+    new bootstrap.Modal(document.getElementById('modalExcluir')).show();
+}
+</script>
+{% endblock %}

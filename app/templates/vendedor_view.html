@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Vendedor - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes do Vendedor</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('vendedor.vendedores') }}">Vendedores</a></li>
+        <li class="breadcrumb-item active">Detalhes do Vendedor</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-tie me-1"></i>
+                    Informações do Vendedor
+                    <div class="float-end">
+                        <a href="{{ url_for('vendedor.vendedor_editar', vendedor_id=vendedor.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5 class="card-title">{{ vendedor.name }}</h5>
+                        <p class="card-text">
+                            <span class="badge {% if vendedor.status == 'active' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ 'Ativo' if vendedor.status == 'active' else 'Inativo' }}
+                            </span>
+                        </p>
+                    </div>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>CPF:</th>
+                            <td>{{ vendedor.cpf }}</td>
+                        </tr>
+                        <tr>
+                            <th>Região:</th>
+                            <td>{{ vendedor.region }}</td>
+                        </tr>
+                        <tr>
+                            <th>Telefone:</th>
+                            <td>{{ vendedor.phone }}</td>
+                        </tr>
+                        <tr>
+                            <th>E-mail:</th>
+                            <td>{{ vendedor.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cadastrado em:</th>
+                            <td>{{ vendedor.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Última atualização:</th>
+                            <td>{{ vendedor.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-users me-1"></i>
+                    Clientes Vinculados ({{ clientes|length }})
+                </div>
+                <div class="card-body">
+                    {% if clientes %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>CPF/CNPJ</th>
+                                    <th>Cidade</th>
+                                    <th>Telefone</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in clientes %}
+                                <tr>
+                                    <td>{{ cliente.name }}</td>
+                                    <td>{{ cliente.cpf_cnpj }}</td>
+                                    <td>{{ cliente.city }}</td>
+                                    <td>{{ cliente.phone }}</td>
+                                    <td>
+                                        <a href="{{ url_for('cliente.cliente_visualizar', id=cliente.id) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Este vendedor não possui clientes vinculados.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-route me-1"></i>
+                    Rotas de Vendas ({{ rotas|length }})
+                </div>
+                <div class="card-body">
+                    {% if rotas %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nome</th>
+                                    <th>Frequência</th>
+                                    <th>Clientes</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rota in rotas %}
+                                <tr>
+                                    <td>{{ rota.code }}</td>
+                                    <td>{{ rota.name }}</td>
+                                    <td>
+                                        {% if rota.frequency == 'daily' %}
+                                            Diária
+                                        {% elif rota.frequency == 'weekly' %}
+                                            Semanal
+                                        {% elif rota.frequency == 'monthly' %}
+                                            Mensal
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <!-- Aqui seria ideal ter o número de clientes na rota -->
+                                        <span class="badge bg-primary">Ver clientes</span>
+                                    </td>
+                                    <td>
+                                        <a href="#" class="btn btn-info btn-sm" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Este vendedor não possui rotas cadastradas.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-clipboard-list me-1"></i>
+                    Romaneios Recentes ({{ romaneios|length }})
+                </div>
+                <div class="card-body">
+                    {% if romaneios %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Data</th>
+                                    <th>Rota</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for romaneio in romaneios %}
+                                <tr>
+                                    <td>{{ romaneio.manifest_number }}</td>
+                                    <td>{{ romaneio.date.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        <!-- Aqui seria ideal ter o nome da rota -->
+                                        Rota #{{ romaneio.route_id }}
+                                    </td>
+                                    <td>
+                                        {% if romaneio.status == 'draft' %}
+                                            <span class="badge bg-secondary">Rascunho</span>
+                                        {% elif romaneio.status == 'in_progress' %}
+                                            <span class="badge bg-primary">Em Andamento</span>
+                                        {% elif romaneio.status == 'completed' %}
+                                            <span class="badge bg-success">Concluído</span>
+                                        {% elif romaneio.status == 'canceled' %}
+                                            <span class="badge bg-danger">Cancelado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="#" class="btn btn-info btn-sm" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Este vendedor não possui romaneios recentes.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir o vendedor <strong>{{ vendedor.name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('vendedor.vendedor_excluir', vendedor_id=vendedor.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

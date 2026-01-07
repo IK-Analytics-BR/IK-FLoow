@@ -1,0 +1,1060 @@
+{% extends "base.html" %}
+
+{% block title %}{% if empresa %}Editar{% else %}Cadastrar{% endif %} Empresa - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-building me-2"></i>
+            {% if empresa %}Editar Empresa{% else %}Nova Empresa{% endif %}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('empresa.empresas') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('empresa.empresa_cadastrar') if not empresa else url_for('empresa.empresa_editar', id=empresa.id) }}">
+        <div class="row">
+            <!-- Coluna Principal -->
+            <div class="col-lg-8">
+                <!-- Dados Principais -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-id-card me-1"></i>
+                        Dados Principais
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            {% if empresa %}
+                            <div class="col-md-2">
+                                <label for="id" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="id" value="{{ empresa.id }}" readonly>
+                            </div>
+                            {% endif %}
+
+                            <div class="col-md-4">
+                                <label for="pais" class="form-label required-field">País</label>
+                                <select class="form-select" id="pais" name="pais">
+                                    {% for c in countries %}
+                                    <option value="{{ c.name }}"
+                                            data-code="{{ c.code }}"
+                                            data-tax-label="{{ c.tax_id_label }}"
+                                            data-zip-label="{{ c.zip_label }}"
+                                            data-currency="{{ c.default_currency_code }}"
+                                            {% if empresa and empresa.pais == c.name %}
+                                                selected
+                                            {% elif not empresa and c.code == 'BR' %}
+                                                selected
+                                            {% endif %}
+                                    >{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="moeda_funcional" class="form-label">Moeda funcional</label>
+                                <select class="form-select" id="moeda_funcional" name="moeda_funcional">
+                                    {% for m in moedas %}
+                                    <option value="{{ m.code }}"
+                                        {% if empresa and empresa.moeda_funcional == m.code %}
+                                            selected
+                                        {% elif not empresa and m.code == 'BRL' %}
+                                            selected
+                                        {% endif %}
+                                    >{{ m.code }} - {{ m.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="razao_social" class="form-label required-field">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social" name="razao_social" 
+                                       value="{{ empresa.razao_social if empresa else '' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="nome_fantasia" class="form-label required-field">Nome Fantasia</label>
+                                <input type="text" class="form-control" id="nome_fantasia" name="nome_fantasia" 
+                                       value="{{ empresa.nome_fantasia if empresa else '' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="cnpj" class="form-label required-field" id="label_cnpj">CNPJ</label>
+                                <input type="text" class="form-control" id="cnpj" name="cnpj" 
+                                       value="{{ empresa.cnpj if empresa else '' }}" 
+                                       placeholder="00.000.000/0000-00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="inscricao_estadual" class="form-label" id="label_inscricao_estadual">Inscrição Estadual</label>
+                                <input type="text" class="form-control" id="inscricao_estadual" name="inscricao_estadual" 
+                                       value="{{ empresa.inscricao_estadual if empresa and empresa.inscricao_estadual else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="inscricao_municipal" class="form-label" id="label_inscricao_municipal">Inscrição Municipal</label>
+                                <input type="text" class="form-control" id="inscricao_municipal" name="inscricao_municipal" 
+                                       value="{{ empresa.inscricao_municipal if empresa and empresa.inscricao_municipal else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dados de Contato -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <i class="fas fa-phone me-1"></i>
+                        Dados de Contato
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="telefone" class="form-label">Telefone</label>
+                                <input type="text" class="form-control" id="telefone" name="telefone" 
+                                       value="{{ empresa.telefone if empresa and empresa.telefone else '' }}"
+                                       placeholder="(00) 0000-0000">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="celular" class="form-label">Celular</label>
+                                <input type="text" class="form-control" id="celular" name="celular" 
+                                       value="{{ empresa.celular if empresa and empresa.celular else '' }}"
+                                       placeholder="(00) 00000-0000">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">E-mail</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       value="{{ empresa.email if empresa and empresa.email else '' }}"
+                                       placeholder="contato@empresa.com.br">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="website" class="form-label">Website</label>
+                                <input type="url" class="form-control" id="website" name="website" 
+                                       value="{{ empresa.website if empresa and empresa.website else '' }}"
+                                       placeholder="https://www.empresa.com.br">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endereço -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        Endereço
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="cep" class="form-label" id="label_cep">CEP</label>
+                                <input type="text" class="form-control" id="cep" name="cep" 
+                                       value="{{ empresa.cep if empresa and empresa.cep else '' }}"
+                                       placeholder="00000-000">
+                            </div>
+                            <div class="col-md-7">
+                                <label for="logradouro" class="form-label">Logradouro</label>
+                                <input type="text" class="form-control" id="logradouro" name="logradouro" 
+                                       value="{{ empresa.logradouro if empresa and empresa.logradouro else '' }}"
+                                       placeholder="Rua, Avenida, etc">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="numero" class="form-label">Número</label>
+                                <input type="text" class="form-control" id="numero" name="numero" 
+                                       value="{{ empresa.numero if empresa and empresa.numero else '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="complemento" class="form-label">Complemento</label>
+                                <input type="text" class="form-control" id="complemento" name="complemento" 
+                                       value="{{ empresa.complemento if empresa and empresa.complemento else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="bairro" class="form-label">Bairro</label>
+                                <input type="text" class="form-control" id="bairro" name="bairro" 
+                                       value="{{ empresa.bairro if empresa and empresa.bairro else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="cidade" class="form-label">Cidade</label>
+                                <input type="text" class="form-control" id="cidade" name="cidade" 
+                                       value="{{ empresa.cidade if empresa and empresa.cidade else '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label for="estado" class="form-label" id="label_estado">UF</label>
+                                <select class="form-select" id="estado" name="estado">
+                                    <option value="">Selecione</option>
+                                    <option value="AC" {% if empresa and empresa.estado == 'AC' %}selected{% endif %}>AC</option>
+                                    <option value="AL" {% if empresa and empresa.estado == 'AL' %}selected{% endif %}>AL</option>
+                                    <option value="AP" {% if empresa and empresa.estado == 'AP' %}selected{% endif %}>AP</option>
+                                    <option value="AM" {% if empresa and empresa.estado == 'AM' %}selected{% endif %}>AM</option>
+                                    <option value="BA" {% if empresa and empresa.estado == 'BA' %}selected{% endif %}>BA</option>
+                                    <option value="CE" {% if empresa and empresa.estado == 'CE' %}selected{% endif %}>CE</option>
+                                    <option value="DF" {% if empresa and empresa.estado == 'DF' %}selected{% endif %}>DF</option>
+                                    <option value="ES" {% if empresa and empresa.estado == 'ES' %}selected{% endif %}>ES</option>
+                                    <option value="GO" {% if empresa and empresa.estado == 'GO' %}selected{% endif %}>GO</option>
+                                    <option value="MA" {% if empresa and empresa.estado == 'MA' %}selected{% endif %}>MA</option>
+                                    <option value="MT" {% if empresa and empresa.estado == 'MT' %}selected{% endif %}>MT</option>
+                                    <option value="MS" {% if empresa and empresa.estado == 'MS' %}selected{% endif %}>MS</option>
+                                    <option value="MG" {% if empresa and empresa.estado == 'MG' %}selected{% endif %}>MG</option>
+                                    <option value="PA" {% if empresa and empresa.estado == 'PA' %}selected{% endif %}>PA</option>
+                                    <option value="PB" {% if empresa and empresa.estado == 'PB' %}selected{% endif %}>PB</option>
+                                    <option value="PR" {% if empresa and empresa.estado == 'PR' %}selected{% endif %}>PR</option>
+                                    <option value="PE" {% if empresa and empresa.estado == 'PE' %}selected{% endif %}>PE</option>
+                                    <option value="PI" {% if empresa and empresa.estado == 'PI' %}selected{% endif %}>PI</option>
+                                    <option value="RJ" {% if empresa and empresa.estado == 'RJ' %}selected{% endif %}>RJ</option>
+                                    <option value="RN" {% if empresa and empresa.estado == 'RN' %}selected{% endif %}>RN</option>
+                                    <option value="RS" {% if empresa and empresa.estado == 'RS' %}selected{% endif %}>RS</option>
+                                    <option value="RO" {% if empresa and empresa.estado == 'RO' %}selected{% endif %}>RO</option>
+                                    <option value="RR" {% if empresa and empresa.estado == 'RR' %}selected{% endif %}>RR</option>
+                                    <option value="SC" {% if empresa and empresa.estado == 'SC' %}selected{% endif %}>SC</option>
+                                    <option value="SP" {% if empresa and empresa.estado == 'SP' %}selected{% endif %}>SP</option>
+                                    <option value="SE" {% if empresa and empresa.estado == 'SE' %}selected{% endif %}>SE</option>
+                                    <option value="TO" {% if empresa and empresa.estado == 'TO' %}selected{% endif %}>TO</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dados Fiscais -->
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="fas fa-file-invoice-dollar me-1"></i>
+                        Dados Fiscais e Tributários
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="regime_tributario" class="form-label" id="label_regime_tributario">Regime Tributário</label>
+                                <select class="form-select" id="regime_tributario" name="regime_tributario">
+                                    <option value="">Selecione</option>
+                                    <option value="Simples Nacional" {% if empresa and empresa.regime_tributario == 'Simples Nacional' %}selected{% endif %}>Simples Nacional</option>
+                                    <option value="Lucro Presumido" {% if empresa and empresa.regime_tributario == 'Lucro Presumido' %}selected{% endif %}>Lucro Presumido</option>
+                                    <option value="Lucro Real" {% if empresa and empresa.regime_tributario == 'Lucro Real' %}selected{% endif %}>Lucro Real</option>
+                                    <option value="MEI" {% if empresa and empresa.regime_tributario == 'MEI' %}selected{% endif %}>MEI</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modelo_nfe" class="form-label">
+                                    <i class="fas fa-file-invoice text-success"></i> Modelo de NF-e
+                                </label>
+                                <select class="form-select" id="modelo_nfe" name="modelo_nfe">
+                                    <option value="antigo" {% if not empresa or not empresa.modelo_nfe or empresa.modelo_nfe == 'antigo' %}selected{% endif %}>
+                                        📄 Antigo (ICMS, IPI, PIS, COFINS)
+                                    </option>
+                                    <option value="reforma" {% if empresa and empresa.modelo_nfe == 'reforma' %}selected{% endif %}>
+                                        ⭐ Reforma Tributária (IBS, CBS, IS)
+                                    </option>
+                                </select>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Define quais impostos serão exibidos na emissão de NF-e
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3" id="row_ambiente_nfe">
+                            <div class="col-md-6">
+                                <label for="ambiente_nfe" class="form-label">
+                                    <i class="fas fa-server text-danger"></i> Ambiente de Emissão de NF-e
+                                </label>
+                                <select class="form-select" id="ambiente_nfe" name="ambiente_nfe">
+                                    <option value="2" {% if not empresa or not empresa.ambiente_nfe or empresa.ambiente_nfe == '2' %}selected{% endif %}>
+                                        🧪 Homologação (Testes)
+                                    </option>
+                                    <option value="1" {% if empresa and empresa.ambiente_nfe == '1' %}selected{% endif %}>
+                                        ⚠️ Produção (Oficial)
+                                    </option>
+                                </select>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Homologação:</strong> Para testes (NFe não tem validade fiscal)<br>
+                                    <i class="fas fa-check-circle text-success"></i> <strong>Produção:</strong> NFe oficial com validade fiscal
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- NFC-e - Configurações -->
+                        <div class="card bg-light mb-3" id="card_nfce">
+                            <div class="card-header bg-success text-white">
+                                <i class="fas fa-cash-register"></i> Configurações NFC-e (Cupom Fiscal)
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="ambiente_nfce" class="form-label">
+                                            <i class="fas fa-server text-success"></i> Ambiente NFC-e
+                                        </label>
+                                        <select class="form-select" id="ambiente_nfce" name="ambiente_nfce">
+                                            <option value="2" {% if not empresa or not empresa.ambiente_nfce or empresa.ambiente_nfce == 2 %}selected{% endif %}>
+                                                Homologação (Testes)
+                                            </option>
+                                            <option value="1" {% if empresa and empresa.ambiente_nfce == 1 %}selected{% endif %}>
+                                                Produção (Oficial)
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- CSC Homologação -->
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label for="id_csc_nfce_homologacao" class="form-label">
+                                            <i class="fas fa-key"></i> ID CSC Homol.
+                                        </label>
+                                        <input type="text" class="form-control" id="id_csc_nfce_homologacao" name="id_csc_nfce_homologacao" 
+                                               value="{{ empresa.id_csc_nfce_homologacao if empresa and empresa.id_csc_nfce_homologacao else '' }}"
+                                               placeholder="1" maxlength="6">
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label for="csc_nfce_homologacao" class="form-label">
+                                            <i class="fas fa-flask"></i> CSC Homologação
+                                        </label>
+                                        <input type="text" class="form-control" id="csc_nfce_homologacao" name="csc_nfce_homologacao" 
+                                               value="{{ empresa.csc_nfce_homologacao if empresa and empresa.csc_nfce_homologacao else '' }}"
+                                               placeholder="CSC de homologação (testes)" maxlength="50">
+                                    </div>
+                                </div>
+                                
+                                <!-- CSC Produção -->
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label for="id_csc_nfce_producao" class="form-label">
+                                            <i class="fas fa-key"></i> ID CSC Prod.
+                                        </label>
+                                        <input type="text" class="form-control" id="id_csc_nfce_producao" name="id_csc_nfce_producao" 
+                                               value="{{ empresa.id_csc_nfce_producao if empresa and empresa.id_csc_nfce_producao else '' }}"
+                                               placeholder="1" maxlength="6">
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label for="csc_nfce_producao" class="form-label">
+                                            <i class="fas fa-industry"></i> CSC Produção
+                                        </label>
+                                        <input type="text" class="form-control" id="csc_nfce_producao" name="csc_nfce_producao" 
+                                               value="{{ empresa.csc_nfce_producao if empresa and empresa.csc_nfce_producao else '' }}"
+                                               placeholder="CSC de produção (oficial)" maxlength="50">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle"></i> O CSC é obtido no portal da SEFAZ do seu estado.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cnae_principal" class="form-label" id="label_cnae_principal">CNAE Principal</label>
+                                <input type="text" class="form-control" id="cnae_principal" name="cnae_principal" 
+                                       value="{{ empresa.cnae_principal if empresa and empresa.cnae_principal else '' }}"
+                                       placeholder="0000-0/00">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="capital_social" class="form-label">Capital Social</label>
+                                <input type="text" class="form-control" id="capital_social" name="capital_social" 
+                                       value="{{ '%0.2f'|format(empresa.capital_social) if empresa and empresa.capital_social else '' }}"
+                                       placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="natureza_juridica" class="form-label" id="label_natureza_juridica">Natureza Jurídica</label>
+                                <input type="text" class="form-control" id="natureza_juridica" name="natureza_juridica" 
+                                       value="{{ empresa.natureza_juridica if empresa and empresa.natureza_juridica else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="data_abertura" class="form-label">Data de Abertura</label>
+                                <input type="date" class="form-control" id="data_abertura" name="data_abertura" 
+                                       value="{{ empresa.data_abertura if empresa and empresa.data_abertura else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Lateral -->
+            <div class="col-lg-4">
+                <!-- Logo da Empresa -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-image me-1"></i>
+                        Logo da Empresa
+                    </div>
+                    <div class="card-body text-center">
+                        {% if empresa and empresa.logo_path %}
+                            <img src="{{ url_for('static', filename=empresa.logo_path) }}" 
+                                 alt="Logo da Empresa" 
+                                 class="img-fluid mb-3"
+                                 style="max-height: 200px; border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px; background: white;">
+                        {% else %}
+                            <div class="text-muted mb-3" style="padding: 40px;">
+                                <i class="fas fa-image fa-4x mb-3" style="opacity: 0.3;"></i>
+                                <p>Nenhuma logo cadastrada</p>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="logo" class="form-label">
+                                <strong>{% if empresa and empresa.logo_path %}Alterar{% else %}Enviar{% endif %} Logo</strong>
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="logo" 
+                                   name="logo" 
+                                   accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml">
+                            <small class="text-muted d-block mt-1">
+                                Formatos: PNG, JPG, JPEG, GIF, WEBP, SVG<br>
+                                Tamanho recomendado: 400x200px
+                            </small>
+                        </div>
+                        
+                        <!-- Checkbox: Usar no PDV (Multiloja) -->
+                        <div class="alert alert-info mb-3" style="padding: 10px;">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="usar_no_pdv" 
+                                       name="usar_no_pdv"
+                                       {% if empresa and empresa.get('usar_no_pdv') %}checked{% endif %}>
+                                <label class="form-check-label" for="usar_no_pdv">
+                                    <strong><i class="fas fa-cash-register text-success"></i> Usar esta empresa no PDV</strong>
+                                    <small class="d-block text-muted">
+                                        ✅ Você pode marcar múltiplas empresas para usar no PDV
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-light mb-3">
+                            <div class="card-header bg-secondary text-white">
+                                <i class="fas fa-layer-group"></i> Perfil da Empresa (Modo do Sistema)
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <label for="app_mode" class="form-label">Perfil</label>
+                                        <select class="form-select" id="app_mode" name="app_mode">
+                                            <option value="global" {% if not empresa or not empresa.app_mode or empresa.app_mode == 'global' %}selected{% endif %}>Global (vê tudo)</option>
+                                            <option value="industrial" {% if empresa and empresa.app_mode == 'industrial' %}selected{% endif %}>Industrial (IK Flow)</option>
+                                            <option value="varejo" {% if empresa and empresa.app_mode == 'varejo' %}selected{% endif %}>Varejo (IK Commerce)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if empresa and empresa.logo_path %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="remover_logo" name="remover_logo">
+                            <label class="form-check-label text-danger" for="remover_logo">
+                                <i class="fas fa-trash"></i> Remover logo atual
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Dados Bancários -->
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <i class="fas fa-university me-1"></i>
+                        Dados Bancários
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="banco" class="form-label">Banco</label>
+                            <input type="text" class="form-control" id="banco" name="banco" 
+                                   value="{{ empresa.banco if empresa and empresa.banco else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="agencia" class="form-label">Agência</label>
+                            <input type="text" class="form-control" id="agencia" name="agencia" 
+                                   value="{{ empresa.agencia if empresa and empresa.agencia else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="conta" class="form-label">Conta</label>
+                            <input type="text" class="form-control" id="conta" name="conta" 
+                                   value="{{ empresa.conta if empresa and empresa.conta else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="tipo_conta" class="form-label">Tipo de Conta</label>
+                            <select class="form-select" id="tipo_conta" name="tipo_conta">
+                                <option value="">Selecione</option>
+                                <option value="Corrente" {% if empresa and empresa.tipo_conta == 'Corrente' %}selected{% endif %}>Corrente</option>
+                                <option value="Poupança" {% if empresa and empresa.tipo_conta == 'Poupança' %}selected{% endif %}>Poupança</option>
+                                <option value="Pagamento" {% if empresa and empresa.tipo_conta == 'Pagamento' %}selected{% endif %}>Pagamento</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Responsável Legal -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <i class="fas fa-user-tie me-1"></i>
+                        Responsável Legal
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="responsavel_legal" class="form-label">Nome Completo</label>
+                            <input type="text" class="form-control" id="responsavel_legal" name="responsavel_legal" 
+                                   value="{{ empresa.responsavel_legal if empresa and empresa.responsavel_legal else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="cpf_responsavel" class="form-label">CPF</label>
+                            <input type="text" class="form-control" id="cpf_responsavel" name="cpf_responsavel" 
+                                   value="{{ empresa.cpf_responsavel if empresa and empresa.cpf_responsavel else '' }}"
+                                   placeholder="000.000.000-00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observações -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-comment-alt me-1"></i>
+                        Observações
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="observacoes" class="form-label">Observações Gerais</label>
+                            <textarea class="form-control" id="observacoes" name="observacoes" rows="5">{{ empresa.observacoes if empresa and empresa.observacoes else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('empresa.empresas') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        {% if empresa %}Atualizar{% else %}Cadastrar{% endif %} Empresa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function() {
+        function byId(id) { return document.getElementById(id); }
+
+        var inputCnpj = byId('cnpj');
+        var labelCnpj = byId('label_cnpj');
+        var inputCep = byId('cep');
+        var labelCep = byId('label_cep');
+        var inputPais = byId('pais');  // agora é um <select>, mas mantemos o mesmo id
+        var labelIE = byId('label_inscricao_estadual');
+        var labelIM = byId('label_inscricao_municipal');
+        var selectMoeda = byId('moeda_funcional');
+        var isEdit = {{ 'true' if empresa else 'false' }};
+
+        var selectEstado = byId('estado');
+        var selectRegime = byId('regime_tributario');
+        var initialEstadoValue = selectEstado ? selectEstado.value : '';
+        var initialRegimeValue = selectRegime ? selectRegime.value : '';
+
+        // Listas de estados / regiões por país
+        var STATE_OPTIONS = {
+            BR: [
+                { value: 'AC', label: 'AC' },
+                { value: 'AL', label: 'AL' },
+                { value: 'AP', label: 'AP' },
+                { value: 'AM', label: 'AM' },
+                { value: 'BA', label: 'BA' },
+                { value: 'CE', label: 'CE' },
+                { value: 'DF', label: 'DF' },
+                { value: 'ES', label: 'ES' },
+                { value: 'GO', label: 'GO' },
+                { value: 'MA', label: 'MA' },
+                { value: 'MT', label: 'MT' },
+                { value: 'MS', label: 'MS' },
+                { value: 'MG', label: 'MG' },
+                { value: 'PA', label: 'PA' },
+                { value: 'PB', label: 'PB' },
+                { value: 'PR', label: 'PR' },
+                { value: 'PE', label: 'PE' },
+                { value: 'PI', label: 'PI' },
+                { value: 'RJ', label: 'RJ' },
+                { value: 'RN', label: 'RN' },
+                { value: 'RS', label: 'RS' },
+                { value: 'RO', label: 'RO' },
+                { value: 'RR', label: 'RR' },
+                { value: 'SC', label: 'SC' },
+                { value: 'SP', label: 'SP' },
+                { value: 'SE', label: 'SE' },
+                { value: 'TO', label: 'TO' }
+            ],
+            US: [
+                { value: 'AL', label: 'Alabama' },
+                { value: 'AK', label: 'Alaska' },
+                { value: 'AZ', label: 'Arizona' },
+                { value: 'AR', label: 'Arkansas' },
+                { value: 'CA', label: 'California' },
+                { value: 'CO', label: 'Colorado' },
+                { value: 'CT', label: 'Connecticut' },
+                { value: 'DE', label: 'Delaware' },
+                { value: 'FL', label: 'Florida' },
+                { value: 'GA', label: 'Georgia' },
+                { value: 'HI', label: 'Hawaii' },
+                { value: 'ID', label: 'Idaho' },
+                { value: 'IL', label: 'Illinois' },
+                { value: 'IN', label: 'Indiana' },
+                { value: 'IA', label: 'Iowa' },
+                { value: 'KS', label: 'Kansas' },
+                { value: 'KY', label: 'Kentucky' },
+                { value: 'LA', label: 'Louisiana' },
+                { value: 'ME', label: 'Maine' },
+                { value: 'MD', label: 'Maryland' },
+                { value: 'MA', label: 'Massachusetts' },
+                { value: 'MI', label: 'Michigan' },
+                { value: 'MN', label: 'Minnesota' },
+                { value: 'MS', label: 'Mississippi' },
+                { value: 'MO', label: 'Missouri' },
+                { value: 'MT', label: 'Montana' },
+                { value: 'NE', label: 'Nebraska' },
+                { value: 'NV', label: 'Nevada' },
+                { value: 'NH', label: 'New Hampshire' },
+                { value: 'NJ', label: 'New Jersey' },
+                { value: 'NM', label: 'New Mexico' },
+                { value: 'NY', label: 'New York' },
+                { value: 'NC', label: 'North Carolina' },
+                { value: 'ND', label: 'North Dakota' },
+                { value: 'OH', label: 'Ohio' },
+                { value: 'OK', label: 'Oklahoma' },
+                { value: 'OR', label: 'Oregon' },
+                { value: 'PA', label: 'Pennsylvania' },
+                { value: 'RI', label: 'Rhode Island' },
+                { value: 'SC', label: 'South Carolina' },
+                { value: 'SD', label: 'South Dakota' },
+                { value: 'TN', label: 'Tennessee' },
+                { value: 'TX', label: 'Texas' },
+                { value: 'UT', label: 'Utah' },
+                { value: 'VT', label: 'Vermont' },
+                { value: 'VA', label: 'Virginia' },
+                { value: 'WA', label: 'Washington' },
+                { value: 'WV', label: 'West Virginia' },
+                { value: 'WI', label: 'Wisconsin' },
+                { value: 'WY', label: 'Wyoming' }
+            ],
+            AR: [
+                { value: 'Buenos Aires', label: 'Buenos Aires' },
+                { value: 'CABA', label: 'Ciudad Autónoma de Buenos Aires' },
+                { value: 'Catamarca', label: 'Catamarca' },
+                { value: 'Chaco', label: 'Chaco' },
+                { value: 'Chubut', label: 'Chubut' },
+                { value: 'Cordoba', label: 'Córdoba' },
+                { value: 'Corrientes', label: 'Corrientes' },
+                { value: 'Entre Rios', label: 'Entre Ríos' },
+                { value: 'Formosa', label: 'Formosa' },
+                { value: 'Jujuy', label: 'Jujuy' },
+                { value: 'La Pampa', label: 'La Pampa' },
+                { value: 'La Rioja', label: 'La Rioja' },
+                { value: 'Mendoza', label: 'Mendoza' },
+                { value: 'Misiones', label: 'Misiones' },
+                { value: 'Neuquen', label: 'Neuquén' },
+                { value: 'Rio Negro', label: 'Río Negro' },
+                { value: 'Salta', label: 'Salta' },
+                { value: 'San Juan', label: 'San Juan' },
+                { value: 'San Luis', label: 'San Luis' },
+                { value: 'Santa Cruz', label: 'Santa Cruz' },
+                { value: 'Santa Fe', label: 'Santa Fe' },
+                { value: 'Santiago del Estero', label: 'Santiago del Estero' },
+                { value: 'Tierra del Fuego', label: 'Tierra del Fuego' },
+                { value: 'Tucuman', label: 'Tucumán' }
+            ],
+            PY: [
+                { value: 'Alto Paraná', label: 'Alto Paraná' },
+                { value: 'Asunción', label: 'Asunción' },
+                { value: 'Boquerón', label: 'Boquerón' },
+                { value: 'Caaguazú', label: 'Caaguazú' },
+                { value: 'Canindeyú', label: 'Canindeyú' },
+                { value: 'Central', label: 'Central' },
+                { value: 'Concepción', label: 'Concepción' },
+                { value: 'Cordillera', label: 'Cordillera' },
+                { value: 'Guairá', label: 'Guairá' },
+                { value: 'Itapúa', label: 'Itapúa' },
+                { value: 'Misiones', label: 'Misiones' },
+                { value: 'Paraguarí', label: 'Paraguarí' },
+                { value: 'Presidente Hayes', label: 'Presidente Hayes' },
+                { value: 'San Pedro', label: 'San Pedro' }
+            ],
+            OTHER: []
+        };
+
+        // Listas de regimes tributários por país
+        var REGIME_OPTIONS = {
+            BR: [
+                { value: 'Simples Nacional', label: 'Simples Nacional' },
+                { value: 'Lucro Presumido', label: 'Lucro Presumido' },
+                { value: 'Lucro Real', label: 'Lucro Real' },
+                { value: 'MEI', label: 'MEI' }
+            ],
+            PY: [
+                { value: 'Regimen General', label: 'Régimen General' },
+                { value: 'Regimen Simplificado', label: 'Régimen Simplificado' },
+                { value: 'Pequeno Contribuyente', label: 'Pequeño Contribuyente' },
+                { value: 'No Contribuyente', label: 'No Contribuyente' }
+            ],
+            AR: [
+                { value: 'Responsable Inscripto', label: 'Responsable Inscripto' },
+                { value: 'Monotributo', label: 'Monotributo' },
+                { value: 'Exento', label: 'Exento' },
+                { value: 'Consumidor Final', label: 'Consumidor Final' }
+            ],
+            US: [
+                { value: 'LLC', label: 'LLC' },
+                { value: 'C Corporation', label: 'C Corporation' },
+                { value: 'S Corporation', label: 'S Corporation' },
+                { value: 'Partnership', label: 'Partnership' },
+                { value: 'Sole Proprietorship', label: 'Sole Proprietorship' },
+                { value: 'Nonprofit', label: 'Nonprofit' }
+            ],
+            OTHER: [
+                { value: 'Padrão', label: 'Padrão' },
+                { value: 'Isento', label: 'Isento / Exempt' }
+            ]
+        };
+
+        if (!inputPais) {
+            return;  // segurança
+        }
+
+        function getCountryCode() {
+            // Prioriza o código vindo do option selecionado (data-code)
+            try {
+                if (inputPais.tagName && inputPais.tagName.toUpperCase() === 'SELECT') {
+                    var opt = inputPais.options[inputPais.selectedIndex];
+                    if (opt && opt.getAttribute('data-code')) {
+                        return opt.getAttribute('data-code');
+                    }
+                }
+            } catch (e) {
+                // ignora e cai no fallback por texto
+            }
+
+            var raw = (inputPais.value || '').toLowerCase();
+            if (raw.includes('brasil') || raw === 'br' || raw === 'brazil') return 'BR';
+            if (raw.includes('paragua') || raw === 'py' || raw === 'paraguay') return 'PY';
+            if (raw.includes('argentin') || raw === 'ar') return 'AR';
+            if (raw.includes('united states') || raw.includes('estados unidos') || raw === 'us' || raw === 'usa') return 'US';
+            return 'OTHER';
+        }
+
+        function maskCNPJ(value) {
+            value = value.replace(/\D/g, '');
+            if (value.length > 14) value = value.substring(0, 14);
+            value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+            value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+            value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+            value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            return value;
+        }
+
+        function maskRUC(value) {
+            // máscara bem simples, normalmente RUC é numérico com sufixo, aqui só limitamos e deixamos livre
+            return value.replace(/[^0-9A-Za-z-]/g, '').substring(0, 20);
+        }
+
+        function maskEIN(value) {
+            value = value.replace(/\D/g, '');
+            if (value.length > 9) value = value.substring(0, 9);
+            if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d{1,7})$/, '$1-$2');
+            }
+            return value;
+        }
+
+        function maskCEP_BR(value) {
+            value = value.replace(/\D/g, '');
+            if (value.length > 8) value = value.substring(0, 8);
+            if (value.length > 5) {
+                value = value.replace(/^(\d{5})(\d{1,3})$/, '$1-$2');
+            }
+            return value;
+        }
+
+        function updateCurrencyForCountry(onChange) {
+            if (!selectMoeda) return;
+
+            var desired = null;
+
+            // Primeiro tenta usar a moeda padrão que veio da tabela countries (data-currency)
+            try {
+                if (inputPais && inputPais.tagName && inputPais.tagName.toUpperCase() === 'SELECT') {
+                    var opt = inputPais.options[inputPais.selectedIndex];
+                    if (opt && opt.getAttribute('data-currency')) {
+                        desired = opt.getAttribute('data-currency');
+                    }
+                }
+            } catch (e) {
+                // ignora e cai no fallback
+            }
+
+            // Fallback para mapeamento fixo por código de país, se não encontrar em data-currency
+            if (!desired) {
+                var code = getCountryCode();
+                if (code === 'BR') desired = 'BRL';
+                else if (code === 'PY') desired = 'PYG';
+                else if (code === 'US') desired = 'USD';
+                else if (code === 'AR') desired = 'ARS';
+            }
+
+            if (!desired) return;
+
+            // Em edição, só ajusta automaticamente quando o usuário muda o país explicitamente
+            if (!onChange && isEdit) {
+                return;
+            }
+
+            for (var i = 0; i < selectMoeda.options.length; i++) {
+                if (selectMoeda.options[i].value === desired) {
+                    selectMoeda.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        function updateCountryBehavior() {
+            var code = getCountryCode();
+
+            var labelEstado = byId('label_estado');
+            var labelRegime = byId('label_regime_tributario');
+            var labelCnae = byId('label_cnae_principal');
+            var labelNatJur = byId('label_natureza_juridica');
+            var rowAmbienteNfe = byId('row_ambiente_nfe');
+            var cardNfce = byId('card_nfce');
+
+            // Popular dinamicamente a lista de estados/regiões
+            if (selectEstado) {
+                var optionsEstado = STATE_OPTIONS[code] || STATE_OPTIONS.OTHER;
+                var currentEstado = selectEstado.value || initialEstadoValue || '';
+
+                // Limpa mantendo a primeira opção "Selecione"
+                selectEstado.options.length = 0;
+                var optDefault = document.createElement('option');
+                optDefault.value = '';
+                optDefault.textContent = 'Selecione';
+                selectEstado.appendChild(optDefault);
+
+                optionsEstado.forEach(function (item) {
+                    var opt = document.createElement('option');
+                    opt.value = item.value;
+                    opt.textContent = item.label;
+                    if (currentEstado && item.value === currentEstado) {
+                        opt.selected = true;
+                    }
+                    selectEstado.appendChild(opt);
+                });
+            }
+
+            // Popular dinamicamente a lista de regimes tributários por país
+            if (selectRegime) {
+                var optionsRegime = REGIME_OPTIONS[code] || REGIME_OPTIONS.OTHER;
+                var currentRegime = selectRegime.value || initialRegimeValue || '';
+
+                selectRegime.options.length = 0;
+                var optRegDefault = document.createElement('option');
+                optRegDefault.value = '';
+                optRegDefault.textContent = 'Selecione';
+                selectRegime.appendChild(optRegDefault);
+
+                optionsRegime.forEach(function (item) {
+                    var optR = document.createElement('option');
+                    optR.value = item.value;
+                    optR.textContent = item.label;
+                    if (currentRegime && item.value === currentRegime) {
+                        optR.selected = true;
+                    }
+                    selectRegime.appendChild(optR);
+                });
+            }
+
+            if (code === 'BR') {
+                if (labelCnpj) labelCnpj.textContent = 'CNPJ';
+                if (inputCnpj) inputCnpj.placeholder = '00.000.000/0000-00';
+                if (labelIE) labelIE.textContent = 'Inscrição Estadual';
+                if (labelIM) labelIM.textContent = 'Inscrição Municipal';
+                if (labelCep) labelCep.textContent = 'CEP';
+                if (inputCep) inputCep.placeholder = '00000-000';
+
+                if (labelEstado) labelEstado.textContent = 'UF';
+                if (labelRegime) labelRegime.textContent = 'Regime Tributário';
+                if (labelCnae) labelCnae.textContent = 'CNAE Principal';
+                if (labelNatJur) labelNatJur.textContent = 'Natureza Jurídica';
+
+                if (rowAmbienteNfe) rowAmbienteNfe.style.display = '';
+                if (cardNfce) cardNfce.style.display = '';
+            } else if (code === 'PY') {
+                if (labelCnpj) labelCnpj.textContent = 'RUC';
+                if (inputCnpj) inputCnpj.placeholder = 'RUC da empresa';
+                if (labelIE) labelIE.textContent = 'Registro Tributário (opcional)';
+                if (labelIM) labelIM.textContent = 'Registro Municipal (opcional)';
+                if (labelCep) labelCep.textContent = 'Código Postal';
+                if (inputCep) inputCep.placeholder = 'Código Postal';
+
+                if (labelEstado) labelEstado.textContent = 'Departamento / Estado';
+                if (labelRegime) labelRegime.textContent = 'Regime Tributário / Categoria';
+                if (labelCnae) labelCnae.textContent = 'Atividade Econômica (equivalente ao CNAE)';
+                if (labelNatJur) labelNatJur.textContent = 'Natureza Jurídica / Tipo de Empresa';
+
+                if (rowAmbienteNfe) rowAmbienteNfe.style.display = 'none';
+                if (cardNfce) cardNfce.style.display = 'none';
+            } else if (code === 'US') {
+                if (labelCnpj) labelCnpj.textContent = 'EIN (Federal Tax ID)';
+                if (inputCnpj) inputCnpj.placeholder = '00-0000000';
+                if (labelIE) labelIE.textContent = 'State Tax ID / Sales Tax';
+                if (labelIM) labelIM.textContent = 'Local Registration';
+                if (labelCep) labelCep.textContent = 'ZIP Code';
+                if (inputCep) inputCep.placeholder = '00000 ou 00000-0000';
+
+                if (labelEstado) labelEstado.textContent = 'State';
+                if (labelRegime) labelRegime.textContent = 'Tax Regime / Classification';
+                if (labelCnae) labelCnae.textContent = 'Industry Code (NAICS / SIC)';
+                if (labelNatJur) labelNatJur.textContent = 'Legal Nature (LLC, Corp, etc.)';
+
+                if (rowAmbienteNfe) rowAmbienteNfe.style.display = 'none';
+                if (cardNfce) cardNfce.style.display = 'none';
+            } else if (code === 'AR') {
+                if (labelCnpj) labelCnpj.textContent = 'CUIT / CUIL';
+                if (inputCnpj) inputCnpj.placeholder = 'CUIT / CUIL';
+                if (labelIE) labelIE.textContent = 'Impuesto / Ingresos Brutos';
+                if (labelIM) labelIM.textContent = 'Registro Municipal';
+                if (labelCep) labelCep.textContent = 'Código Postal';
+                if (inputCep) inputCep.placeholder = 'Código Postal';
+                if (labelEstado) labelEstado.textContent = 'Província';
+                if (labelRegime) labelRegime.textContent = 'Regime Fiscal';
+                if (labelCnae) labelCnae.textContent = 'Atividade Econômica (equivalente ao CNAE)';
+                if (labelNatJur) labelNatJur.textContent = 'Natureza Jurídica / Tipo de Empresa';
+
+                if (rowAmbienteNfe) rowAmbienteNfe.style.display = 'none';
+                if (cardNfce) cardNfce.style.display = 'none';
+            } else {
+                if (labelCnpj) labelCnpj.textContent = 'Tax ID';
+                if (inputCnpj) inputCnpj.placeholder = 'Identificação fiscal da empresa';
+                if (labelIE) labelIE.textContent = 'Registro Fiscal 1';
+                if (labelIM) labelIM.textContent = 'Registro Fiscal 2';
+                if (labelCep) labelCep.textContent = 'Código Postal';
+                if (inputCep) inputCep.placeholder = 'Código Postal';
+
+                if (labelEstado) labelEstado.textContent = 'Estado / Região';
+                if (labelRegime) labelRegime.textContent = 'Regime Tributário / Categoria';
+                if (labelCnae) labelCnae.textContent = 'Atividade Econômica';
+                if (labelNatJur) labelNatJur.textContent = 'Natureza Jurídica / Tipo de Empresa';
+
+                if (rowAmbienteNfe) rowAmbienteNfe.style.display = 'none';
+                if (cardNfce) cardNfce.style.display = 'none';
+            }
+
+            // Na carga da página, ou quando país mudar em novo cadastro, ajusta a moeda padrão
+            updateCurrencyForCountry(false);
+        }
+
+        // Máscara dinâmica para o campo de identificação fiscal principal
+        if (inputCnpj) {
+            inputCnpj.addEventListener('input', function(e) {
+                var code = getCountryCode();
+                var value = e.target.value || '';
+                if (code === 'BR') {
+                    e.target.value = maskCNPJ(value);
+                } else if (code === 'PY') {
+                    e.target.value = maskRUC(value);
+                } else if (code === 'US') {
+                    e.target.value = maskEIN(value);
+                } else {
+                    // AR e demais países: não aplicar máscara forte, só limitar tamanho
+                    e.target.value = value.substring(0, 30);
+                }
+            });
+        }
+
+        // Máscara dinâmica para CEP / Código Postal
+        if (inputCep) {
+            inputCep.addEventListener('input', function(e) {
+                var code = getCountryCode();
+                var value = e.target.value || '';
+                if (code === 'BR') {
+                    e.target.value = maskCEP_BR(value);
+                } else {
+                    // Outros países: deixar livre, apenas limitar tamanho
+                    e.target.value = value.substring(0, 15);
+                }
+            });
+        }
+
+        // Máscara para Telefone (padrão BR, mas serve genericamente)
+        var inputTelefone = byId('telefone');
+        if (inputTelefone) {
+            inputTelefone.addEventListener('input', function (e) {
+                var value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                }
+                e.target.value = value;
+            });
+        }
+
+        // Máscara para Celular (padrão BR)
+        var inputCelular = byId('celular');
+        if (inputCelular) {
+            inputCelular.addEventListener('input', function (e) {
+                var value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 11) {
+                    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+                e.target.value = value;
+            });
+        }
+
+        // Máscara para CPF do responsável (mantido somente para BR)
+        var inputCpfResp = byId('cpf_responsavel');
+        if (inputCpfResp) {
+            inputCpfResp.addEventListener('input', function (e) {
+                var code = getCountryCode();
+                var value = e.target.value.replace(/\D/g, '');
+                if (code === 'BR') {
+                    if (value.length <= 11) {
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    }
+                    e.target.value = value;
+                } else {
+                    // Outros países: não mascarar, só limitar tamanho
+                    e.target.value = value.substring(0, 20);
+                }
+            });
+        }
+
+        // Atualizar comportamento ao carregar e quando o país mudar
+        updateCountryBehavior();
+        inputPais.addEventListener('change', function() {
+            updateCountryBehavior();
+            // Em edição, ao mudar o país explicitamente, também ajusta a moeda correspondente
+            updateCurrencyForCountry(true);
+        });
+    })();
+</script>
+{% endblock %}

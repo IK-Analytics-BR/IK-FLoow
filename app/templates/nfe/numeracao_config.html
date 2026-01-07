@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Numeração NF-e{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-hashtag me-2"></i>
+                        Configuração de Numeração NF-e
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Importante:</strong> Configure aqui o último número de NF-e emitido no sistema anterior.
+                        O sistema continuará a numeração a partir deste número.
+                        A configuração é <strong>separada por ambiente</strong> (Homologação/Produção).
+                    </div>
+
+                    <!-- Formulário de configuração -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-plus me-2"></i>Nova Configuração</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="formNumeracao">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Empresa *</label>
+                                        <select class="form-select" id="empresa_id" required>
+                                            <option value="">Selecione...</option>
+                                            {% for emp in empresas %}
+                                            <option value="{{ emp.id }}">{{ emp.nome_fantasia or emp.razao_social }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Série *</label>
+                                        <input type="number" class="form-control" id="serie" value="1" min="1" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Ambiente *</label>
+                                        <select class="form-select" id="ambiente" required>
+                                            <option value="producao">🟢 Produção</option>
+                                            <option value="homologacao">🟡 Homologação</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Último Nº Emitido *</label>
+                                        <input type="number" class="form-control" id="ultimo_numero" min="0" placeholder="Ex: 123456" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Observação</label>
+                                        <input type="text" class="form-control" id="observacao" placeholder="Ex: Migração sistema X">
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12 text-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>Salvar Configuração
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de configurações existentes -->
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>Configurações Existentes</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if numeracoes %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Empresa</th>
+                                            <th>Série</th>
+                                            <th>Ambiente</th>
+                                            <th>Último Número</th>
+                                            <th>Próximo Número</th>
+                                            <th>Observação</th>
+                                            <th>Atualizado em</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for num in numeracoes %}
+                                        <tr>
+                                            <td>{{ num.nome_fantasia }}</td>
+                                            <td>{{ num.serie }}</td>
+                                            <td>
+                                                {% if num.ambiente == 'producao' %}
+                                                <span class="badge bg-success">🟢 Produção</span>
+                                                {% else %}
+                                                <span class="badge bg-warning text-dark">🟡 Homologação</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><strong>{{ num.ultimo_numero }}</strong></td>
+                                            <td><span class="badge bg-primary">{{ num.ultimo_numero + 1 }}</span></td>
+                                            <td>{{ num.observacao or '-' }}</td>
+                                            <td>{{ num.updated_at.strftime('%d/%m/%Y %H:%M') if num.updated_at else '-' }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-danger" onclick="excluirNumeracao({{ num.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-secondary text-center">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Nenhuma configuração de numeração cadastrada.
+                                O sistema usará a numeração das vendas existentes.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+document.getElementById('formNumeracao').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const data = {
+        empresa_id: document.getElementById('empresa_id').value,
+        serie: document.getElementById('serie').value,
+        ambiente: document.getElementById('ambiente').value,
+        ultimo_numero: document.getElementById('ultimo_numero').value,
+        observacao: document.getElementById('observacao').value
+    };
+    
+    if (!data.empresa_id || !data.serie || !data.ultimo_numero) {
+        Swal.fire('Atenção', 'Preencha todos os campos obrigatórios', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/nfe/numeracao/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            Swal.fire('Sucesso!', result.message, 'success').then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire('Erro', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Erro', 'Erro ao salvar: ' + error.message, 'error');
+    }
+});
+
+async function excluirNumeracao(id) {
+    const result = await Swal.fire({
+        title: 'Confirmar Exclusão',
+        text: 'Deseja realmente excluir esta configuração?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
+        try {
+            const response = await fetch(`/nfe/numeracao/excluir/${id}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                Swal.fire('Excluído!', data.message, 'success').then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Erro', data.message, 'error');
+            }
+        } catch (error) {
+            Swal.fire('Erro', 'Erro ao excluir: ' + error.message, 'error');
+        }
+    }
+}
+</script>
+{% endblock %}

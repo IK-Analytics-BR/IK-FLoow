@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Ordens de Serviço - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Ordens de Serviço</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Ordens de Serviço</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-tools me-1"></i>
+                    Ordens de Serviço
+                </div>
+                <div>
+                    <a href="{{ url_for('service_order.service_order_dashboard') }}" class="btn btn-info btn-sm me-2">
+                        <i class="fas fa-chart-bar"></i> Dashboard
+                    </a>
+                    <a href="{{ url_for('service_order.service_order_add') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Nova OS
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Equipamento</th>
+                            <th>Tipo</th>
+                            <th>Data Abertura</th>
+                            <th>Técnico</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>{{ order.order_number }}</td>
+                            <td>{{ order.customer_name }}</td>
+                            <td>{{ order.equipment_name }}</td>
+                            <td>
+                                {% if order.type == 'preventive' %}
+                                <span class="badge bg-success">Preventiva</span>
+                                {% elif order.type == 'corrective' %}
+                                <span class="badge bg-danger">Corretiva</span>
+                                {% elif order.type == 'predictive' %}
+                                <span class="badge bg-info">Preditiva</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.open_date.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ order.technician_name or 'Não atribuído' }}</td>
+                            <td>
+                                {% if order.status == 'open' %}
+                                <span class="badge bg-primary">Aberta</span>
+                                {% elif order.status == 'in_progress' %}
+                                <span class="badge bg-warning">Em Andamento</span>
+                                {% elif order.status == 'completed' %}
+                                <span class="badge bg-success">Concluída</span>
+                                {% elif order.status == 'canceled' %}
+                                <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('service_order.service_order_view', order_id=order.id) }}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if order.status != 'completed' and order.status != 'canceled' %}
+                                <a href="{{ url_for('service_order.service_order_edit', order_id=order.id) }}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhuma ordem de serviço cadastrada.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações
+        </div>
+        <div class="card-body">
+            <h5>Tipos de Ordens de Serviço</h5>
+            <ul>
+                <li><strong>Preventiva:</strong> Manutenção programada para evitar falhas.</li>
+                <li><strong>Corretiva:</strong> Manutenção para corrigir falhas já ocorridas.</li>
+                <li><strong>Preditiva:</strong> Manutenção baseada em análise de condições.</li>
+            </ul>
+            
+            <h5>Status das Ordens de Serviço</h5>
+            <ul>
+                <li><strong>Aberta:</strong> OS criada, aguardando atribuição ou início dos trabalhos.</li>
+                <li><strong>Em Andamento:</strong> OS em execução por um técnico.</li>
+                <li><strong>Concluída:</strong> OS finalizada com sucesso.</li>
+                <li><strong>Cancelada:</strong> OS cancelada sem execução.</li>
+            </ul>
+            
+            <p>Para visualizar estatísticas e gráficos das ordens de serviço, acesse o <a href="{{ url_for('service_order.service_order_dashboard') }}">Dashboard</a>.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[4, 'desc']]
+        });
+    });
+</script>
+{% endblock %}

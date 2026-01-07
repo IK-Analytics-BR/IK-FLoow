@@ -1,0 +1,89 @@
+<!-- Aba de Integrações e Outras Informações -->
+<div class="tab-pane fade" id="other" role="tabpanel" aria-labelledby="other-tab">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cogs me-1"></i> Integrações e Outras Informações
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="active" name="active" {% if not produto or produto.active %}checked{% endif %}>
+                                <label class="form-check-label" for="active">Produto Ativo</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="lot_control" name="lot_control" {% if produto and produto.lot_control %}checked{% endif %}>
+                                <label class="form-check-label" for="lot_control">Controle por Lote</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="serial_control" name="serial_control" {% if produto and produto.serial_control %}checked{% endif %}>
+                                <label class="form-check-label" for="serial_control">Controle por Série</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="imported" name="imported" {% if produto and produto.imported %}checked{% endif %}>
+                                <label class="form-check-label" for="imported">Produto Importado</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="form-floating mb-3">
+                                <textarea class="form-control" id="notes" name="notes" placeholder="Observações" style="height: 150px">{{ produto.notes if produto and produto.notes else '' }}</textarea>
+                                <label for="notes">Observações Gerais</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if produto and produto.id %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-history me-1"></i> Informações do Sistema
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Data de Cadastro:</strong> {{ produto.created_at.strftime('%d/%m/%Y %H:%M') if produto.created_at else '' }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Última Atualização:</strong> {{ produto.updated_at.strftime('%d/%m/%Y %H:%M') if produto.updated_at else '' }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4 info-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i> Informações Adicionais
+                </div>
+                <div class="card-body">
+                    <p>Configure aqui as informações adicionais e integrações do produto.</p>
+                    <p><strong>Produto Ativo:</strong> Indica se o produto está disponível para venda.</p>
+                    <p><strong>Controle por Lote:</strong> Ative se o produto precisa ser controlado por lote.</p>
+                    <p><strong>Controle por Série:</strong> Ative se o produto precisa ser controlado por número de série.</p>
+                    <p><strong>Produto Importado:</strong> Ative se o produto é importado (impacta na tributação).</p>
+                    <p><strong>Observações:</strong> Informações adicionais relevantes sobre o produto.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

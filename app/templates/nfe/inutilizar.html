@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Inutilização de NF-e{% endblock %}
+
+{% block extra_css %}
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-ban me-2"></i>
+                        Inutilização de Numeração de NF-e
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Quando usar:</strong> A inutilização deve ser feita quando houver quebra na sequência 
+                        de numeração da NF-e. Exemplo: se você emitiu a NF-e 100 e depois a 105, deve inutilizar 
+                        os números 101 a 104.
+                    </div>
+
+                    <form id="formInutilizar">
+                        <!-- Empresa -->
+                        <div class="mb-3">
+                            <label for="empresa_id" class="form-label">Empresa Emitente <span class="text-danger">*</span></label>
+                            <select class="form-select" id="empresa_id" name="empresa_id" required>
+                                <option value="">Selecione a empresa...</option>
+                                {% for empresa in empresas %}
+                                <option value="{{ empresa.id }}">
+                                    {{ empresa.nome_fantasia or empresa.razao_social }} - {{ empresa.cnpj }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Série e Ano -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="serie" class="form-label">Série <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="serie" name="serie" 
+                                       value="1" min="1" max="999" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="ano" class="form-label">Ano</label>
+                                <input type="number" class="form-control" id="ano" name="ano" 
+                                       placeholder="Ano atual" min="2000" max="2099">
+                                <small class="text-muted">Deixe em branco para usar o ano atual</small>
+                            </div>
+                        </div>
+
+                        <!-- Faixa de Numeração -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="numero_inicial" class="form-label">Número Inicial <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="numero_inicial" name="numero_inicial" 
+                                       min="1" max="999999999" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="numero_final" class="form-label">Número Final <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="numero_final" name="numero_final" 
+                                       min="1" max="999999999" required>
+                            </div>
+                        </div>
+
+                        <!-- Justificativa -->
+                        <div class="mb-3">
+                            <label for="justificativa" class="form-label">Justificativa <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="justificativa" name="justificativa" 
+                                      rows="3" minlength="15" maxlength="255" required
+                                      placeholder="Informe o motivo da inutilização (mínimo 15 caracteres)"></textarea>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Mínimo 15 caracteres</small>
+                                <small id="contadorCaracteres" class="text-muted">0/255</small>
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div id="previewInutilizacao" class="alert alert-secondary d-none">
+                            <strong>Resumo:</strong><br>
+                            <span id="resumoInutilizacao"></span>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Voltar
+                            </a>
+                            <button type="submit" class="btn btn-warning" id="btnInutilizar">
+                                <i class="fas fa-ban me-2"></i>Inutilizar Numeração
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Histórico de Inutilizações -->
+            <div class="card shadow mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Últimas Inutilizações
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        O histórico de inutilizações será exibido aqui após as primeiras inutilizações.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('formInutilizar');
+    const justificativa = document.getElementById('justificativa');
+    const contador = document.getElementById('contadorCaracteres');
+    const preview = document.getElementById('previewInutilizacao');
+    const resumo = document.getElementById('resumoInutilizacao');
+    const numeroInicial = document.getElementById('numero_inicial');
+    const numeroFinal = document.getElementById('numero_final');
+    const serie = document.getElementById('serie');
+    const empresaSelect = document.getElementById('empresa_id');
+
+    // Contador de caracteres
+    justificativa.addEventListener('input', function() {
+        contador.textContent = `${this.value.length}/255`;
+        atualizarPreview();
+    });
+
+    // Atualizar preview
+    function atualizarPreview() {
+        const empresa = empresaSelect.options[empresaSelect.selectedIndex]?.text || '';
+        const nInicial = numeroInicial.value || '?';
+        const nFinal = numeroFinal.value || '?';
+        const s = serie.value || '1';
+        
+        if (numeroInicial.value && numeroFinal.value) {
+            const qtd = parseInt(numeroFinal.value) - parseInt(numeroInicial.value) + 1;
+            resumo.innerHTML = `
+                <strong>Empresa:</strong> ${empresa}<br>
+                <strong>Série:</strong> ${s}<br>
+                <strong>Números:</strong> ${nInicial} a ${nFinal} (${qtd} número${qtd > 1 ? 's' : ''})<br>
+                <strong>Justificativa:</strong> ${justificativa.value || '(não informada)'}
+            `;
+            preview.classList.remove('d-none');
+        } else {
+            preview.classList.add('d-none');
+        }
+    }
+
+    // Eventos para atualizar preview
+    [numeroInicial, numeroFinal, serie, empresaSelect].forEach(el => {
+        el.addEventListener('change', atualizarPreview);
+        el.addEventListener('input', atualizarPreview);
+    });
+
+    // Auto-preencher número final
+    numeroInicial.addEventListener('change', function() {
+        if (!numeroFinal.value) {
+            numeroFinal.value = this.value;
+        }
+        atualizarPreview();
+    });
+
+    // Função auxiliar para mostrar erros (fallback para alert se Swal não existir)
+    function mostrarErro(titulo, msg) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: titulo, text: msg });
+        } else {
+            alert(titulo + '\n\n' + msg);
+        }
+    }
+
+    // Submissão do formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        console.log('[INUTILIZAÇÃO] Formulário submetido');
+        
+        const nInicial = parseInt(numeroInicial.value);
+        const nFinal = parseInt(numeroFinal.value);
+        
+        // Validações
+        if (isNaN(nInicial) || isNaN(nFinal)) {
+            mostrarErro('Erro', 'Informe os números inicial e final');
+            return;
+        }
+        
+        if (nInicial > nFinal) {
+            mostrarErro('Erro', 'O número inicial deve ser menor ou igual ao número final');
+            return;
+        }
+
+        if (nFinal - nInicial > 999) {
+            mostrarErro('Erro', 'Máximo de 1000 números por inutilização');
+            return;
+        }
+
+        if (justificativa.value.length < 15) {
+            mostrarErro('Erro', 'A justificativa deve ter pelo menos 15 caracteres');
+            return;
+        }
+        
+        if (!empresaSelect.value) {
+            mostrarErro('Erro', 'Selecione uma empresa');
+            return;
+        }
+
+        // Confirmação
+        const qtd = nFinal - nInicial + 1;
+        const msgConfirmacao = `Você está prestes a inutilizar ${qtd} número(s) de NF-e:\n\nNúmeros: ${nInicial} a ${nFinal}\n\nEsta ação é irreversível! Deseja continuar?`;
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Confirmar Inutilização?',
+                html: `
+                    <p>Você está prestes a inutilizar <strong>${qtd}</strong> número(s) de NF-e:</p>
+                    <p><strong>Números: ${nInicial} a ${nFinal}</strong></p>
+                    <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta ação é irreversível!</p>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sim, inutilizar!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    enviarInutilizacao();
+                }
+            });
+        } else {
+            if (confirm(msgConfirmacao)) {
+                enviarInutilizacao();
+            }
+        }
+    });
+
+    function enviarInutilizacao() {
+        const btn = document.getElementById('btnInutilizar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...';
+
+        const dados = {
+            empresa_id: empresaSelect.value,
+            serie: serie.value,
+            numero_inicial: numeroInicial.value,
+            numero_final: numeroFinal.value,
+            justificativa: justificativa.value,
+            ano: document.getElementById('ano').value || null
+        };
+
+        fetch('/nfe/inutilizar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(dados)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Inutilização Realizada!',
+                    html: `
+                        <p>${data.message}</p>
+                        <p><strong>Protocolo:</strong> ${data.protocolo || 'N/A'}</p>
+                    `,
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    // Limpar formulário
+                    form.reset();
+                    preview.classList.add('d-none');
+                    contador.textContent = '0/255';
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: data.message || 'Erro ao inutilizar numeração'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: 'Erro ao processar requisição: ' + error.message
+            });
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-ban me-2"></i>Inutilizar Numeração';
+        });
+    }
+});
+</script>
+{% endblock %}

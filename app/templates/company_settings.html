@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações da Empresa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4">🏢 Configurações da Empresa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Configurações da Empresa</li>
+    </ol>
+
+    <div class="row">
+        <!-- COLUNA ESQUERDA: Logo -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-image"></i> Logo da Empresa</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if company and company.logo_path %}
+                        <img src="{{ url_for('static', filename=company.logo_path) }}" 
+                             alt="Logo da Empresa" 
+                             class="img-fluid mb-3"
+                             style="max-height: 200px; border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px; background: white;">
+                        
+                        <form method="POST" action="{{ url_for('company.remove_logo') }}" class="d-inline">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deseja realmente remover a logo?')">
+                                <i class="fas fa-trash"></i> Remover Logo
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="text-muted mb-3" style="padding: 40px;">
+                            <i class="fas fa-image fa-4x mb-3" style="opacity: 0.3;"></i>
+                            <p>Nenhuma logo cadastrada</p>
+                        </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <form method="POST" action="{{ url_for('company.upload_logo') }}" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="logo" class="form-label">
+                                <strong>Enviar Nova Logo</strong>
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="logo" 
+                                   name="logo" 
+                                   accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                                   required>
+                            <small class="text-muted">
+                                Formatos aceitos: PNG, JPG, JPEG, GIF, WEBP, SVG<br>
+                                Tamanho recomendado: 400x200 pixels
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Enviar Logo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUNA DIREITA: Dados da Empresa -->
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-building"></i> Dados da Empresa</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('company.company_settings_save') }}">
+                        <div class="row g-3">
+                            <!-- Nome Fantasia -->
+                            <div class="col-md-6">
+                                <label for="company_name" class="form-label">Nome Fantasia *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="company_name" 
+                                       name="company_name" 
+                                       value="{{ company.company_name if company else '' }}" 
+                                       required>
+                            </div>
+
+                            <!-- Razão Social -->
+                            <div class="col-md-6">
+                                <label for="legal_name" class="form-label">Razão Social</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="legal_name" 
+                                       name="legal_name" 
+                                       value="{{ company.legal_name if company else '' }}">
+                            </div>
+
+                            <!-- CNPJ -->
+                            <div class="col-md-6">
+                                <label for="cnpj" class="form-label">CNPJ</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="cnpj" 
+                                       name="cnpj" 
+                                       value="{{ company.cnpj if company else '' }}"
+                                       placeholder="00.000.000/0000-00">
+                            </div>
+
+                            <!-- IE -->
+                            <div class="col-md-6">
+                                <label for="ie" class="form-label">Inscrição Estadual</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="ie" 
+                                       name="ie" 
+                                       value="{{ company.ie if company else '' }}">
+                            </div>
+
+                            <!-- Telefone -->
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Telefone</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="phone" 
+                                       name="phone" 
+                                       value="{{ company.phone if company else '' }}"
+                                       placeholder="(00) 0000-0000">
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">E-mail</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="email" 
+                                       name="email" 
+                                       value="{{ company.email if company else '' }}">
+                            </div>
+
+                            <!-- Website -->
+                            <div class="col-md-12">
+                                <label for="website" class="form-label">Website</label>
+                                <input type="url" 
+                                       class="form-control" 
+                                       id="website" 
+                                       name="website" 
+                                       value="{{ company.website if company else '' }}"
+                                       placeholder="https://www.seusite.com.br">
+                            </div>
+
+                            <!-- Endereço -->
+                            <div class="col-md-12">
+                                <label for="address" class="form-label">Endereço</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="address" 
+                                       name="address" 
+                                       value="{{ company.address if company else '' }}">
+                            </div>
+
+                            <!-- Cidade -->
+                            <div class="col-md-5">
+                                <label for="city" class="form-label">Cidade</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="city" 
+                                       name="city" 
+                                       value="{{ company.city if company else '' }}">
+                            </div>
+
+                            <!-- Estado -->
+                            <div class="col-md-2">
+                                <label for="state" class="form-label">UF</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="state" 
+                                       name="state" 
+                                       value="{{ company.state if company else '' }}"
+                                       maxlength="2"
+                                       placeholder="SP">
+                            </div>
+
+                            <!-- CEP -->
+                            <div class="col-md-3">
+                                <label for="zip_code" class="form-label">CEP</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="zip_code" 
+                                       name="zip_code" 
+                                       value="{{ company.zip_code if company else '' }}"
+                                       placeholder="00000-000">
+                            </div>
+
+                            <!-- País -->
+                            <div class="col-md-2">
+                                <label for="country" class="form-label">País</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="country" 
+                                       name="country" 
+                                       value="{{ company.country if company else 'Brasil' }}">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Salvar Configurações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

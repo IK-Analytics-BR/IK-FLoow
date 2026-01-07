@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Jornada de Trabalho{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-eye"></i> Visualizar Jornada de Trabalho
+                        </h4>
+                        <div>
+                            <a href="{{ url_for('jornada_trabalho.editar_jornada', id=jornada.id) }}" 
+                               class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            <a href="{{ url_for('jornada_trabalho.listar_jornadas') }}" 
+                               class="btn btn-light btn-sm">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Informações Básicas -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-info-circle"></i> Informações Básicas
+                            </h5>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-building"></i> Empresa:
+                            </label>
+                            <p class="mb-0">{{ jornada.empresa_nome }}</p>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-tag"></i> Nome da Jornada:
+                            </label>
+                            <p class="mb-0">{{ jornada.nome }}</p>
+                        </div>
+                        
+                        <div class="col-md-10 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-align-left"></i> Descrição:
+                            </label>
+                            <p class="mb-0">{{ jornada.descricao if jornada.descricao else '-' }}</p>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-toggle-on"></i> Status:
+                            </label>
+                            <p class="mb-0">
+                                {% if jornada.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-calendar-plus"></i> Criado em:
+                            </label>
+                            <p class="mb-0">
+                                {{ jornada.created_at.strftime('%d/%m/%Y às %H:%M') if jornada.created_at else '-' }}
+                            </p>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">
+                                <i class="fas fa-calendar-check"></i> Última atualização:
+                            </label>
+                            <p class="mb-0">
+                                {{ jornada.updated_at.strftime('%d/%m/%Y às %H:%M') if jornada.updated_at else '-' }}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Horários -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-clock"></i> Horários Cadastrados
+                        </h5>
+                        
+                        {% if horarios %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="25%">Dia da Semana</th>
+                                        <th width="20%">Turno</th>
+                                        <th width="20%">Hora Início</th>
+                                        <th width="20%">Hora Fim</th>
+                                        <th width="15%">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in horarios %}
+                                    <tr>
+                                        <td>
+                                            <i class="fas fa-calendar-day text-primary"></i> 
+                                            {{ horario.dia_semana }}-feira
+                                        </td>
+                                        <td>
+                                            {% if horario.turno == 'Manhã' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-sun"></i> Manhã
+                                            </span>
+                                            {% elif horario.turno == 'Tarde' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-cloud-sun"></i> Tarde
+                                            </span>
+                                            {% elif horario.turno == 'Noite' %}
+                                            <span class="badge bg-dark">
+                                                <i class="fas fa-moon"></i> Noite
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-clock"></i> Integral
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-sign-in-alt text-success"></i> 
+                                            {% if horario.hora_inicio %}
+                                                {% set total_seconds = horario.hora_inicio.total_seconds() | int %}
+                                                {% set horas = (total_seconds // 3600) %}
+                                                {% set minutos = ((total_seconds % 3600) // 60) %}
+                                                {{ '%02d' % horas }}:{{ '%02d' % minutos }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-sign-out-alt text-danger"></i> 
+                                            {% if horario.hora_fim %}
+                                                {% set total_seconds = horario.hora_fim.total_seconds() | int %}
+                                                {% set horas = (total_seconds // 3600) %}
+                                                {% set minutos = ((total_seconds % 3600) // 60) %}
+                                                {{ '%02d' % horas }}:{{ '%02d' % minutos }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if horario.hora_inicio and horario.hora_fim %}
+                                                {% set inicio_seconds = horario.hora_inicio.total_seconds() | int %}
+                                                {% set fim_seconds = horario.hora_fim.total_seconds() | int %}
+                                                {% set delta = fim_seconds - inicio_seconds %}
+                                                {% if delta < 0 %}
+                                                    {% set delta = delta + 86400 %}
+                                                {% endif %}
+                                                {% set horas = (delta // 3600) %}
+                                                {% set minutos = ((delta % 3600) // 60) %}
+                                                <strong class="text-success">{{ horas }}h {{ '%02d' % minutos }}min</strong>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                    <!-- Linha de Total -->
+                                    <tr class="table-primary fw-bold">
+                                        <td colspan="4" class="text-end">
+                                            <i class="fas fa-calculator"></i> TOTAL SEMANAL:
+                                        </td>
+                                        <td>
+                                            {% set total_seconds = 0 %}
+                                            {% for horario in horarios %}
+                                                {% if horario.hora_inicio and horario.hora_fim %}
+                                                    {% set inicio_seconds = horario.hora_inicio.total_seconds() | int %}
+                                                    {% set fim_seconds = horario.hora_fim.total_seconds() | int %}
+                                                    {% set delta = fim_seconds - inicio_seconds %}
+                                                    {% if delta < 0 %}
+                                                        {% set delta = delta + 86400 %}
+                                                    {% endif %}
+                                                    {% set total_seconds = total_seconds + delta %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% set total_horas = (total_seconds // 3600) %}
+                                            {% set total_mins = ((total_seconds % 3600) // 60) %}
+                                            <span class="text-primary">{{ total_horas }}h {{ '%02d' % total_mins }}min</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Resumo Visual -->
+                        <div class="alert alert-info mt-3" role="alert">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Resumo:</strong> Esta jornada possui <strong>{{ horarios|length }} horário(s)</strong> cadastrado(s) 
+                            {% set dias_unicos = horarios|map(attribute='dia_semana')|unique|list %}
+                            distribuídos em <strong>{{ dias_unicos|length }} dia(s)</strong> da semana.
+                        </div>
+                        
+                        {% else %}
+                        <div class="alert alert-warning text-center" role="alert">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <h5>Nenhum horário cadastrado</h5>
+                            <p>Esta jornada não possui horários cadastrados.</p>
+                            <a href="{{ url_for('jornada_trabalho.editar_jornada', id=jornada.id) }}" 
+                               class="btn btn-warning">
+                                <i class="fas fa-edit"></i> Editar e Adicionar Horários
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Botões de Ação -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('jornada_trabalho.listar_jornadas') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar para Lista
+                        </a>
+                        <a href="{{ url_for('jornada_trabalho.editar_jornada', id=jornada.id) }}" 
+                           class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Editar Jornada
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .fw-bold {
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .table-bordered td, .table-bordered th {
+        vertical-align: middle;
+    }
+    
+    .badge {
+        font-size: 0.9em;
+        padding: 5px 10px;
+    }
+</style>
+{% endblock %}

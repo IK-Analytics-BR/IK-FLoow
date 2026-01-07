@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Categoria - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Visualizar Categoria</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('product_category.categoria_editar', id=categoria.id) }}" class="btn btn-sm btn-warning me-2">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            <a href="{{ url_for('product_category.categorias') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-folder me-1"></i>
+                    Detalhes da Categoria
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Código:</label>
+                            <p>{{ categoria.id }}</p>
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label fw-bold">Nome:</label>
+                            <p>{{ categoria.name }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Descrição:</label>
+                            <p>{{ categoria.description if categoria.description else 'Nenhuma descrição cadastrada.' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Data de Criação:</label>
+                            <p>{{ categoria.created_at.strftime('%d/%m/%Y %H:%M') if categoria.created_at else '' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Última Atualização:</label>
+                            <p>{{ categoria.updated_at.strftime('%d/%m/%Y %H:%M') if categoria.updated_at else '' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-box me-1"></i>
+                    Produtos desta Categoria
+                </div>
+                <div class="card-body">
+                    {% if produtos %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Preço</th>
+                                    <th>Estoque</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produto in produtos %}
+                                <tr>
+                                    <td>{{ produto.id }}</td>
+                                    <td>{{ produto.name }}</td>
+                                    <td>R$ {{ "%.2f"|format(produto.price) }}</td>
+                                    <td>{{ produto.stock }}</td>
+                                    <td>
+                                        <a href="{{ url_for('produto.produto_visualizar', id=produto.id) }}" class="btn btn-sm btn-info" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhum produto cadastrado para esta categoria.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <p>Visualizando detalhes da categoria.</p>
+                    <p>Para editar os dados, clique no botão "Editar".</p>
+                    <p>Para voltar à lista de categorias, clique em "Voltar".</p>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-folder"></i> Categoria
+                        <p class="mb-0 mt-2">
+                            <strong>{{ categoria.name }}</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

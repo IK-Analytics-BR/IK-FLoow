@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Fornecedor Duplicado - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Fornecedor Duplicado</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('fornecedor.fornecedores') }}">Fornecedores</a></li>
+        <li class="breadcrumb-item active">Fornecedor Duplicado</li>
+    </ol>
+
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">Atenção! Fornecedor já cadastrado</h4>
+        <p>Foi encontrado um fornecedor com o mesmo {{ campo_duplicado }} ({{ valor_duplicado }}) no sistema.</p>
+        <hr>
+        <p class="mb-0">O que você deseja fazer?</p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-truck"></i>
+                    Fornecedor Existente
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ fornecedor.name }}</h5>
+                    <p class="card-text">
+                        <strong>CNPJ:</strong> {{ fornecedor.cnpj }}<br>
+                        <strong>Razão Social:</strong> {{ fornecedor.razao_social }}<br>
+                        <strong>Cidade/UF:</strong> {{ fornecedor.city }}/{{ fornecedor.state }}<br>
+                        <strong>Telefone:</strong> {{ fornecedor.phone }}<br>
+                        <strong>Email:</strong> {{ fornecedor.email }}
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('fornecedor.fornecedor_editar', id=fornecedor.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Editar Fornecedor Existente
+                        </a>
+                        <a href="{{ url_for('fornecedor.fornecedor_visualizar', id=fornecedor.id) }}" class="btn btn-info">
+                            <i class="fas fa-eye"></i> Visualizar Fornecedor Existente
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-plus"></i>
+                    Novo Fornecedor
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Criar Novo Fornecedor</h5>
+                    <p class="card-text">
+                        Se você deseja criar um novo fornecedor mesmo assim, clique no botão abaixo.
+                        <br><br>
+                        <strong class="text-danger">Atenção:</strong> Isso pode resultar em dados duplicados no sistema.
+                        Certifique-se de que este é realmente um fornecedor diferente antes de prosseguir.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <form action="{{ url_for('fornecedor.fornecedor_cadastrar_forcar') }}" method="post">
+                            <input type="hidden" name="force_create" value="true">
+                            {% for key, value in request.form.items() %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-exclamation-triangle"></i> Forçar Criação de Novo Fornecedor
+                            </button>
+                        </form>
+                        <a href="{{ url_for('fornecedor.fornecedor_cadastrar') }}" class="btn btn-secondary">
+                            <i class="fas fa-undo"></i> Voltar ao Formulário
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

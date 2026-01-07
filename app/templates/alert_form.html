@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Novo Alerta - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Novo Alerta</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('alert.alert_list') }}">Alertas</a></li>
+        <li class="breadcrumb-item active">Novo Alerta</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-bell me-1"></i>
+            Criar Alerta Manual
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('alert.alert_create') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="equipment_id" class="form-label">Equipamento <span class="text-danger">*</span></label>
+                        <select class="form-select" id="equipment_id" name="equipment_id" required>
+                            <option value="">Selecione um equipamento</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}">
+                                {{ equipment.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="supply_id" class="form-label">Componente</label>
+                        <select class="form-select" id="supply_id" name="supply_id">
+                            <option value="">Selecione um componente (opcional)</option>
+                            {% for supply in supplies %}
+                            <option value="{{ supply.id }}">
+                                {{ supply.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional. Se não selecionado, o alerta será para o equipamento como um todo.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="alert_type" class="form-label">Tipo de Alerta <span class="text-danger">*</span></label>
+                        <select class="form-select" id="alert_type" name="alert_type" required>
+                            <option value="">Selecione um tipo</option>
+                            {% for key, value in alert_types.items() %}
+                            <option value="{{ key }}">
+                                {{ value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="priority" class="form-label">Prioridade <span class="text-danger">*</span></label>
+                        <select class="form-select" id="priority" name="priority" required>
+                            <option value="">Selecione uma prioridade</option>
+                            {% for key, value in priority_levels.items() %}
+                            <option value="{{ key }}">
+                                {{ value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="message" class="form-label">Mensagem</label>
+                        <textarea class="form-control" id="message" name="message" rows="5"></textarea>
+                        <div class="form-text">Opcional. Se não informada, uma mensagem padrão será gerada com base no tipo de alerta.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Atenção:</strong> Este formulário é para criação manual de alertas. Na maioria dos casos, os alertas são gerados automaticamente pelo sistema com base em condições específicas.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('alert.alert_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações
+        </div>
+        <div class="card-body">
+            <h5>Tipos de Alerta</h5>
+            <ul>
+                <li><strong>Desgaste 80%:</strong> O equipamento ou componente atingiu 80% da vida útil ajustada.</li>
+                <li><strong>Desgaste 100%:</strong> O equipamento ou componente atingiu 100% da vida útil ajustada.</li>
+                <li><strong>Estoque Baixo:</strong> O estoque de um componente está abaixo do mínimo.</li>
+                <li><strong>Manutenção Programada:</strong> Uma manutenção programada está pendente.</li>
+                <li><strong>OS Criada:</strong> Uma nova ordem de serviço foi criada.</li>
+                <li><strong>OS Atribuída:</strong> Uma ordem de serviço foi atribuída a um técnico.</li>
+                <li><strong>OS Concluída:</strong> Uma ordem de serviço foi concluída.</li>
+            </ul>
+            
+            <h5>Níveis de Prioridade</h5>
+            <ul>
+                <li><strong>Crítica:</strong> Requer atenção imediata. Risco de parada ou dano grave.</li>
+                <li><strong>Alta:</strong> Requer atenção urgente. Pode causar problemas significativos se não tratado.</li>
+                <li><strong>Média:</strong> Requer atenção normal. Situação que deve ser monitorada.</li>
+                <li><strong>Baixa:</strong> Informativo. Não requer ação imediata.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtrar componentes por equipamento
+        $('#equipment_id').change(function() {
+            var equipmentId = $(this).val();
+            
+            // Aqui você pode implementar uma chamada AJAX para buscar os componentes do equipamento
+            // Por enquanto, vamos apenas limpar a seleção
+            $('#supply_id').val('');
+        });
+    });
+</script>
+{% endblock %}

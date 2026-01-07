@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Simulador de Cenários - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Simulador de Cenários</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('simulator.new_scenario') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Novo Cenário
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-area me-1"></i>
+                    Meus Cenários de Simulação
+                </div>
+                <div class="card-body">
+                    {% if scenarios %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Equipamento</th>
+                                        <th>Período</th>
+                                        <th>Padrão de Uso</th>
+                                        <th>Estratégia</th>
+                                        <th>Criado em</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for scenario in scenarios %}
+                                    <tr>
+                                        <td>{{ scenario.name }}</td>
+                                        <td>{{ scenario.equipment.name }}</td>
+                                        <td>{{ scenario.simulation_period }} meses</td>
+                                        <td>
+                                            {% if scenario.usage_pattern == 'light' %}
+                                                Leve
+                                            {% elif scenario.usage_pattern == 'moderate' %}
+                                                Moderado
+                                            {% elif scenario.usage_pattern == 'heavy' %}
+                                                Pesado
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if scenario.maintenance_strategy == 'reactive' %}
+                                                Reativa
+                                            {% elif scenario.maintenance_strategy == 'preventive' %}
+                                                Preventiva
+                                            {% elif scenario.maintenance_strategy == 'predictive' %}
+                                                Preditiva
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ scenario.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('simulator.view_scenario', scenario_id=scenario.id) }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#compareModal" data-scenario-id="{{ scenario.id }}">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </button>
+                                            <a href="{{ url_for('simulator.export_scenario', scenario_id=scenario.id) }}" class="btn btn-sm btn-secondary">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Você ainda não criou nenhum cenário de simulação. 
+                            <a href="{{ url_for('simulator.new_scenario') }}" class="alert-link">Criar um novo cenário</a>.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Sobre o Simulador de Cenários
+                </div>
+                <div class="card-body">
+                    <p>O Simulador de Cenários permite criar diferentes cenários de manutenção para equipamentos e comparar os resultados.</p>
+                    <p>Com esta ferramenta, você pode:</p>
+                    <ul>
+                        <li>Simular diferentes padrões de uso para equipamentos</li>
+                        <li>Comparar estratégias de manutenção (reativa, preventiva, preditiva)</li>
+                        <li>Analisar custos e tempos de inatividade estimados</li>
+                        <li>Exportar resultados para análise externa</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    Dicas para Simulação
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li><strong>Padrão de Uso:</strong> Define a intensidade de uso do equipamento, afetando a taxa de desgaste.</li>
+                        <li><strong>Estratégia de Manutenção:</strong>
+                            <ul>
+                                <li><strong>Reativa:</strong> Manutenção apenas quando o componente falha (100% de desgaste)</li>
+                                <li><strong>Preventiva:</strong> Manutenção quando o componente atinge 80% de desgaste</li>
+                                <li><strong>Preditiva:</strong> Manutenção baseada em previsão de falha (70% de desgaste)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Período de Simulação:</strong> Recomendamos períodos entre 6 e 24 meses para resultados mais precisos.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para comparação de cenários -->
+<div class="modal fade" id="compareModal" tabindex="-1" aria-labelledby="compareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="compareModalLabel">Comparar Cenários</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="compareForm" method="get">
+                    <input type="hidden" id="scenario1Id" name="scenario1_id">
+                    <div class="mb-3">
+                        <label for="scenario2Id" class="form-label">Selecione o cenário para comparar:</label>
+                        <select class="form-select" id="scenario2Id" name="scenario2_id" required>
+                            <option value="">Selecione um cenário...</option>
+                            {% for scenario in scenarios %}
+                            <option value="{{ scenario.id }}">{{ scenario.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="compareButton">Comparar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar modal de comparação
+        var compareModal = document.getElementById('compareModal');
+        if (compareModal) {
+            compareModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                var scenarioId = button.getAttribute('data-scenario-id');
+                var scenario1IdInput = document.getElementById('scenario1Id');
+                scenario1IdInput.value = scenarioId;
+                
+                // Remover o cenário selecionado das opções de comparação
+                var scenario2Select = document.getElementById('scenario2Id');
+                for (var i = 0; i < scenario2Select.options.length; i++) {
+                    if (scenario2Select.options[i].value === scenarioId) {
+                        scenario2Select.options[i].disabled = true;
+                    } else {
+                        scenario2Select.options[i].disabled = false;
+                    }
+                }
+            });
+            
+            // Configurar botão de comparação
+            document.getElementById('compareButton').addEventListener('click', function() {
+                var scenario1Id = document.getElementById('scenario1Id').value;
+                var scenario2Id = document.getElementById('scenario2Id').value;
+                
+                if (scenario2Id) {
+                    window.location.href = '/simulator/' + scenario1Id + '/compare/' + scenario2Id;
+                }
+            });
+        }
+        
+        // Configurar download de CSV
+        var exportButtons = document.querySelectorAll('a[href^="/simulator/"][href$="/export"]');
+        exportButtons.forEach(function(button) {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                var url = this.getAttribute('href');
+                
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Criar um elemento <a> para download
+                        var element = document.createElement('a');
+                        element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(data.data));
+                        element.setAttribute('download', data.filename);
+                        element.style.display = 'none';
+                        document.body.appendChild(element);
+                        element.click();
+                        document.body.removeChild(element);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao exportar dados:', error);
+                        alert('Erro ao exportar dados. Por favor, tente novamente.');
+                    });
+            });
+        });
+    });
+</script>
+{% endblock %}

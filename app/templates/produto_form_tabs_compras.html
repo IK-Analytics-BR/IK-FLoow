@@ -1,0 +1,104 @@
+<!-- Aba de Dados de Compras -->
+<div class="tab-pane fade" id="purchase" role="tabpanel" aria-labelledby="purchase-tab">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-shopping-cart me-1"></i> Dados de Compras
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="main_supplier_id" name="main_supplier_id">
+                                    <option value="" selected>Selecione um fornecedor</option>
+                                    {% for fornecedor in fornecedores %}
+                                    <option value="{{ fornecedor.id }}" {% if produto and produto.main_supplier_id == fornecedor.id %}selected{% endif %}>{{ fornecedor.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="main_supplier_id">Fornecedor Principal</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="supplier_code" name="supplier_code" placeholder="Código no Fornecedor" value="{{ produto.supplier_code if produto and produto.supplier_code else '' }}">
+                                <label for="supplier_code">Código no Fornecedor</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="last_purchase_price" name="last_purchase_price" placeholder="Último Preço de Compra" value="{{ produto.last_purchase_price if produto and produto.last_purchase_price else '' }}" step="0.01" min="0">
+                                <label for="last_purchase_price">Último Preço de Compra (R$)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="avg_delivery_time" name="avg_delivery_time" placeholder="Prazo Médio de Entrega" value="{{ produto.avg_delivery_time if produto and produto.avg_delivery_time else '' }}" min="0">
+                                <label for="avg_delivery_time">Prazo Médio de Entrega (dias)</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if produto and produto.id %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-history me-1"></i> Histórico de Preços de Compra
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Data</th>
+                                                    <th>Fornecedor</th>
+                                                    <th>Preço (R$)</th>
+                                                    <th>Nota Fiscal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if price_history %}
+                                                    {% for item in price_history %}
+                                                    <tr>
+                                                        <td>{{ item.purchase_date.strftime('%d/%m/%Y') }}</td>
+                                                        <td>{{ item.supplier_name }}</td>
+                                                        <td>{{ "%.2f"|format(item.price) }}</td>
+                                                        <td>{{ item.invoice_number }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr>
+                                                        <td colspan="4" class="text-center">Nenhum histórico de preço disponível</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4 info-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i> Informações de Compras
+                </div>
+                <div class="card-body">
+                    <p>Registre aqui os dados relacionados à compra do produto.</p>
+                    <p><strong>Fornecedor Principal:</strong> Selecione o fornecedor principal deste produto.</p>
+                    <p><strong>Código no Fornecedor:</strong> Código que o fornecedor utiliza para este produto.</p>
+                    <p><strong>Último Preço de Compra:</strong> Valor da última compra realizada.</p>
+                    <p><strong>Prazo Médio de Entrega:</strong> Tempo médio que o fornecedor leva para entregar o produto.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Email - NF-e{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-envelope text-primary"></i>
+                    Configuração de Email - NF-e
+                </h2>
+                <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Formulário de Configuração -->
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cog"></i> Configurações SMTP
+                </div>
+                <div class="card-body">
+                    <form id="formConfigEmail">
+                        <!-- Empresa -->
+                        <div class="mb-3">
+                            <label class="form-label">Empresa <span class="text-danger">*</span></label>
+                            <select class="form-select" id="empresa_id" name="empresa_id" required>
+                                <option value="">Selecione a empresa...</option>
+                                {% for empresa in empresas %}
+                                <option value="{{ empresa.id }}">
+                                    {{ empresa.nome_fantasia or empresa.razao_social }} - {{ empresa.cnpj }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <hr>
+
+                        <!-- Servidor SMTP -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Servidor SMTP <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="smtp_server" name="smtp_server" 
+                                       placeholder="Ex: smtp.gmail.com" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Porta <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="smtp_port" name="smtp_port" 
+                                       value="587" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Tipo</label>
+                                <select class="form-select" id="smtp_ssl" name="smtp_ssl">
+                                    <option value="0">TLS (587)</option>
+                                    <option value="1">SSL (465)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Credenciais -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email/Usuário <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email_usuario" name="email_usuario" 
+                                       placeholder="seu_email@gmail.com" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Senha/App Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="email_senha" name="email_senha" 
+                                       placeholder="Senha ou App Password" required>
+                                <small class="text-muted">Para Gmail, use uma "Senha de App"</small>
+                            </div>
+                        </div>
+
+                        <!-- Remetente -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Remetente <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email_remetente" name="email_remetente" 
+                                       placeholder="nfe@suaempresa.com.br" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome do Remetente</label>
+                                <input type="text" class="form-control" id="nome_remetente" name="nome_remetente" 
+                                       placeholder="Empresa - NF-e">
+                            </div>
+                        </div>
+
+                        <!-- Email de Cópia -->
+                        <div class="mb-3">
+                            <label class="form-label">Email para Cópia (CC)</label>
+                            <input type="email" class="form-control" id="email_copia" name="email_copia" 
+                                   placeholder="copia@suaempresa.com.br">
+                            <small class="text-muted">Opcional: receber cópia de todos os emails enviados</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Opções de Envio -->
+                        <h6 class="mb-3"><i class="fas fa-paper-plane"></i> Opções de Envio Automático</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enviar_nfe_autorizada" 
+                                           name="enviar_nfe_autorizada" checked>
+                                    <label class="form-check-label">Enviar NF-e Autorizada</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enviar_nfe_cancelada" 
+                                           name="enviar_nfe_cancelada" checked>
+                                    <label class="form-check-label">Enviar NF-e Cancelada</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enviar_cce" 
+                                           name="enviar_cce" checked>
+                                    <label class="form-check-label">Enviar CC-e</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Anexos -->
+                        <h6 class="mb-3"><i class="fas fa-paperclip"></i> Anexos</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="anexar_xml" 
+                                           name="anexar_xml" checked>
+                                    <label class="form-check-label">Anexar XML da NF-e</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="anexar_danfe" 
+                                           name="anexar_danfe" checked>
+                                    <label class="form-check-label">Anexar DANFE (PDF)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Assuntos Personalizados -->
+                        <h6 class="mb-3"><i class="fas fa-heading"></i> Assuntos dos Emails</h6>
+                        <div class="mb-3">
+                            <label class="form-label">NF-e Autorizada</label>
+                            <input type="text" class="form-control" id="assunto_nfe_autorizada" 
+                                   name="assunto_nfe_autorizada" 
+                                   value="NF-e Autorizada - {numero}/{serie}">
+                            <small class="text-muted">Use {numero} e {serie} como variáveis</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">NF-e Cancelada</label>
+                            <input type="text" class="form-control" id="assunto_nfe_cancelada" 
+                                   name="assunto_nfe_cancelada" 
+                                   value="NF-e Cancelada - {numero}/{serie}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Carta de Correção</label>
+                            <input type="text" class="form-control" id="assunto_cce" 
+                                   name="assunto_cce" 
+                                   value="Carta de Correção - NF-e {numero}/{serie}">
+                        </div>
+
+                        <hr>
+
+                        <!-- Ativo -->
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="ativo" name="ativo" checked>
+                            <label class="form-check-label"><strong>Configuração Ativa</strong></label>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-info" id="btnTestar">
+                                <i class="fas fa-vial"></i> Testar Envio
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Salvar Configuração
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Configurações -->
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-list"></i> Empresas Configuradas
+                </div>
+                <div class="card-body">
+                    {% if configs %}
+                    <ul class="list-group">
+                        {% for config in configs %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ config.empresa_nome }}</strong><br>
+                                <small class="text-muted">{{ config.smtp_server }}</small>
+                            </div>
+                            <div>
+                                {% if config.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-primary ms-2" 
+                                        onclick="carregarConfig({{ config.empresa_id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Nenhuma empresa configurada ainda.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Dicas -->
+            <div class="card shadow mt-4">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-lightbulb"></i> Dicas
+                </div>
+                <div class="card-body">
+                    <h6>Gmail:</h6>
+                    <ul class="small">
+                        <li>Servidor: smtp.gmail.com</li>
+                        <li>Porta: 587 (TLS)</li>
+                        <li>Use "Senha de App" (não a senha normal)</li>
+                    </ul>
+                    
+                    <h6>Outlook/Office 365:</h6>
+                    <ul class="small">
+                        <li>Servidor: smtp.office365.com</li>
+                        <li>Porta: 587 (TLS)</li>
+                    </ul>
+                    
+                    <h6>Zoho:</h6>
+                    <ul class="small mb-0">
+                        <li>Servidor: smtp.zoho.com</li>
+                        <li>Porta: 587 (TLS)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Carregar configuração ao selecionar empresa
+document.getElementById('empresa_id').addEventListener('change', function() {
+    const empresaId = this.value;
+    if (empresaId) {
+        carregarConfig(empresaId);
+    }
+});
+
+// Carregar configuração existente
+function carregarConfig(empresaId) {
+    document.getElementById('empresa_id').value = empresaId;
+    
+    fetch(`/nfe/config-email/${empresaId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.config) {
+                const c = data.config;
+                document.getElementById('smtp_server').value = c.smtp_server || '';
+                document.getElementById('smtp_port').value = c.smtp_port || 587;
+                document.getElementById('smtp_ssl').value = c.smtp_ssl ? '1' : '0';
+                document.getElementById('email_usuario').value = c.email_usuario || '';
+                document.getElementById('email_senha').value = c.email_senha || '';
+                document.getElementById('email_remetente').value = c.email_remetente || '';
+                document.getElementById('nome_remetente').value = c.nome_remetente || '';
+                document.getElementById('email_copia').value = c.email_copia || '';
+                document.getElementById('enviar_nfe_autorizada').checked = c.enviar_nfe_autorizada;
+                document.getElementById('enviar_nfe_cancelada').checked = c.enviar_nfe_cancelada;
+                document.getElementById('enviar_cce').checked = c.enviar_cce;
+                document.getElementById('anexar_xml').checked = c.anexar_xml;
+                document.getElementById('anexar_danfe').checked = c.anexar_danfe;
+                document.getElementById('assunto_nfe_autorizada').value = c.assunto_nfe_autorizada || '';
+                document.getElementById('assunto_nfe_cancelada').value = c.assunto_nfe_cancelada || '';
+                document.getElementById('assunto_cce').value = c.assunto_cce || '';
+                document.getElementById('ativo').checked = c.ativo;
+            }
+        });
+}
+
+// Salvar configuração
+document.getElementById('formConfigEmail').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const dados = {
+        empresa_id: document.getElementById('empresa_id').value,
+        smtp_server: document.getElementById('smtp_server').value,
+        smtp_port: document.getElementById('smtp_port').value,
+        smtp_ssl: document.getElementById('smtp_ssl').value === '1',
+        email_usuario: document.getElementById('email_usuario').value,
+        email_senha: document.getElementById('email_senha').value,
+        email_remetente: document.getElementById('email_remetente').value,
+        nome_remetente: document.getElementById('nome_remetente').value,
+        email_copia: document.getElementById('email_copia').value,
+        enviar_nfe_autorizada: document.getElementById('enviar_nfe_autorizada').checked,
+        enviar_nfe_cancelada: document.getElementById('enviar_nfe_cancelada').checked,
+        enviar_cce: document.getElementById('enviar_cce').checked,
+        anexar_xml: document.getElementById('anexar_xml').checked,
+        anexar_danfe: document.getElementById('anexar_danfe').checked,
+        assunto_nfe_autorizada: document.getElementById('assunto_nfe_autorizada').value,
+        assunto_nfe_cancelada: document.getElementById('assunto_nfe_cancelada').value,
+        assunto_cce: document.getElementById('assunto_cce').value,
+        ativo: document.getElementById('ativo').checked
+    };
+    
+    fetch('/nfe/config-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: data.message,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire('Erro', data.message, 'error');
+        }
+    })
+    .catch(error => {
+        Swal.fire('Erro', 'Erro ao salvar: ' + error, 'error');
+    });
+});
+
+// Testar envio
+document.getElementById('btnTestar').addEventListener('click', function() {
+    const empresaId = document.getElementById('empresa_id').value;
+    
+    if (!empresaId) {
+        Swal.fire('Atenção', 'Selecione uma empresa primeiro', 'warning');
+        return;
+    }
+    
+    Swal.fire({
+        title: 'Testar Envio de Email',
+        input: 'email',
+        inputLabel: 'Digite o email para teste:',
+        inputPlaceholder: 'seu_email@teste.com',
+        showCancelButton: true,
+        confirmButtonText: 'Enviar Teste',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+            if (!value) return 'Informe um email!';
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Enviando...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch('/nfe/testar-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    empresa_id: empresaId,
+                    email_teste: result.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Sucesso!', data.message, 'success');
+                } else {
+                    Swal.fire('Erro', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Erro', 'Erro: ' + error, 'error');
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

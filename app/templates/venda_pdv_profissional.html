@@ -1,0 +1,3331 @@
+{% extends "base.html" %}
+
+{% block title %}PDV - Ponto de Venda{% endblock %}
+
+{% block styles %}
+<!-- Google Fonts - Montserrat (IK Analytics) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    /* ===== OCULTAR MENU E ELEMENTOS DO BASE.HTML ===== */
+    #sidebar,
+    nav.navbar,
+    .navbar,
+    header,
+    .header,
+    .top-bar,
+    .breadcrumb {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* FORÇAR LARGURA 100% E REMOVER ESPAÇOS - CRÍTICO! */
+    #content,
+    .main-content,
+    .container-fluid,
+    .container,
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+    }
+    
+    html, body {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        position: relative !important;
+    }
+    
+    /* REMOVE QUALQUER ESPAÇO DE TODOS OS ELEMENTOS */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    /* ===== CORES IK ANALYTICS ===== */
+    :root {
+        /* Cores principais da marca */
+        --ik-green: #00A99D;        /* Verde-água (principal) */
+        --ik-dark-blue: #071231;    /* Azul escuro */
+        --ik-mid-blue: #1B1464;     /* Azul médio */
+        --ik-light-blue: #29ABE2;   /* Azul claro */
+        --ik-purple: #662D91;       /* Roxo */
+        --ik-purple-intense: #93278F; /* Roxo intenso */
+        --ik-green-alt: #009245;    /* Verde */
+        --ik-orange: #F15A24;       /* Laranja */
+        --ik-yellow: #FBB03B;       /* Amarelo */
+        
+        /* Aplicação no sistema */
+        --primary-blue: #1B1464;    /* Azul médio IK */
+        --secondary-blue: #29ABE2;  /* Azul claro IK */
+        --success-green: #00A99D;   /* Verde-água IK */
+        --danger-red: #F15A24;      /* Laranja IK */
+        --warning-orange: #FBB03B;  /* Amarelo IK */
+        --info-cyan: #29ABE2;       /* Azul claro IK */
+        --dark-gray: #071231;       /* Azul escuro IK */
+        --light-gray: #f3f4f6;
+        --white: #ffffff;
+    }
+    
+    html {
+        overflow: hidden;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: 'Montserrat', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--light-gray); /* MESMO COR DO PDV (remove roxo) */
+        font-size: 16px;
+        box-sizing: border-box;
+        height: 100%;
+        width: 100%;
+    }
+    
+    /* ===== CONTAINER PRINCIPAL ===== */
+    .pdv-wrapper {
+        display: flex;
+        flex-direction: column;
+        position: absolute; /* Posição absoluta para ignorar qualquer elemento do template base */
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 100vw;
+        max-width: 100%;
+        background: var(--light-gray);
+        overflow: hidden;
+        border: 48px solid var(--ik-green); /* BORDA SUPER GROSSA (16px * 3 = 48px) */
+        border-radius: 0;
+        box-shadow: inset 0 0 60px rgba(0, 169, 157, 0.3);
+        box-sizing: border-box;
+        z-index: 9999; /* Garante que fica por cima de tudo */
+    }
+    
+    /* ===== CABEÇALHO (IK Analytics) - FUNDO BRANCO ===== */
+    .pdv-top-bar {
+        background: white; /* FUNDO BRANCO */
+        color: var(--ik-dark-blue); /* Texto azul escuro */
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Sombra suave */
+        height: 110px;
+        max-height: 110px;
+        flex-shrink: 0;
+        border-bottom: 3px solid var(--ik-green);
+        font-family: 'Montserrat', sans-serif;
+    }
+    
+    .pdv-top-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .pdv-logo-sistema {
+        height: 90px; /* Logo maior (antes 60px) */
+        background: transparent; /* Sem fundo (já está em fundo branco) */
+        padding: 8px 16px;
+        border-radius: 8px;
+        object-fit: contain;
+        box-shadow: none; /* Remove sombra */
+    }
+    
+    .pdv-system-title {
+        font-size: 24px; /* Aumentado de 18px */
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    
+    .pdv-top-right {
+        display: flex;
+        gap: 20px;
+        font-size: 16px; /* Aumentado de 13px */
+    }
+    
+    .pdv-top-info {
+        background: var(--ik-light-blue); /* Azul claro IK */
+        color: white;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pdv-top-info:last-child {
+        background: var(--ik-yellow); /* Amarelo para empresa */
+        color: var(--ik-dark-blue);
+    }
+    
+    /* Botão Menu removido - agora fica no rodapé */
+    
+    /* ===== ÁREA PRINCIPAL (2 colunas) ===== */
+    .pdv-main-area {
+        display: grid;
+        grid-template-columns: 25% 75%; /* Coluna esquerda 25%, direita 75% */
+        gap: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    
+    /* ===== COLUNA ESQUERDA ===== */
+    .pdv-left-panel {
+        background: white;
+        display: flex;
+        flex-direction: column;
+        border-right: 3px solid var(--ik-green); /* Verde-água (mantém) */
+        overflow: hidden; /* SEM SCROLL */
+        box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        max-height: 100%;
+    }
+    
+    /* Card Operador - Mesma largura que logo e produto */
+    .pdv-operator-card {
+        background: #d9f2f5; /* Ciano claro escurecido */
+        color: var(--ik-dark-blue); /* Texto azul escuro */
+        padding: 12px 15px; /* Reduzido */
+        font-size: 14px; /* Reduzido */
+        line-height: 1.6; /* Reduzido */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-bottom: 3px solid var(--ik-green); /* LINHA VERDE inferior */
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600;
+    }
+    
+    .pdv-operator-card strong {
+        display: block;
+        font-size: 15px; /* Reduzido */
+        font-weight: 700;
+        margin-bottom: 3px;
+    }
+    
+    /* Logo Empresa - ALTURA AUMENTADA */
+    .pdv-logo-empresa-container {
+        padding: 15px;
+        text-align: center;
+        background: white;
+        height: 320px; /* AUMENTADO de 250px para 320px */
+        min-height: 320px;
+        max-height: 320px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden; /* Oculta excesso */
+    }
+    
+    .pdv-logo-empresa {
+        max-width: 100%;
+        max-height: 100%; /* Ajusta ao container */
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    }
+    
+    /* Campos de Input - Reduzido */
+    .pdv-input-section {
+        padding: 10px 12px; /* Reduzido */
+        background: #d9f2f5; /* Ciano claro escurecido (mesma cor) */
+        border-top: 3px solid var(--ik-green); /* Verde-água */
+    }
+    
+    .pdv-field {
+        margin-bottom: 8px; /* Reduzido */
+    }
+    
+    .pdv-field-label {
+        font-size: 13px; /* Reduzido */
+        color: #0d7377;
+        font-weight: 600;
+        margin-bottom: 3px;
+        display: block;
+    }
+    
+    .pdv-field-input {
+        width: 100%;
+        padding: 10px; /* Reduzido */
+        border: 2px solid #14b0b8;
+        border-radius: 4px;
+        font-size: 16px; /* Reduzido */
+        font-weight: 600;
+        text-align: center;
+        background: white;
+        color: #0d7377;
+    }
+    
+    .pdv-field-input:focus {
+        outline: none;
+        border-color: #0d7377;
+        box-shadow: 0 0 0 3px rgba(20,176,184,0.2);
+    }
+    
+    /* ===== COLUNA DIREITA ===== */
+    .pdv-right-panel {
+        background: white;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    /* Card Cliente/Subtotal */
+    .pdv-cliente-card {
+        background: white;
+        padding: 15px 20px;
+        border-bottom: 3px solid var(--ik-green); /* Verde-água */
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 20px;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .pdv-cliente-info {
+        font-size: 17px; /* Aumentado de 14px */
+        line-height: 1.8;
+    }
+    
+    .pdv-cliente-nome {
+        font-weight: 700;
+        font-size: 20px; /* Aumentado de 16px */
+        color: var(--primary-blue);
+    }
+    
+    .pdv-subtotal {
+        text-align: right;
+    }
+    
+    .pdv-subtotal-label {
+        font-size: 14px; /* Aumentado de 11px */
+        font-weight: 600;
+        color: var(--dark-gray);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    
+    .pdv-subtotal-value {
+        font-size: 48px; /* Aumentado de 36px */
+        font-weight: 900;
+        color: var(--success-green);
+    }
+    
+    /* Tabela de Produtos */
+    .pdv-produtos-grid {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+    }
+    
+    .pdv-produtos-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .pdv-produtos-table th {
+        background: var(--primary-blue);
+        color: white;
+        padding: 14px; /* Aumentado */
+        text-align: left;
+        font-size: 14px; /* Aumentado de 11px */
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .pdv-produtos-table td {
+        padding: 12px; /* Aumentado */
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 16px; /* Aumentado de 13px */
+    }
+    
+    .pdv-produtos-table tr:hover {
+        background: #f0f9fa;
+    }
+    
+    .pdv-produtos-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+        font-size: 18px; /* Aumentado de 16px */
+    }
+    
+    .pdv-produtos-empty i {
+        font-size: 48px;
+        opacity: 0.3;
+        display: block;
+        margin-bottom: 15px;
+    }
+    
+    /* ===== RODAPÉ ===== */
+    .pdv-footer {
+        background: var(--light-gray);
+        padding: 16px 20px; /* Reduz padding vertical */
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 20px;
+        align-items: center;
+        border-top: 3px solid var(--ik-green); /* Verde-água */
+        flex-shrink: 0;
+        height: 110px; /* Altura fixa para evitar expansão */
+        max-height: 110px;
+    }
+    
+    .pdv-footer-left {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 14px; /* Aumentado de 11px */
+        color: var(--dark-gray);
+    }
+    
+    #pdv-clock-footer {
+        font-family: 'Courier New', monospace; /* Fonte monoespaçada */
+        min-width: 80px; /* Largura mínima fixa */
+        text-align: center; /* Centralizado */
+        font-weight: 600;
+    }
+    
+    .pdv-footer-right {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        flex-wrap: nowrap; /* Não quebra linha */
+    }
+    
+    .pdv-btn {
+        padding: 20px 32px; /* Aumentado ainda mais */
+        border: none;
+        border-radius: 8px;
+        font-size: 17px; /* Aumentado de 15px */
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px; /* Espaço entre ícone e texto */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-width: 180px; /* Largura uniforme maior */
+        flex: 1; /* Todos os botões têm o mesmo tamanho */
+        white-space: nowrap;
+        font-family: 'Montserrat', sans-serif;
+    }
+    
+    .pdv-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 169, 157, 0.4);
+        filter: brightness(1.1);
+    }
+    
+    .pdv-btn-primary {
+        background: linear-gradient(135deg, var(--ik-mid-blue) 0%, var(--ik-purple) 100%);
+        color: white;
+        border-bottom: 3px solid var(--ik-purple-intense);
+    }
+    
+    .pdv-btn-success {
+        background: linear-gradient(135deg, var(--ik-green) 0%, var(--ik-green-alt) 100%);
+        color: white;
+        border-bottom: 3px solid var(--ik-green-alt);
+        font-weight: 700;
+    }
+    
+    .pdv-btn-danger {
+        background: var(--ik-orange);
+        color: white;
+        border-bottom: 3px solid #D14A1A;
+    }
+    
+    .pdv-btn-info {
+        background: linear-gradient(135deg, var(--ik-light-blue) 0%, var(--ik-green) 100%);
+        color: white;
+        border-bottom: 3px solid var(--ik-green);
+    }
+    
+    .pdv-btn-warning {
+        background: var(--ik-yellow);
+        color: var(--ik-dark-blue);
+        font-weight: 600;
+        border-bottom: 3px solid #E19722;
+    }
+    
+    .pdv-btn i {
+        font-size: 20px; /* Ícones ainda maiores (aumentado de 18px) */
+    }
+    
+    .pdv-btn kbd {
+        background: rgba(0,0,0,0.2);
+        padding: 4px 10px; /* Badge maior */
+        border-radius: 4px;
+        font-size: 14px; /* Aumentado de 12px */
+        margin-left: 5px;
+        font-weight: 600;
+    }
+    
+    /* Link do botão Menu sem sublinhado */
+    a.pdv-btn {
+        text-decoration: none;
+    }
+    
+    a.pdv-btn:hover {
+        text-decoration: none;
+    }
+    
+    .pdv-status-dot {
+        width: 8px;
+        height: 8px;
+        background: #2ecc71;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdv-wrapper">
+    <!-- CABEÇALHO - SISTEMA (FIXO) -->
+    <div class="pdv-top-bar">
+        <div class="pdv-top-left">
+            <!-- Logo do Sistema (Fixa) - Colocar arquivo em: app/static/img/logo-sistema.png -->
+            <img src="{{ url_for('static', filename='img/logo-sistema.png') }}" 
+                 alt="IK Flow" 
+                 class="pdv-logo-sistema"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <!-- Fallback se logo não existir -->
+            <div class="pdv-logo-sistema" style="display: none; color: #0d7377; font-weight: bold; font-size: 14px;">
+                📊
+            </div>
+        </div>
+        <div class="pdv-top-right">
+            <div class="pdv-top-info">PDV Nº {{ pdv_number }}</div>
+        </div>
+    </div>
+    
+    <!-- ÁREA PRINCIPAL -->
+    <div class="pdv-main-area">
+        <!-- COLUNA ESQUERDA -->
+        <div class="pdv-left-panel">
+            <!-- Card Info Operador -->
+            <div class="pdv-operator-card">
+                <strong>Operador(a): <span id="pdv-operador-nome">{{ session.get('username', 'Carregando...') }}</span></strong>
+                <div>Caixa: <span id="pdv-caixa-numero">--</span></div>
+                <div>Abertura: <span id="pdv-caixa-abertura">--:--</span></div>
+            </div>
+            
+            <!-- Logo da Empresa -->
+            <div class="pdv-logo-empresa-container">
+                {% if company_logo %}
+                <!-- DEBUG: Logo encontrada: {{ company_logo }} -->
+                <img src="{{ url_for('static', filename=company_logo) }}" 
+                     alt="{{ company_name }}" 
+                     class="pdv-logo-empresa"
+                     onerror="console.error('Erro ao carregar logo:', this.src); this.parentElement.innerHTML='<div style=\'text-align: center; color: #999;\'><i class=\'fas fa-exclamation-triangle\' style=\'font-size: 40px; opacity: 0.3; display: block; margin-bottom: 10px;\'></i><small>Erro ao carregar logo</small></div>';">
+                {% else %}
+                <!-- DEBUG: Nenhuma logo configurada -->
+                <div style="text-align: center; color: #999; font-size: 18px; font-weight: 300; padding: 40px 20px;">
+                    <i class="fas fa-building" style="font-size: 80px; opacity: 0.2; display: block; margin-bottom: 15px;"></i>
+                    <div style="font-size: 14px; color: #999;">{{ company_name or 'Logo da Empresa' }}</div>
+                    <div style="font-size: 11px; color: #ccc; margin-top: 8px;">Configure em Cadastros → Empresas</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Campos de Entrada -->
+            <div class="pdv-input-section">
+                <div class="pdv-field">
+                    <label class="pdv-field-label">Produto(F6)</label>
+                    <input type="text" 
+                           class="pdv-field-input" 
+                           id="inputProduto"
+                           placeholder="Código ou descrição"
+                           autofocus>
+                </div>
+                <div class="pdv-field">
+                    <label class="pdv-field-label">Quantidade(*ou+)</label>
+                    <input type="text" 
+                           class="pdv-field-input" 
+                           id="inputQuantidade"
+                           value="1,000"
+                           style="font-size: 24px; color: #0d7377;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- COLUNA DIREITA -->
+        <div class="pdv-right-panel">
+            <!-- Card Cliente e Subtotal -->
+            <div class="pdv-cliente-card">
+                <div class="pdv-cliente-info">
+                    <div class="pdv-cliente-nome" id="pdvClienteNome">Cliente(F2): **CLIENTE A VISTA**</div>
+                    <div id="pdvClienteCpf">CNPJ/CPF: 000.000.000-00</div>
+                </div>
+                <div class="pdv-subtotal">
+                    <div class="pdv-subtotal-label">Subtotal</div>
+                    <div class="pdv-subtotal-value" id="pdvSubtotal">R$ 0,00</div>
+                </div>
+            </div>
+            
+            <!-- Tabela de Produtos -->
+            <div class="pdv-produtos-grid">
+                <table class="pdv-produtos-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ITEM</th>
+                            <th style="width: 120px;">CÓD. BARRAS</th>
+                            <th>DESCRIÇÃO</th>
+                            <th style="width: 80px;">QTD</th>
+                            <th style="width: 100px;">VL.UNIT</th>
+                            <th style="width: 100px;">VL.DESC</th>
+                            <th style="width: 120px;">TOTAL ITEM</th>
+                            <th style="width: 80px;">AÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdvItensGrid">
+                        <tr>
+                            <td colspan="8" class="pdv-produtos-empty">
+                                <i class="fas fa-shopping-cart"></i>
+                                Nenhum produto adicionado. Use o leitor de código de barras ou pressione <strong>F6</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL QUANTIDADE -->
+    <div id="modalQuantidade" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; min-width: 400px; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #00A99D; padding-bottom: 10px;">
+                <i class="fas fa-box"></i> Adicionar Produto
+            </h3>
+            
+            <div id="modal-produto-info" style="background: #f0f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <div style="font-weight: bold; font-size: 16px; color: #0d7377; margin-bottom: 5px;" id="modal-produto-nome"></div>
+                <div style="color: #666; font-size: 14px;">
+                    Código: <span id="modal-produto-codigo"></span> | 
+                    Preço: R$ <span id="modal-produto-preco"></span> | 
+                    Estoque: <span id="modal-produto-estoque"></span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #0d7377;">Quantidade:</label>
+                <input type="number" 
+                       id="modal-input-quantidade" 
+                       value="1" 
+                       min="0.001" 
+                       step="0.001"
+                       style="width: 100%; padding: 12px; font-size: 18px; border: 2px solid #14b0b8; border-radius: 5px; text-align: center; font-weight: bold;"
+                       autofocus>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="fecharModalQuantidade()" 
+                        style="padding: 12px 24px; background: #ccc; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Cancelar (ESC)
+                </button>
+                <button onclick="confirmarAdicaoItem()" 
+                        style="padding: 12px 24px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-check"></i> Adicionar (Enter)
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL CLIENTES (F2) -->
+    <div id="modalClientes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #00A99D; padding-bottom: 10px;">
+                <i class="fas fa-users"></i> Buscar Cliente
+            </h3>
+            
+            <!-- Campo de Busca -->
+            <div style="margin-bottom: 20px;">
+                <input type="text" 
+                       id="modal-input-busca-cliente" 
+                       placeholder="Digite o nome, CPF ou telefone do cliente..."
+                       style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #14b0b8; border-radius: 5px;"
+                       autofocus>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    <i class="fas fa-info-circle"></i> Digite pelo menos 3 caracteres e pressione Enter
+                </small>
+            </div>
+            
+            <!-- Loading -->
+            <div id="modal-clientes-loading" style="display: none; text-align: center; padding: 20px; color: #00A99D;">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Buscando clientes...</p>
+            </div>
+            
+            <!-- Resultados -->
+            <div id="modal-clientes-resultados" style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    <i class="fas fa-search fa-2x" style="display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                    Digite algo para buscar clientes
+                </p>
+            </div>
+            
+            <!-- Botões -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #ddd; padding-top: 15px;">
+                <button onclick="fecharModalClientes()" 
+                        style="padding: 12px 24px; background: #ccc; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Fechar (ESC)
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL PRODUTOS (F6) -->
+    <div id="modalProdutos" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 900px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #00A99D; padding-bottom: 10px;">
+                <i class="fas fa-search"></i> Buscar Produto
+            </h3>
+            
+            <!-- Campo de Busca -->
+            <div style="margin-bottom: 20px;">
+                <input type="text" 
+                       id="modal-input-busca-produto" 
+                       placeholder="Digite o código, código de barras ou nome do produto..."
+                       style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #14b0b8; border-radius: 5px;"
+                       autofocus>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    <i class="fas fa-info-circle"></i> Digite pelo menos 3 caracteres e pressione Enter
+                </small>
+            </div>
+            
+            <!-- Loading -->
+            <div id="modal-produtos-loading" style="display: none; text-align: center; padding: 20px; color: #00A99D;">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Buscando produtos...</p>
+            </div>
+            
+            <!-- Resultados -->
+            <div id="modal-produtos-resultados" style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    <i class="fas fa-search fa-2x" style="display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                    Digite algo para buscar produtos
+                </p>
+            </div>
+            
+            <!-- Botões -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #ddd; padding-top: 15px;">
+                <button onclick="fecharModalProdutos()" 
+                        style="padding: 12px 24px; background: #ccc; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Fechar (ESC)
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL DESCONTO (F4) -->
+    <div id="modalDesconto" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 700px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #f59e0b; padding-bottom: 10px;">
+                <i class="fas fa-percentage"></i> Aplicar Desconto no Item
+            </h3>
+            
+            <!-- Lista de Itens -->
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 20px; max-height: 300px;">
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                    <i class="fas fa-info-circle"></i> Selecione o item que deseja aplicar desconto:
+                </p>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f0f9fa; border-bottom: 2px solid #00A99D;">
+                            <th style="padding: 10px; text-align: left; width: 50px;">#</th>
+                            <th style="padding: 10px; text-align: left;">Produto</th>
+                            <th style="padding: 10px; text-align: center; width: 80px;">Qtd</th>
+                            <th style="padding: 10px; text-align: right; width: 100px;">Vl. Unit</th>
+                            <th style="padding: 10px; text-align: right; width: 100px;">Subtotal</th>
+                            <th style="padding: 10px; text-align: center; width: 100px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-desconto-itens">
+                        <!-- Preenchido via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Painel de Desconto (aparece após selecionar item) -->
+            <div id="modal-desconto-painel" style="display: none; background: #fff7ed; border: 2px solid #f59e0b; border-radius: 5px; padding: 20px; margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #0d7377;">Item selecionado:</strong>
+                    <div id="modal-desconto-item-nome" style="font-size: 14px; color: #666; margin-top: 5px;"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 13px;">
+                        <div>
+                            <span style="color: #999;">Qtd:</span>
+                            <strong id="modal-desconto-item-qtd">0</strong>
+                        </div>
+                        <div>
+                            <span style="color: #999;">Vl. Unit:</span>
+                            <strong id="modal-desconto-item-preco">R$ 0,00</strong>
+                        </div>
+                        <div>
+                            <span style="color: #999;">Subtotal:</span>
+                            <strong id="modal-desconto-item-subtotal">R$ 0,00</strong>
+                        </div>
+                        <div>
+                            <span style="color: #999;">Desc. Atual:</span>
+                            <strong id="modal-desconto-item-desc-atual" style="color: #f59e0b;">R$ 0,00</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="border-top: 1px solid #f59e0b; padding-top: 15px; margin-top: 15px;">
+                    <strong style="color: #0d7377; display: block; margin-bottom: 10px;">Aplicar Desconto:</strong>
+                    
+                    <!-- Tipo de Desconto -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                            <input type="radio" name="tipoDesconto" value="percentual" checked 
+                                   style="margin-right: 8px; width: 18px; height: 18px;">
+                            <span style="font-size: 14px; font-weight: 600;">Desconto em Percentual (%)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="tipoDesconto" value="valor" 
+                                   style="margin-right: 8px; width: 18px; height: 18px;">
+                            <span style="font-size: 14px; font-weight: 600;">Desconto em Valor (R$)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Campo de Valor -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #666;">
+                            <span id="modal-desconto-label">Percentual de desconto:</span>
+                        </label>
+                        <input type="number" 
+                               id="modal-desconto-valor" 
+                               placeholder="Ex: 10" 
+                               min="0" 
+                               step="0.01"
+                               style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #f59e0b; border-radius: 5px; font-weight: bold;"
+                               autofocus>
+                        <small id="modal-desconto-hint" style="color: #999; display: block; margin-top: 5px;">
+                            Valor máximo: <span id="modal-desconto-max">100%</span>
+                        </small>
+                    </div>
+                    
+                    <!-- Preview do Desconto -->
+                    <div style="background: #f0f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #00A99D;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                            <div>
+                                <span style="color: #999;">Desconto:</span>
+                                <strong id="modal-desconto-preview-desc" style="color: #f59e0b;">R$ 0,00</strong>
+                            </div>
+                            <div>
+                                <span style="color: #999;">Total Item:</span>
+                                <strong id="modal-desconto-preview-total" style="color: #00A99D; font-size: 16px;">R$ 0,00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botões -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #ddd; padding-top: 15px;">
+                <button onclick="fecharModalDesconto()" 
+                        style="padding: 12px 24px; background: #ccc; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Cancelar (ESC)
+                </button>
+                <button id="btnAplicarDesconto" onclick="confirmarDesconto()" disabled
+                        style="padding: 12px 24px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-check"></i> Aplicar Desconto
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL CANCELAR ITEM (F5) -->
+    <div id="modalCancelarItem" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #ef4444; padding-bottom: 10px;">
+                <i class="fas fa-trash-alt"></i> Cancelar Itens da Venda
+            </h3>
+            
+            <!-- Instruções -->
+            <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                <p style="margin: 0; color: #666; font-size: 14px;">
+                    <i class="fas fa-info-circle" style="color: #ef4444;"></i> 
+                    <strong>Selecione os itens que deseja cancelar.</strong> Você pode selecionar múltiplos itens marcando as caixas de seleção.
+                </p>
+            </div>
+            
+            <!-- Ações em massa -->
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button onclick="selecionarTodosItens()" 
+                        style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-check-double"></i> Selecionar Todos
+                </button>
+                <button onclick="desselecionarTodosItens()" 
+                        style="padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Limpar Seleção
+                </button>
+                <div style="flex: 1;"></div>
+                <span id="contador-selecionados" style="padding: 8px 16px; background: #f3f4f6; border-radius: 5px; font-weight: 600; color: #374151;">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i> 0 selecionado(s)
+                </span>
+            </div>
+            
+            <!-- Lista de Itens -->
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 20px; max-height: 400px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                        <tr style="background: #f0f9fa; border-bottom: 2px solid #ef4444;">
+                            <th style="padding: 10px; text-align: center; width: 60px;">
+                                <input type="checkbox" id="select-all-checkbox" 
+                                       onchange="toggleTodosItens(this)" 
+                                       style="width: 18px; height: 18px; cursor: pointer;">
+                            </th>
+                            <th style="padding: 10px; text-align: left; width: 50px;">#</th>
+                            <th style="padding: 10px; text-align: left;">Produto</th>
+                            <th style="padding: 10px; text-align: center; width: 80px;">Qtd</th>
+                            <th style="padding: 10px; text-align: right; width: 100px;">Vl. Unit</th>
+                            <th style="padding: 10px; text-align: right; width: 100px;">Desconto</th>
+                            <th style="padding: 10px; text-align: right; width: 120px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-cancelar-itens">
+                        <!-- Preenchido via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Resumo de Itens a Cancelar -->
+            <div id="resumo-cancelamento" style="display: none; background: #fef2f2; border: 2px solid #ef4444; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
+                    <div>
+                        <span style="color: #666;">Itens a cancelar:</span>
+                        <strong id="resumo-qtd-itens" style="color: #ef4444; font-size: 16px;">0</strong>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color: #666;">Valor total:</span>
+                        <strong id="resumo-valor-total" style="color: #ef4444; font-size: 18px;">R$ 0,00</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botões -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #ddd; padding-top: 15px;">
+                <button onclick="fecharModalCancelarItem()" 
+                        style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Cancelar (ESC)
+                </button>
+                <button id="btnConfirmarCancelamento" onclick="confirmarCancelamento()" disabled
+                        style="padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-trash-alt"></i> Cancelar Itens Selecionados
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL FINALIZAÇÃO (F9) -->
+    <div id="modalFinalizacao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; padding: 10px; overflow-y: auto;">
+        <div style="background: white; padding: 20px; border-radius: 10px; width: 100%; max-width: 1500px; max-height: calc(100vh - 20px); overflow-y: auto; box-shadow: 0 10px 50px rgba(0,0,0,0.5); margin: auto;">
+            <h3 style="margin: 0 0 20px 0; color: #071231; border-bottom: 3px solid #00A99D; padding-bottom: 10px;">
+                <i class="fas fa-check-circle"></i> Finalizar Venda
+            </h3>
+            
+            <!-- Resumo da Venda -->
+            <div style="background: #f0f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; font-size: 15px;">
+                    <div>
+                        <strong style="color: #0d7377;">Cliente:</strong>
+                        <div id="modal-fin-cliente" style="font-size: 15px;">**CLIENTE A VISTA**</div>
+                    </div>
+                    <div>
+                        <strong style="color: #0d7377;">Itens:</strong>
+                        <div id="modal-fin-itens" style="font-size: 15px;">0</div>
+                    </div>
+                    <div>
+                        <strong style="color: #0d7377;">Subtotal:</strong>
+                        <div id="modal-fin-subtotal" style="font-size: 15px;">R$ 0,00</div>
+                    </div>
+                    <div>
+                        <strong style="color: #0d7377;">Desconto:</strong>
+                        <div id="modal-fin-desconto" style="font-size: 15px; color: #f59e0b;">R$ 0,00</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #00A99D; text-align: center;">
+                    <strong style="color: #0d7377; font-size: 18px;">TOTAL A PAGAR:</strong>
+                    <div id="modal-fin-total" style="font-size: 32px; font-weight: bold; color: #00A99D;">R$ 0,00</div>
+                </div>
+            </div>
+            
+            <!-- Desconto no Total -->
+            <div style="background: #fef2f2; border: 2px solid #f59e0b; border-radius: 5px; padding: 12px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 16px; font-weight: 600; color: #0d7377;">
+                            <i class="fas fa-percent"></i> Desconto <kbd style="font-size: 12px; background: #f59e0b; color: white; padding: 2px 5px; border-radius: 3px;">F3</kbd>
+                        </label>
+                    </div>
+                    
+                    <!-- Percentual -->
+                    <div style="display: flex; flex-direction: column; min-width: 140px;">
+                        <label for="desconto-percentual" style="font-size: 14px; font-weight: 600; color: #0d7377; margin-bottom: 4px; text-align: center;">
+                            % Percentual
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="number" 
+                                   id="desconto-percentual" 
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   max="100"
+                                   style="width: 100px; padding: 8px; font-size: 18px; border: 2px solid #f59e0b; border-radius: 4px; text-align: right; font-weight: bold;">
+                            <span style="font-weight: bold; color: #f59e0b; font-size: 17px;">%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Valor -->
+                    <div style="display: flex; flex-direction: column; min-width: 140px;">
+                        <label for="desconto-valor" style="font-size: 14px; font-weight: 600; color: #0d7377; margin-bottom: 4px; text-align: center;">
+                            R$ Valor
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span style="font-weight: bold; color: #f59e0b; font-size: 17px;">R$</span>
+                            <input type="number" 
+                                   id="desconto-valor" 
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="width: 100px; padding: 8px; font-size: 18px; border: 2px solid #f59e0b; border-radius: 4px; text-align: right; font-weight: bold;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Formas de Pagamento -->
+            <div style="background: #fff7ed; border: 2px solid #00A99D; border-radius: 5px; padding: 15px; margin-bottom: 15px; overflow: visible;">
+                <h4 style="margin: 0 0 12px 0; color: #0d7377; font-size: 17px;">
+                    <i class="fas fa-credit-card"></i> Formas de Pagamento
+                </h4>
+                
+                <!-- Grid Horizontal - Todos em 1 linha -->
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 10px; overflow: visible; width: 100%;">
+                    <!-- Dinheiro -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-dinheiro" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            💵 Dinheiro
+                            <kbd style="font-size: 11px; background: #f59e0b; color: white; padding: 2px 4px; border-radius: 2px;">F6</kbd>
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-dinheiro" 
+                                   class="input-pagamento"
+                                   data-forma="dinheiro"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-dinheiro')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cartão Débito -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-debito" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            💳 Débito
+                            <kbd style="font-size: 11px; background: #f59e0b; color: white; padding: 2px 4px; border-radius: 2px;">F7</kbd>
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-debito" 
+                                   class="input-pagamento"
+                                   data-forma="debito"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-debito')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cartão Crédito -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-credito" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            💳 Crédito
+                            <kbd style="font-size: 11px; background: #f59e0b; color: white; padding: 2px 4px; border-radius: 2px;">F8</kbd>
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch; margin-bottom: 6px;">
+                            <input type="number" 
+                                   id="valor-credito" 
+                                   class="input-pagamento"
+                                   data-forma="credito"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   onchange="mostrarOpcoesCredito()"
+                                   onfocus="mostrarOpcoesCredito()"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-credito')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <!-- Opcoes de Parcelas -->
+                        <div id="opcoes-credito" style="display: none;">
+                            <select id="parcelas-credito" style="width: 100%; padding: 6px; font-size: 14px; border: 1px solid #14b0b8; border-radius: 4px;">
+                                <option value="1">1x (a vista)</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                                <option value="5">5x</option>
+                                <option value="6">6x</option>
+                                <option value="7">7x</option>
+                                <option value="8">8x</option>
+                                <option value="9">9x</option>
+                                <option value="10">10x</option>
+                                <option value="11">11x</option>
+                                <option value="12">12x</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- PIX -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-pix" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            📱 PIX
+                            <kbd style="font-size: 11px; background: #f59e0b; color: white; padding: 2px 4px; border-radius: 2px;">F10</kbd>
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-pix" 
+                                   class="input-pagamento"
+                                   data-forma="pix"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-pix')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Crediario -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-crediario" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            📋 Crediario
+                            <kbd style="font-size: 11px; background: #f59e0b; color: white; padding: 2px 4px; border-radius: 2px;">F11</kbd>
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch; margin-bottom: 6px;">
+                            <input type="number" 
+                                   id="valor-crediario" 
+                                   class="input-pagamento"
+                                   data-forma="crediario"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   onchange="mostrarOpcoesCrediario()"
+                                   onfocus="mostrarOpcoesCrediario()"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-crediario')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <!-- Opcoes de Crediario -->
+                        <div id="opcoes-crediario" style="display: none;">
+                            <select id="parcelas-crediario" style="width: 100%; padding: 6px; font-size: 14px; border: 1px solid #14b0b8; border-radius: 4px; margin-bottom: 4px;">
+                                <option value="1">1x (30 dias)</option>
+                                <option value="2">2x (30/60)</option>
+                                <option value="3">3x (30/60/90)</option>
+                                <option value="4">4x</option>
+                                <option value="5">5x</option>
+                                <option value="6">6x</option>
+                                <option value="10">10x</option>
+                                <option value="12">12x</option>
+                            </select>
+                            <small style="color: #666; font-size: 11px;">Cliente deve estar cadastrado</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Segunda linha: Boleto e outros -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
+                    <!-- Boleto -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-boleto" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            📄 Boleto
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-boleto" 
+                                   class="input-pagamento"
+                                   data-forma="boleto"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-boleto')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Transferencia -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-transferencia" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            🏦 Transferencia
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-transferencia" 
+                                   class="input-pagamento"
+                                   data-forma="transferencia"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-transferencia')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cheque -->
+                    <div style="background: white; padding: 12px; border-radius: 5px; border: 2px solid #e5e7eb; min-width: 0;">
+                        <label for="valor-cheque" style="font-size: 14px; font-weight: 600; color: #0d7377; display: block; margin-bottom: 8px; text-align: center;">
+                            📝 Cheque
+                        </label>
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="number" 
+                                   id="valor-cheque" 
+                                   class="input-pagamento"
+                                   data-forma="cheque"
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0"
+                                   style="flex: 1; padding: 10px 8px; font-size: 17px; border: 2px solid #14b0b8; border-radius: 4px; text-align: right; font-weight: bold; min-width: 0;">
+                            <button onclick="limparCampoPagamento('valor-cheque')" 
+                                    style="padding: 8px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex-shrink: 0;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <small style="display: block; text-align: center; color: #666; font-size: 13px;">
+                    <i class="fas fa-info-circle"></i> Use <strong>Tab</strong> ou atalhos <strong>F6-F11</strong> para navegar
+                </small>
+            </div>
+            
+            <!-- Lista de Pagamentos -->
+            <div id="lista-pagamentos-container" style="display: none; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #0d7377;">
+                    <i class="fas fa-list"></i> Pagamentos Adicionados
+                </h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 10px;">
+                    <thead>
+                        <tr style="background: #f3f4f6; border-bottom: 2px solid #00A99D;">
+                            <th style="padding: 10px; text-align: left; width: 50px;">#</th>
+                            <th style="padding: 10px; text-align: left;">Forma</th>
+                            <th style="padding: 10px; text-align: right; width: 120px;">Valor</th>
+                            <th style="padding: 10px; text-align: center; width: 60px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-pagamentos">
+                        <!-- Preenchido via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Status do Pagamento -->
+            <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 2px solid #e5e7eb;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; text-align: center;">
+                    <div>
+                        <span style="color: #666; font-size: 15px;">Total da Venda:</span>
+                        <div id="status-total-venda" style="font-size: 20px; font-weight: bold; color: #0d7377;">R$ 0,00</div>
+                    </div>
+                    <div>
+                        <span style="color: #666; font-size: 15px;">Já Pago:</span>
+                        <div id="status-total-pago" style="font-size: 20px; font-weight: bold; color: #10b981;">R$ 0,00</div>
+                    </div>
+                    <div>
+                        <span style="color: #666; font-size: 15px;">Falta Pagar:</span>
+                        <div id="status-total-restante" style="font-size: 20px; font-weight: bold; color: #ef4444;">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Troco (se houver) -->
+            <div id="aviso-troco" style="display: none; margin-bottom: 15px; padding: 12px; background: #e8f5e9; border-radius: 5px; border-left: 4px solid #4caf50; text-align: center;">
+                <strong style="color: #2e7d32; font-size: 16px;">💵 TROCO A DEVOLVER:</strong>
+                <div id="valor-troco" style="font-size: 24px; font-weight: bold; color: #2e7d32;">R$ 0,00</div>
+            </div>
+            
+            <!-- Botões -->
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button onclick="fecharModalFinalizacao()" 
+                        style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; font-weight: 600;">
+                    <i class="fas fa-times"></i> Cancelar (ESC)
+                </button>
+                <button id="btnConfirmarVenda" onclick="confirmarFinalizacao()" disabled
+                        style="padding: 12px 28px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: 600;">
+                    <i class="fas fa-check"></i> CONFIRMAR VENDA (F9)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RODAPÉ -->
+    <div class="pdv-footer">
+        <!-- Info Sistema (esquerda) -->
+        <div class="pdv-footer-left">
+            <div><span class="pdv-status-dot"></span> On-line</div>
+            <div>|</div>
+            <div id="pdv-clock-footer">00:00:00</div>
+            <div>|</div>
+        </div>
+        
+        <!-- Botões de Ação (direita) -->
+        <div class="pdv-footer-right">
+            <a href="/" class="pdv-btn pdv-btn-warning" title="Voltar ao Menu Principal (ESC)">
+                <i class="fas fa-bars"></i>
+                Menu
+                <kbd>ESC</kbd>
+            </a>
+            <button class="pdv-btn pdv-btn-info" onclick="abrirModalClientes()" id="btnCliente">
+                <i class="fas fa-user"></i>
+                Cliente
+                <kbd>F2</kbd>
+            </button>
+            <button class="pdv-btn pdv-btn-warning" onclick="abrirModalDesconto()" style="background: #f59e0b;" id="btnDescontoItem">
+                <i class="fas fa-percentage"></i>
+                Desconto Item
+                <kbd>F4</kbd>
+            </button>
+            <button class="pdv-btn pdv-btn-danger" onclick="cancelarItem()" id="btnCancelarItem">
+                <i class="fas fa-times-circle"></i>
+                Cancelar Item
+                <kbd>F5</kbd>
+            </button>
+            <button class="pdv-btn pdv-btn-primary" onclick="abrirModalProdutos()" id="btnBuscarProduto">
+                <i class="fas fa-search"></i>
+                Buscar Produto
+                <kbd>F6</kbd>
+            </button>
+            <button class="pdv-btn pdv-btn-success" onclick="finalizarVenda()">
+                <i class="fas fa-check-circle"></i>
+                <strong>FINALIZAR</strong>
+                <kbd>F9</kbd>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DO RELÓGIO -->
+<script>
+    function atualizarRelogio() {
+        const agora = new Date();
+        const hora = agora.toLocaleTimeString('pt-BR');
+        document.getElementById('pdv-clock-footer').textContent = hora;
+    }
+    setInterval(atualizarRelogio, 1000);
+    atualizarRelogio();
+    
+    // Focar no input produto
+    window.addEventListener('load', function() {
+        document.getElementById('inputProduto').focus();
+    });
+    
+    // Atalhos de teclado
+    document.addEventListener('keydown', function(e) {
+        // ESC - Voltar ao Menu
+        if (e.key === 'Escape') {
+            if (confirm('Deseja sair do PDV e voltar ao menu principal?')) {
+                window.location.href = '/';
+            }
+        }
+        // F2 - Cliente
+        if (e.key === 'F2') {
+            e.preventDefault();
+            abrirModalCliente();
+        }
+        // F4 - Desconto no Item
+        if (e.key === 'F4') {
+            e.preventDefault();
+            abrirModalDesconto();
+        }
+        // F5 - Cancelar Item
+        if (e.key === 'F5') {
+            e.preventDefault();
+            cancelarItem();
+        }
+        // F9 - Finalizar Venda
+        if (e.key === 'F9') {
+            e.preventDefault();
+            finalizarVenda();
+        }
+    });
+    
+    // ===== FUNÇÕES DOS BOTÕES =====
+    // (Funções abrirModalClientes() e abrirModalProdutos() implementadas)
+    
+    let itensSelecionadosCancelamento = [];
+    
+    async function cancelarItem() {
+        console.log('[PDV] 🗑️ Abrindo modal de cancelamento...');
+        
+        // Buscar carrinho atual
+        try {
+            const response = await fetch('/vendas/pdv/carrinho-atual');
+            const data = await response.json();
+            
+            if (!data.success || !data.carrinho || !data.carrinho.itens || data.carrinho.itens.length === 0) {
+                alert('⚠️ Não há itens para cancelar!');
+                return;
+            }
+            
+            const carrinho = data.carrinho;
+            console.log('[PDV] Carrinho com', carrinho.itens.length, 'itens');
+            
+            // Limpar seleção anterior
+            itensSelecionadosCancelamento = [];
+            atualizarContadorCancelamento();
+            
+            // Popular lista de itens
+            const tbody = document.getElementById('modal-cancelar-itens');
+            tbody.innerHTML = '';
+            
+            carrinho.itens.forEach((item, index) => {
+                const totalItem = item.subtotal - (item.desconto || 0);
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #eee';
+                tr.style.cursor = 'pointer';
+                tr.id = `cancelar-row-${item.produto_id}`;
+                
+                tr.innerHTML = `
+                    <td style="padding: 10px; text-align: center;">
+                        <input type="checkbox" 
+                               class="checkbox-cancelar-item" 
+                               data-produto-id="${item.produto_id}"
+                               data-produto-nome="${item.nome.replace(/"/g, '&quot;')}"
+                               data-produto-total="${totalItem.toFixed(2)}"
+                               onchange="toggleItemCancelamento(this)"
+                               style="width: 18px; height: 18px; cursor: pointer;">
+                    </td>
+                    <td style="padding: 10px;">${index + 1}</td>
+                    <td style="padding: 10px; font-size: 12px;">${item.nome}</td>
+                    <td style="padding: 10px; text-align: center;">${item.quantidade.toFixed(3)}</td>
+                    <td style="padding: 10px; text-align: right;">R$ ${item.preco_unitario.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right;">R$ ${(item.desconto || 0).toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right; font-weight: bold;">R$ ${totalItem.toFixed(2)}</td>
+                `;
+                
+                // Clique na linha seleciona o checkbox
+                tr.addEventListener('click', function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = tr.querySelector('.checkbox-cancelar-item');
+                        checkbox.checked = !checkbox.checked;
+                        toggleItemCancelamento(checkbox);
+                    }
+                });
+                
+                tbody.appendChild(tr);
+            });
+            
+            // Mostrar modal
+            document.getElementById('modalCancelarItem').style.display = 'flex';
+            
+        } catch (error) {
+            console.error('[PDV] Erro ao buscar carrinho:', error);
+            alert('❌ Erro ao buscar itens do carrinho');
+        }
+    }
+    
+    function toggleItemCancelamento(checkbox) {
+        const produtoId = parseInt(checkbox.dataset.produtoId);
+        const produtoNome = checkbox.dataset.produtoNome;
+        const produtoTotal = parseFloat(checkbox.dataset.produtoTotal);
+        
+        const row = document.getElementById(`cancelar-row-${produtoId}`);
+        
+        if (checkbox.checked) {
+            // Adicionar à lista
+            itensSelecionadosCancelamento.push({
+                produto_id: produtoId,
+                nome: produtoNome,
+                total: produtoTotal
+            });
+            // Highlight na linha
+            row.style.background = '#fef2f2';
+        } else {
+            // Remover da lista
+            itensSelecionadosCancelamento = itensSelecionadosCancelamento.filter(
+                item => item.produto_id !== produtoId
+            );
+            // Remover highlight
+            row.style.background = '';
+        }
+        
+        atualizarContadorCancelamento();
+    }
+    
+    function toggleTodosItens(checkbox) {
+        const checkboxes = document.querySelectorAll('.checkbox-cancelar-item');
+        checkboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            toggleItemCancelamento(cb);
+        });
+    }
+    
+    function selecionarTodosItens() {
+        const checkboxes = document.querySelectorAll('.checkbox-cancelar-item');
+        checkboxes.forEach(cb => {
+            if (!cb.checked) {
+                cb.checked = true;
+                toggleItemCancelamento(cb);
+            }
+        });
+        document.getElementById('select-all-checkbox').checked = true;
+    }
+    
+    function desselecionarTodosItens() {
+        const checkboxes = document.querySelectorAll('.checkbox-cancelar-item');
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                cb.checked = false;
+                toggleItemCancelamento(cb);
+            }
+        });
+        document.getElementById('select-all-checkbox').checked = false;
+    }
+    
+    function atualizarContadorCancelamento() {
+        const qtd = itensSelecionadosCancelamento.length;
+        const total = itensSelecionadosCancelamento.reduce((sum, item) => sum + item.total, 0);
+        
+        // Atualizar contador
+        document.getElementById('contador-selecionados').innerHTML = 
+            `<i class="fas fa-check-circle" style="color: ${qtd > 0 ? '#10b981' : '#9ca3af'};"></i> ${qtd} selecionado(s)`;
+        
+        // Atualizar resumo
+        const resumoDiv = document.getElementById('resumo-cancelamento');
+        const btnConfirmar = document.getElementById('btnConfirmarCancelamento');
+        
+        if (qtd > 0) {
+            resumoDiv.style.display = 'block';
+            document.getElementById('resumo-qtd-itens').textContent = qtd;
+            document.getElementById('resumo-valor-total').textContent = `R$ ${total.toFixed(2)}`;
+            btnConfirmar.disabled = false;
+            btnConfirmar.style.opacity = '1';
+            btnConfirmar.style.cursor = 'pointer';
+        } else {
+            resumoDiv.style.display = 'none';
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        }
+    }
+    
+    async function confirmarCancelamento() {
+        if (itensSelecionadosCancelamento.length === 0) {
+            alert('⚠️ Nenhum item selecionado!');
+            return;
+        }
+        
+        const qtd = itensSelecionadosCancelamento.length;
+        const total = itensSelecionadosCancelamento.reduce((sum, item) => sum + item.total, 0);
+        
+        const mensagem = `⚠️ ATENÇÃO!\n\nVocê está prestes a cancelar ${qtd} item(ns) no valor de R$ ${total.toFixed(2)}.\n\nDeseja continuar?`;
+        
+        if (!confirm(mensagem)) {
+            return;
+        }
+        
+        console.log('[PDV] Cancelando itens:', itensSelecionadosCancelamento);
+        
+        try {
+            const produtosIds = itensSelecionadosCancelamento.map(item => item.produto_id);
+            
+            const response = await fetch('/vendas/pdv/cancelar-itens', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    produtos_ids: produtosIds
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('[PDV] ✅ Itens cancelados com sucesso!');
+                
+                // Atualizar grid
+                atualizarGrid(data.carrinho);
+                
+                // Fechar modal
+                fecharModalCancelarItem();
+                
+                // Notificar
+                alert(`✅ ${qtd} item(ns) cancelado(s) com sucesso!`);
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        } catch (error) {
+            console.error('[PDV] Erro ao cancelar itens:', error);
+            alert('❌ Erro ao cancelar itens');
+        }
+    }
+    
+    function fecharModalCancelarItem() {
+        document.getElementById('modalCancelarItem').style.display = 'none';
+        itensSelecionadosCancelamento = [];
+        document.getElementById('select-all-checkbox').checked = false;
+    }
+    
+    // Event listeners do modal de cancelamento
+    document.addEventListener('DOMContentLoaded', function() {
+        // ESC fecha modal de cancelamento
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('modalCancelarItem');
+            if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                fecharModalCancelarItem();
+            }
+        });
+        
+        // Event listeners para campos de pagamento e desconto (atualizar status em tempo real)
+        
+        // Campo de percentual de desconto
+        document.getElementById('desconto-percentual').addEventListener('input', function() {
+            const percentual = parseFloat(this.value) || 0;
+            if (percentual >= 0 && percentual <= 100) {
+                const valorDesconto = (subtotalOriginal * percentual) / 100;
+                document.getElementById('desconto-valor').value = valorDesconto > 0 ? valorDesconto.toFixed(2) : '';
+                atualizarStatusPagamento();
+            }
+        });
+        
+        // Campo de valor de desconto
+        document.getElementById('desconto-valor').addEventListener('input', function() {
+            const valorDesconto = parseFloat(this.value) || 0;
+            if (valorDesconto >= 0 && subtotalOriginal > 0) {
+                const percentual = (valorDesconto / subtotalOriginal) * 100;
+                document.getElementById('desconto-percentual').value = percentual > 0 ? percentual.toFixed(2) : '';
+                atualizarStatusPagamento();
+            }
+        });
+        
+        document.getElementById('valor-dinheiro').addEventListener('input', atualizarStatusPagamento);
+        document.getElementById('valor-debito').addEventListener('input', atualizarStatusPagamento);
+        document.getElementById('valor-credito').addEventListener('input', atualizarStatusPagamento);
+        document.getElementById('valor-pix').addEventListener('input', atualizarStatusPagamento);
+        document.getElementById('valor-boleto').addEventListener('input', atualizarStatusPagamento);
+        
+        // Novos campos de pagamento
+        if (document.getElementById('valor-crediario')) {
+            document.getElementById('valor-crediario').addEventListener('input', atualizarStatusPagamento);
+        }
+        if (document.getElementById('valor-transferencia')) {
+            document.getElementById('valor-transferencia').addEventListener('input', atualizarStatusPagamento);
+        }
+        if (document.getElementById('valor-cheque')) {
+            document.getElementById('valor-cheque').addEventListener('input', atualizarStatusPagamento);
+        }
+    });
+    
+    let itemDescontoSelecionado = null;
+    
+    async function abrirModalDesconto() {
+        console.log('[PDV] 💰 Abrindo modal de desconto...');
+        
+        // Buscar carrinho atual
+        try {
+            const response = await fetch('/vendas/pdv/carrinho-atual');
+            const data = await response.json();
+            
+            if (!data.success || !data.carrinho || !data.carrinho.itens || data.carrinho.itens.length === 0) {
+                alert('⚠️ Adicione produtos antes de aplicar desconto!');
+                return;
+            }
+            
+            const carrinho = data.carrinho;
+            console.log('[PDV] Carrinho com', carrinho.itens.length, 'itens');
+            
+            // Limpar seleção anterior
+            itemDescontoSelecionado = null;
+            document.getElementById('modal-desconto-painel').style.display = 'none';
+            document.getElementById('btnAplicarDesconto').disabled = true;
+            
+            // Popular lista de itens
+            const tbody = document.getElementById('modal-desconto-itens');
+            tbody.innerHTML = '';
+            
+            carrinho.itens.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #eee';
+                tr.innerHTML = `
+                    <td style="padding: 10px;">${index + 1}</td>
+                    <td style="padding: 10px; font-size: 12px;">${item.nome}</td>
+                    <td style="padding: 10px; text-align: center;">${item.quantidade.toFixed(3)}</td>
+                    <td style="padding: 10px; text-align: right;">R$ ${item.preco_unitario.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right;">R$ ${item.subtotal.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <button onclick="selecionarItemDesconto(${item.produto_id})" 
+                                style="padding: 6px 12px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            <i class="fas fa-check"></i> Selecionar
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Mostrar modal
+            document.getElementById('modalDesconto').style.display = 'flex';
+            
+        } catch (error) {
+            console.error('[PDV] Erro ao buscar carrinho:', error);
+            alert('❌ Erro ao buscar itens do carrinho');
+        }
+    }
+    
+    async function selecionarItemDesconto(produtoId) {
+        console.log('[PDV] Item selecionado para desconto:', produtoId);
+        
+        // Buscar dados do item
+        const response = await fetch('/vendas/pdv/carrinho-atual');
+        const data = await response.json();
+        const item = data.carrinho.itens.find(i => i.produto_id === produtoId);
+        
+        if (!item) {
+            alert('❌ Item não encontrado!');
+            return;
+        }
+        
+        itemDescontoSelecionado = item;
+        
+        // Atualizar painel de desconto
+        document.getElementById('modal-desconto-item-nome').textContent = item.nome;
+        document.getElementById('modal-desconto-item-qtd').textContent = item.quantidade.toFixed(3);
+        document.getElementById('modal-desconto-item-preco').textContent = `R$ ${item.preco_unitario.toFixed(2)}`;
+        document.getElementById('modal-desconto-item-subtotal').textContent = `R$ ${item.subtotal.toFixed(2)}`;
+        document.getElementById('modal-desconto-item-desc-atual').textContent = `R$ ${(item.desconto || 0).toFixed(2)}`;
+        
+        // Resetar campos
+        document.getElementById('modal-desconto-valor').value = '';
+        document.querySelectorAll('input[name="tipoDesconto"]')[0].checked = true;
+        atualizarTipoDesconto();
+        
+        // Mostrar painel
+        document.getElementById('modal-desconto-painel').style.display = 'block';
+        
+        // Focar no campo
+        setTimeout(() => {
+            document.getElementById('modal-desconto-valor').focus();
+        }, 100);
+    }
+    
+    function atualizarTipoDesconto() {
+        const tipo = document.querySelector('input[name="tipoDesconto"]:checked').value;
+        const label = document.getElementById('modal-desconto-label');
+        const hint = document.getElementById('modal-desconto-hint');
+        const max = document.getElementById('modal-desconto-max');
+        const input = document.getElementById('modal-desconto-valor');
+        
+        if (tipo === 'percentual') {
+            label.textContent = 'Percentual de desconto:';
+            input.placeholder = 'Ex: 10';
+            max.textContent = '100%';
+            hint.innerHTML = `Valor máximo: <span id="modal-desconto-max">100%</span>`;
+        } else {
+            label.textContent = 'Valor do desconto (R$):';
+            input.placeholder = 'Ex: 5.50';
+            const maxValor = itemDescontoSelecionado ? itemDescontoSelecionado.subtotal : 0;
+            max.textContent = `R$ ${maxValor.toFixed(2)}`;
+            hint.innerHTML = `Valor máximo: <span id="modal-desconto-max">R$ ${maxValor.toFixed(2)}</span>`;
+        }
+        
+        calcularPreviewDesconto();
+    }
+    
+    function calcularPreviewDesconto() {
+        if (!itemDescontoSelecionado) return;
+        
+        const tipo = document.querySelector('input[name="tipoDesconto"]:checked').value;
+        const valor = parseFloat(document.getElementById('modal-desconto-valor').value) || 0;
+        
+        let descontoCalculado = 0;
+        
+        if (tipo === 'percentual') {
+            // Validar percentual
+            if (valor < 0 || valor > 100) {
+                document.getElementById('modal-desconto-preview-desc').textContent = 'Inválido';
+                document.getElementById('modal-desconto-preview-total').textContent = 'Inválido';
+                document.getElementById('btnAplicarDesconto').disabled = true;
+                return;
+            }
+            descontoCalculado = (itemDescontoSelecionado.subtotal * valor) / 100;
+        } else {
+            // Validar valor
+            if (valor < 0 || valor > itemDescontoSelecionado.subtotal) {
+                document.getElementById('modal-desconto-preview-desc').textContent = 'Inválido';
+                document.getElementById('modal-desconto-preview-total').textContent = 'Inválido';
+                document.getElementById('btnAplicarDesconto').disabled = true;
+                return;
+            }
+            descontoCalculado = valor;
+        }
+        
+        const totalItem = itemDescontoSelecionado.subtotal - descontoCalculado;
+        
+        document.getElementById('modal-desconto-preview-desc').textContent = `R$ ${descontoCalculado.toFixed(2)}`;
+        document.getElementById('modal-desconto-preview-total').textContent = `R$ ${totalItem.toFixed(2)}`;
+        document.getElementById('btnAplicarDesconto').disabled = false;
+    }
+    
+    async function confirmarDesconto() {
+        if (!itemDescontoSelecionado) {
+            alert('❌ Nenhum item selecionado!');
+            return;
+        }
+        
+        const tipo = document.querySelector('input[name="tipoDesconto"]:checked').value;
+        const valor = parseFloat(document.getElementById('modal-desconto-valor').value) || 0;
+        
+        if (valor <= 0) {
+            alert('⚠️ Informe um valor de desconto válido!');
+            return;
+        }
+        
+        console.log('[PDV] Aplicando desconto:', tipo, valor);
+        
+        try {
+            const response = await fetch('/vendas/pdv/aplicar-desconto-item', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    produto_id: itemDescontoSelecionado.produto_id,
+                    tipo: tipo,
+                    valor: valor
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('[PDV] ✅ Desconto aplicado com sucesso!');
+                
+                // Atualizar grid
+                atualizarGrid(data.carrinho);
+                
+                // Fechar modal
+                fecharModalDesconto();
+                
+                // Notificar
+                alert(`✅ Desconto de R$ ${data.desconto_aplicado.toFixed(2)} aplicado com sucesso!`);
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        } catch (error) {
+            console.error('[PDV] Erro ao aplicar desconto:', error);
+            alert('❌ Erro ao aplicar desconto');
+        }
+    }
+    
+    function fecharModalDesconto() {
+        document.getElementById('modalDesconto').style.display = 'none';
+        itemDescontoSelecionado = null;
+    }
+    
+    // Event listeners do modal de desconto
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mudar tipo de desconto
+        document.querySelectorAll('input[name="tipoDesconto"]').forEach(radio => {
+            radio.addEventListener('change', atualizarTipoDesconto);
+        });
+        
+        // Calcular preview ao digitar
+        const inputDesconto = document.getElementById('modal-desconto-valor');
+        if (inputDesconto) {
+            inputDesconto.addEventListener('input', calcularPreviewDesconto);
+        }
+        
+        // ESC fecha modal de desconto
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('modalDesconto');
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                fecharModalDesconto();
+            }
+        });
+    });
+    
+    function finalizarVenda() {
+        console.log('💰 Iniciando finalização de venda...');
+        
+        // Verificar se tem itens no carrinho
+        fetch('/vendas/pdv/obter-carrinho', {
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.carrinho || !data.carrinho.itens || data.carrinho.itens.length === 0) {
+                alert('⚠️ Adicione produtos antes de finalizar a venda!');
+                return;
+            }
+            
+            // Abrir modal de finalização
+            abrirModalFinalizacao(data.carrinho);
+        })
+        .catch(error => {
+            console.error('❌ Erro ao verificar carrinho:', error);
+            alert('❌ Erro ao verificar carrinho.');
+        });
+    }
+    
+    let totalVendaAtual = 0;
+    let subtotalOriginal = 0;
+    let descontoItensOriginal = 0;
+    
+    function abrirModalFinalizacao(carrinho) {
+        console.log('📋 Abrindo modal de finalização:', carrinho);
+        
+        const modal = document.getElementById('modalFinalizacao');
+        
+        // Salvar valores originais
+        subtotalOriginal = carrinho.subtotal;
+        descontoItensOriginal = carrinho.desconto_total;
+        totalVendaAtual = carrinho.total;
+        
+        // Preencher dados do resumo
+        document.getElementById('modal-fin-cliente').textContent = carrinho.cliente_nome || '**CLIENTE A VISTA**';
+        document.getElementById('modal-fin-itens').textContent = carrinho.itens.length;
+        document.getElementById('modal-fin-subtotal').textContent = `R$ ${carrinho.subtotal.toFixed(2)}`;
+        document.getElementById('modal-fin-desconto').textContent = `R$ ${carrinho.desconto_total.toFixed(2)}`;
+        document.getElementById('modal-fin-total').textContent = `R$ ${carrinho.total.toFixed(2)}`;
+        
+        // Limpar todos os campos de pagamento
+        document.getElementById('valor-dinheiro').value = '';
+        document.getElementById('valor-debito').value = '';
+        document.getElementById('valor-credito').value = '';
+        document.getElementById('valor-pix').value = '';
+        document.getElementById('valor-boleto').value = '';
+        
+        // Preencher campos de desconto com valores dos itens (se houver)
+        if (descontoItensOriginal > 0) {
+            document.getElementById('desconto-valor').value = descontoItensOriginal.toFixed(2);
+            const percentual = (descontoItensOriginal / subtotalOriginal) * 100;
+            document.getElementById('desconto-percentual').value = percentual.toFixed(2);
+        } else {
+            document.getElementById('desconto-valor').value = '';
+            document.getElementById('desconto-percentual').value = '';
+        }
+        
+        // Atualizar status
+        atualizarStatusPagamento();
+        
+        // Esconder lista de pagamentos
+        document.getElementById('lista-pagamentos-container').style.display = 'none';
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        
+        // Focar no primeiro campo (dinheiro)
+        setTimeout(() => {
+            document.getElementById('valor-dinheiro').focus();
+        }, 100);
+        
+        // Atalhos de teclado
+        document.onkeydown = function(e) {
+            const modal = document.getElementById('modalFinalizacao');
+            if (modal.style.display !== 'flex') return;
+            
+            // ESC fecha modal
+            if (e.key === 'Escape') {
+                fecharModalFinalizacao();
+                return;
+            }
+            
+            // F3 - Desconto em Valor
+            if (e.key === 'F3') {
+                e.preventDefault();
+                document.getElementById('desconto-valor').focus();
+                document.getElementById('desconto-valor').select();
+            }
+            // F6 - Dinheiro
+            else if (e.key === 'F6') {
+                e.preventDefault();
+                document.getElementById('valor-dinheiro').focus();
+                document.getElementById('valor-dinheiro').select();
+            }
+            // F7 - Débito
+            else if (e.key === 'F7') {
+                e.preventDefault();
+                document.getElementById('valor-debito').focus();
+                document.getElementById('valor-debito').select();
+            }
+            // F8 - Crédito
+            else if (e.key === 'F8') {
+                e.preventDefault();
+                document.getElementById('valor-credito').focus();
+                document.getElementById('valor-credito').select();
+            }
+            // F10 - PIX
+            else if (e.key === 'F10') {
+                e.preventDefault();
+                document.getElementById('valor-pix').focus();
+                document.getElementById('valor-pix').select();
+            }
+            // F11 - Boleto
+            else if (e.key === 'F11') {
+                e.preventDefault();
+                document.getElementById('valor-boleto').focus();
+                document.getElementById('valor-boleto').select();
+            }
+            // F9 confirma
+            else if (e.key === 'F9') {
+                e.preventDefault();
+                confirmarFinalizacao();
+            }
+        };
+    }
+    
+    function limparCampoPagamento(campoId) {
+        document.getElementById(campoId).value = '';
+        atualizarStatusPagamento();
+        document.getElementById(campoId).focus();
+        
+        // Esconder opcoes se limpar credito ou crediario
+        if (campoId === 'valor-credito') {
+            document.getElementById('opcoes-credito').style.display = 'none';
+        }
+        if (campoId === 'valor-crediario') {
+            document.getElementById('opcoes-crediario').style.display = 'none';
+        }
+    }
+    
+    // Mostrar opcoes de parcelas do cartao de credito
+    function mostrarOpcoesCredito() {
+        const valor = parseFloat(document.getElementById('valor-credito').value) || 0;
+        const opcoes = document.getElementById('opcoes-credito');
+        if (valor > 0) {
+            opcoes.style.display = 'block';
+        } else {
+            opcoes.style.display = 'none';
+        }
+    }
+    
+    // Mostrar opcoes de parcelas do crediario
+    function mostrarOpcoesCrediario() {
+        const valor = parseFloat(document.getElementById('valor-crediario').value) || 0;
+        const opcoes = document.getElementById('opcoes-crediario');
+        if (valor > 0) {
+            opcoes.style.display = 'block';
+            // Verificar se tem cliente cadastrado
+            const clienteNome = document.getElementById('cliente-nome')?.textContent || '';
+            if (clienteNome.includes('CLIENTE A VISTA') || !clienteNome) {
+                alert('Crediario requer cliente cadastrado! Selecione um cliente primeiro (F2).');
+            }
+        } else {
+            opcoes.style.display = 'none';
+        }
+    }
+    
+    function obterPagamentosDosCampos() {
+        const pagamentos = [];
+        
+        const valorDinheiro = parseFloat(document.getElementById('valor-dinheiro').value) || 0;
+        const valorDebito = parseFloat(document.getElementById('valor-debito').value) || 0;
+        const valorCredito = parseFloat(document.getElementById('valor-credito').value) || 0;
+        const valorPix = parseFloat(document.getElementById('valor-pix').value) || 0;
+        const valorBoleto = parseFloat(document.getElementById('valor-boleto').value) || 0;
+        const valorCrediario = parseFloat(document.getElementById('valor-crediario')?.value) || 0;
+        const valorTransferencia = parseFloat(document.getElementById('valor-transferencia')?.value) || 0;
+        const valorCheque = parseFloat(document.getElementById('valor-cheque')?.value) || 0;
+        
+        if (valorDinheiro > 0) {
+            pagamentos.push({ forma: 'dinheiro', valor: valorDinheiro });
+        }
+        if (valorDebito > 0) {
+            pagamentos.push({ forma: 'debito', valor: valorDebito });
+        }
+        if (valorCredito > 0) {
+            const parcelas = parseInt(document.getElementById('parcelas-credito')?.value) || 1;
+            pagamentos.push({ forma: 'credito', valor: valorCredito, parcelas: parcelas });
+        }
+        if (valorPix > 0) {
+            pagamentos.push({ forma: 'pix', valor: valorPix });
+        }
+        if (valorBoleto > 0) {
+            pagamentos.push({ forma: 'boleto', valor: valorBoleto });
+        }
+        if (valorCrediario > 0) {
+            const parcelas = parseInt(document.getElementById('parcelas-crediario')?.value) || 1;
+            pagamentos.push({ forma: 'crediario', valor: valorCrediario, parcelas: parcelas });
+        }
+        if (valorTransferencia > 0) {
+            pagamentos.push({ forma: 'transferencia', valor: valorTransferencia });
+        }
+        if (valorCheque > 0) {
+            pagamentos.push({ forma: 'cheque', valor: valorCheque });
+        }
+        
+        return pagamentos;
+    }
+    
+    function atualizarStatusPagamento() {
+        // Obter desconto adicional no total (pegar do campo valor)
+        const descontoAdicional = parseFloat(document.getElementById('desconto-valor').value) || 0;
+        
+        // Recalcular total com desconto adicional
+        const totalComDesconto = subtotalOriginal - descontoAdicional;
+        totalVendaAtual = Math.max(0, totalComDesconto);
+        
+        // Atualizar exibição do total
+        document.getElementById('modal-fin-total').textContent = `R$ ${totalVendaAtual.toFixed(2)}`;
+        document.getElementById('modal-fin-desconto').textContent = `R$ ${descontoAdicional.toFixed(2)}`;
+        
+        const pagamentos = obterPagamentosDosCampos();
+        const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+        const restante = totalVendaAtual - totalPago;
+        const troco = totalPago > totalVendaAtual ? (totalPago - totalVendaAtual) : 0;
+        
+        // Atualizar status
+        document.getElementById('status-total-venda').textContent = `R$ ${totalVendaAtual.toFixed(2)}`;
+        document.getElementById('status-total-pago').textContent = `R$ ${totalPago.toFixed(2)}`;
+        document.getElementById('status-total-restante').textContent = `R$ ${restante.toFixed(2)}`;
+        
+        // Mudar cor do restante
+        const elementoRestante = document.getElementById('status-total-restante');
+        if (restante <= 0) {
+            elementoRestante.style.color = '#10b981';
+        } else {
+            elementoRestante.style.color = '#ef4444';
+        }
+        
+        // Mostrar/esconder troco
+        const avisoTroco = document.getElementById('aviso-troco');
+        if (troco > 0) {
+            avisoTroco.style.display = 'block';
+            document.getElementById('valor-troco').textContent = `R$ ${troco.toFixed(2)}`;
+        } else {
+            avisoTroco.style.display = 'none';
+        }
+        
+        // Habilitar/desabilitar botão confirmar
+        const btnConfirmar = document.getElementById('btnConfirmarVenda');
+        if (totalPago >= totalVendaAtual && pagamentos.length > 0) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.style.opacity = '1';
+            btnConfirmar.style.cursor = 'pointer';
+        } else {
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        }
+    }
+    
+    function fecharModalFinalizacao() {
+        document.getElementById('modalFinalizacao').style.display = 'none';
+        
+        // Limpar todos os campos
+        document.getElementById('valor-dinheiro').value = '';
+        document.getElementById('valor-debito').value = '';
+        document.getElementById('valor-credito').value = '';
+        document.getElementById('valor-pix').value = '';
+        document.getElementById('valor-boleto').value = '';
+        document.getElementById('desconto-percentual').value = '';
+        document.getElementById('desconto-valor').value = '';
+        
+        document.getElementById('inputProduto').focus();
+        document.onkeydown = null;
+    }
+    
+    function confirmarFinalizacao() {
+        console.log('✅ Confirmando finalização...');
+        
+        const pagamentos = obterPagamentosDosCampos();
+        
+        if (pagamentos.length === 0) {
+            alert('⚠️ Informe pelo menos uma forma de pagamento!');
+            document.getElementById('valor-dinheiro').focus();
+            return;
+        }
+        
+        const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+        
+        if (totalPago < totalVendaAtual) {
+            alert('⚠️ O valor pago é menor que o total da venda!');
+            return;
+        }
+        
+        const troco = totalPago - totalVendaAtual;
+        
+        // Montar mensagem de confirmação
+        let mensagem = `Confirmar venda de R$ ${totalVendaAtual.toFixed(2)}?\n\nPagamentos:\n`;
+        pagamentos.forEach((p, i) => {
+            const nomes = {'dinheiro': 'Dinheiro', 'debito': 'Débito', 'credito': 'Crédito', 'pix': 'PIX', 'boleto': 'Boleto'};
+            mensagem += `${i+1}. ${nomes[p.forma]}: R$ ${p.valor.toFixed(2)}\n`;
+        });
+        if (troco > 0) {
+            mensagem += `\n💵 Troco: R$ ${troco.toFixed(2)}`;
+        }
+        
+        if (!confirm(mensagem)) {
+            return;
+        }
+        
+        // Enviar ao backend
+        fetch('/vendas/pdv/finalizar-venda', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                pagamentos: pagamentos,
+                troco: troco
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Venda finalizada:', data);
+                
+                // Fechar modal
+                fecharModalFinalizacao();
+                
+                // Mostrar mensagem de sucesso
+                let msgPagamentos = '';
+                pagamentos.forEach((p, i) => {
+                    const nomes = {'dinheiro': 'Dinheiro', 'debito': 'Debito', 'credito': 'Credito', 'pix': 'PIX', 'boleto': 'Boleto'};
+                    msgPagamentos += `\n${i+1}. ${nomes[p.forma]}: R$ ${p.valor.toFixed(2)}`;
+                });
+                const trocoMsg = troco > 0 ? `\n\nTROCO: R$ ${troco.toFixed(2)}` : '';
+                
+                // Mensagem NFC-e
+                let nfceMsg = '';
+                if (data.nfce && data.nfce.numero) {
+                    nfceMsg = `\n\n[NFC-e EMITIDA]\nNumero: ${data.nfce.numero}\nChave: ${data.nfce.chave ? data.nfce.chave.substring(0, 20) + '...' : '-'}`;
+                    
+                    // Abrir PDF do DANFCE automaticamente (se configurado)
+                    if (data.nfce.url_impressao && data.nfce.imprimir_automatico !== false) {
+                        window.open(data.nfce.url_impressao, '_blank');
+                    }
+                }
+                
+                alert(`VENDA FINALIZADA COM SUCESSO!\n\nNumero: #${data.numero_venda}\nTotal: R$ ${data.total.toFixed(2)}\n\nPagamentos:${msgPagamentos}${trocoMsg}${nfceMsg}`);
+                
+                // Limpar grid
+                atualizarGrid({itens: [], subtotal: 0, desconto_total: 0, total: 0});
+                
+                // Atualizar cliente para padrão
+                document.getElementById('pdvClienteNome').textContent = 'Cliente(F2): **CLIENTE A VISTA**';
+                document.getElementById('pdvClienteCpf').textContent = 'CNPJ/CPF: 000.000.000-00';
+                
+                // Focar no campo produto
+                document.getElementById('inputProduto').focus();
+                
+                console.log('Pronto para proxima venda!');
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao finalizar venda:', error);
+            alert('❌ Erro ao finalizar venda. Tente novamente.');
+        });
+    }
+    
+    function aplicarDescontoVenda(desconto, tipo) {
+        // Pegar subtotal atual
+        const subtotalText = document.getElementById('pdvSubtotal').textContent;
+        const subtotal = parseFloat(subtotalText.replace('R$', '').replace(',', '.').trim());
+        
+        let valorDesconto = 0;
+        if (tipo === 'percentual') {
+            valorDesconto = subtotal * (desconto / 100);
+        } else {
+            valorDesconto = desconto;
+        }
+        
+        const totalFinal = subtotal - valorDesconto;
+        
+        alert(`Subtotal: R$ ${subtotal.toFixed(2)}\nDesconto (${tipo === 'percentual' ? desconto + '%' : 'R$ ' + desconto.toFixed(2)}): -R$ ${valorDesconto.toFixed(2)}\nTotal Final: R$ ${totalFinal.toFixed(2)}\n\n✅ Desconto aplicado!\n\nAbrindo tela de pagamento...`);
+        
+        // TODO: Salvar desconto e abrir modal de pagamento
+    }
+    
+    // ===== FUNÇÕES DE PRODUTOS =====
+    
+    // Exemplo de como adicionar produto (implementar depois)
+    function adicionarProduto(codigo, descricao, qtd, vlUnit) {
+        const tbody = document.getElementById('pdvItensGrid');
+        
+        // Remover mensagem vazia se existir
+        if (tbody.children[0] && tbody.children[0].cells[0].colSpan > 1) {
+            tbody.innerHTML = '';
+        }
+        
+        const itemNum = tbody.children.length + 1;
+        const total = qtd * vlUnit;
+        
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${itemNum}</td>
+            <td>${codigo}</td>
+            <td>${descricao}</td>
+            <td>${qtd}</td>
+            <td>R$ ${vlUnit.toFixed(2)}</td>
+            <td>R$ 0,00</td>
+            <td>R$ ${total.toFixed(2)}</td>
+            <td><button onclick="removerItem(this)" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></td>
+        `;
+        
+        atualizarSubtotal();
+    }
+    
+    function removerItem(btn) {
+        if (confirm('Deseja remover este item?')) {
+            btn.closest('tr').remove();
+            atualizarSubtotal();
+            renumerar();
+        }
+    }
+    
+    function renumerar() {
+        const tbody = document.getElementById('pdvItensGrid');
+        Array.from(tbody.rows).forEach((row, index) => {
+            row.cells[0].textContent = index + 1;
+        });
+    }
+    
+    function atualizarSubtotal() {
+        const tbody = document.getElementById('pdvItensGrid');
+        let total = 0;
+        
+        Array.from(tbody.rows).forEach(row => {
+            if (row.cells.length > 1) {
+                const valorTotal = parseFloat(row.cells[6].textContent.replace('R$', '').replace(',', '.').trim());
+                if (!isNaN(valorTotal)) {
+                    total += valorTotal;
+                }
+            }
+        });
+        
+        document.getElementById('pdvSubtotal').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+    
+    // =====================================================
+    // FASE 1: CARREGAMENTO DE DADOS INICIAIS
+    // =====================================================
+    
+    // Carregar dados quando página terminar de carregar
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('[PDV] 🔄 Sistema PDV carregado!');
+        console.log('[PDV] 🧹 INICIANDO LIMPEZA TOTAL DO CARRINHO...');
+        
+        // FORÇAR LIMPEZA DO CARRINHO (3 tentativas)
+        for (let tentativa = 1; tentativa <= 3; tentativa++) {
+            try {
+                console.log(`[PDV] 🧹 Tentativa ${tentativa}/3 de limpeza...`);
+                
+                const response = await fetch('/vendas/pdv/limpar-carrinho', {
+                    method: 'POST',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`[PDV] ✅ Limpeza ${tentativa}/3 executada`);
+                    
+                    // VERIFICAR se realmente limpou
+                    const verificacao = await fetch('/vendas/pdv/carrinho-atual');
+                    const carrinhoAtual = await verificacao.json();
+                    const qtdItens = carrinhoAtual.carrinho?.itens?.length || 0;
+                    
+                    console.log(`[PDV] 🔍 Verificação ${tentativa}/3: ${qtdItens} itens no carrinho`);
+                    
+                    if (qtdItens === 0) {
+                        console.log('[PDV] ✅✅✅ CARRINHO CONFIRMADO VAZIO!');
+                        break;
+                    } else {
+                        console.warn(`[PDV] ⚠️ Ainda há ${qtdItens} itens! Tentando limpar novamente...`);
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                } else {
+                    console.error(`[PDV] ❌ Erro ao limpar (tentativa ${tentativa}):`, data);
+                }
+            } catch (err) {
+                console.error(`[PDV] ❌ Erro ao limpar (tentativa ${tentativa}):`, err);
+            }
+        }
+        
+        // VERIFICAÇÃO FINAL
+        const verificacaoFinal = await fetch('/vendas/pdv/carrinho-atual');
+        const carrinhoFinal = await verificacaoFinal.json();
+        const qtdFinal = carrinhoFinal.carrinho?.itens?.length || 0;
+        
+        if (qtdFinal > 0) {
+            console.error(`[PDV] ❌❌❌ ATENÇÃO: CARRINHO AINDA TEM ${qtdFinal} ITENS APÓS 3 TENTATIVAS!`);
+            alert(`⚠️ ERRO: Carrinho não foi limpo! Há ${qtdFinal} itens residuais.\n\nFeche e reabra o PDV.`);
+        } else {
+            console.log('[PDV] ✅✅✅ CARRINHO TOTALMENTE LIMPO - PRONTO PARA USO!');
+        }
+        
+        // Agora carregar dados iniciais
+        carregarDadosIniciais();
+    });
+    
+    function carregarDadosIniciais() {
+        console.log('🔄 Carregando dados iniciais do PDV...');
+        
+        fetch('/vendas/pdv/dados-iniciais', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Dados carregados:', data);
+                
+                // Atualizar dados do operador
+                if (data.operador) {
+                    // Nome do operador
+                    const operadorNome = document.getElementById('pdv-operador-nome');
+                    if (operadorNome && data.operador.nome) {
+                        operadorNome.textContent = data.operador.nome;
+                    }
+                    
+                    // Número do caixa (ID)
+                    const caixaNumero = document.getElementById('pdv-caixa-numero');
+                    if (caixaNumero && data.operador.caixa) {
+                        caixaNumero.textContent = data.operador.caixa;
+                    }
+                    
+                    // Horário de abertura
+                    const caixaAbertura = document.getElementById('pdv-caixa-abertura');
+                    if (caixaAbertura && data.operador.abertura) {
+                        caixaAbertura.textContent = data.operador.abertura;
+                    }
+                    
+                    console.log('Operador:', data.operador.nome);
+                    console.log('Caixa:', data.operador.caixa);
+                    console.log('Abertura:', data.operador.abertura);
+                }
+                
+                // Atualizar logo da empresa (se houver)
+                if (data.empresa && data.empresa.logo) {
+                    const logoImg = document.querySelector('.pdv-logo-empresa');
+                    if (logoImg) {
+                        logoImg.src = '/static/' + data.empresa.logo;
+                        logoImg.style.display = 'block';
+                    }
+                }
+                
+                // Atualizar cliente padrão
+                if (data.cliente_padrao) {
+                    atualizarClienteAtual(data.cliente_padrao);
+                }
+                
+                // Aplicar configurações do PDV
+                if (data.config) {
+                    aplicarConfiguracoesPDV(data.config);
+                }
+                
+                // Mostrar notificação de sucesso
+                console.log('✅ PDV inicializado com sucesso!');
+                
+            } else {
+                console.error('❌ Erro ao carregar dados:', data.erro);
+                alert('❌ Erro ao carregar dados do PDV: ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro na requisição:', error);
+            alert('❌ Erro ao conectar com servidor. Recarregue a página.');
+        });
+    }
+    
+    function atualizarClienteAtual(cliente) {
+        console.log('📝 Atualizando cliente no header:', cliente);
+        
+        // Atualizar nome do cliente
+        const clienteNomeElement = document.getElementById('pdvClienteNome');
+        if (clienteNomeElement && cliente.nome) {
+            clienteNomeElement.textContent = `Cliente(F2): ${cliente.nome}`;
+        }
+        
+        // Atualizar CNPJ/CPF do cliente
+        const clienteCpfElement = document.getElementById('pdvClienteCpf');
+        if (clienteCpfElement) {
+            const cpfCnpj = cliente.cpf_cnpj || cliente.cnpj || '000.000.000-00';
+            clienteCpfElement.textContent = `CNPJ/CPF: ${cpfCnpj}`;
+        }
+        
+        console.log('✅ Cliente atualizado no header:', cliente.nome, '-', cliente.cpf_cnpj);
+    }
+    
+    // Verificar status do caixa periodicamente (a cada 60 segundos)
+    setInterval(function() {
+        verificarStatusCaixa();
+    }, 60000);
+    
+    function verificarStatusCaixa() {
+        fetch('/vendas/pdv/status-caixa', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.caixa_aberto) {
+                alert('⚠️ Seu caixa foi fechado. Redirecionando...');
+                window.location.href = '/';
+            }
+        })
+        .catch(error => {
+            console.warn('⚠️ Não foi possível verificar status do caixa:', error);
+        });
+    }
+    
+    // =====================================================
+    // FASE 2: BUSCA DE PRODUTOS
+    // =====================================================
+    
+    // Focar no campo produto ao carregar
+    window.addEventListener('load', function() {
+        const inputProduto = document.getElementById('inputProduto');
+        if (inputProduto) {
+            inputProduto.focus();
+        }
+    });
+    
+    // Buscar produto ao apertar Enter
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputProduto = document.getElementById('inputProduto');
+        if (inputProduto) {
+            inputProduto.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    buscarProduto();
+                }
+            });
+        }
+    });
+    
+    function buscarProduto() {
+        const inputProduto = document.getElementById('inputProduto');
+        const termo = inputProduto.value.trim();
+        
+        if (!termo) {
+            alert('⚠️ Digite o código ou descrição do produto');
+            inputProduto.focus();
+            return;
+        }
+        
+        console.log('🔍 Buscando produto:', termo);
+        
+        // Mostrar loading
+        inputProduto.disabled = true;
+        inputProduto.value = 'Buscando...';
+        
+        fetch('/vendas/pdv/buscar-produto', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ termo: termo })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Restaurar campo
+            inputProduto.disabled = false;
+            inputProduto.value = '';
+            inputProduto.focus();
+            
+            if (!data.success) {
+                alert('❌ ' + data.erro);
+                return;
+            }
+            
+            // Produto único encontrado
+            if (data.tipo === 'unico') {
+                console.log('✅ Produto encontrado:', data.produto);
+                
+                // Verificar se deve perguntar quantidade
+                if (configPDV.ask_quantity) {
+                    // Abrir modal para informar quantidade
+                    abrirModalQuantidade(data.produto);
+                } else {
+                    // Adicionar direto com quantidade padrão
+                    console.log('➕ Adicionando direto (quantidade padrão:', configPDV.default_quantity + ')');
+                    adicionarItemDireto(data.produto, configPDV.default_quantity);
+                }
+            }
+            // Múltiplos produtos encontrados
+            else if (data.tipo === 'multiplos') {
+                console.log('📋 Múltiplos produtos:', data.total);
+                mostrarListaProdutos(data.produtos);
+            }
+        })
+        .catch(error => {
+            // Restaurar campo
+            inputProduto.disabled = false;
+            inputProduto.value = '';
+            inputProduto.focus();
+            
+            console.error('❌ Erro ao buscar produto:', error);
+            alert('❌ Erro ao buscar produto. Tente novamente.');
+        });
+    }
+    
+    // =====================================================
+    // FASE 3: MODAL E CARRINHO
+    // =====================================================
+    
+    let produtoSelecionado = null;
+    let configPDV = {
+        allow_negative_stock: false,
+        ask_quantity: true,
+        default_quantity: 1.0,
+        show_discount_button: true,
+        enable_f2_customer: true,
+        enable_f4_discount: true,
+        enable_f9_finish: true
+    };
+    
+    // Função para aplicar configurações do PDV
+    function aplicarConfiguracoesPDV(config) {
+        configPDV = config;
+        console.log('⚙️ Configurações do PDV aplicadas:', config);
+        
+        // Ocultar botões conforme configuração
+        const btnDesconto = document.getElementById('btnDesconto');
+        if (btnDesconto) {
+            btnDesconto.style.display = config.show_discount_button ? 'block' : 'none';
+        }
+        
+        // Desabilitar atalhos conforme configuração
+        console.log('F2 Cliente:', config.enable_f2_customer ? 'Habilitado' : 'Desabilitado');
+        console.log('F4 Desconto:', config.enable_f4_discount ? 'Habilitado' : 'Desabilitado');
+        console.log('F9 Finalizar:', config.enable_f9_finish ? 'Habilitado' : 'Desabilitado');
+        console.log('Perguntar Quantidade:', config.ask_quantity ? 'Sim' : 'Não (direto no grid)');
+        console.log('Permitir Venda Sem Estoque:', config.allow_negative_stock ? 'Sim' : 'Não');
+    }
+    
+    function abrirModalQuantidade(produto) {
+        produtoSelecionado = produto;
+        
+        // Preencher dados do produto no modal
+        document.getElementById('modal-produto-nome').textContent = produto.nome;
+        document.getElementById('modal-produto-codigo').textContent = produto.codigo || 'N/A';
+        document.getElementById('modal-produto-preco').textContent = produto.preco.toFixed(2);
+        document.getElementById('modal-produto-estoque').textContent = produto.estoque;
+        
+        // Resetar quantidade
+        const inputQtd = document.getElementById('modal-input-quantidade');
+        inputQtd.value = '1';
+        
+        // Mostrar modal
+        const modal = document.getElementById('modalQuantidade');
+        modal.style.display = 'flex';
+        
+        // Focar no input quantidade
+        setTimeout(() => {
+            inputQtd.focus();
+            inputQtd.select();
+        }, 100);
+        
+        // Enter no input confirma
+        inputQtd.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmarAdicaoItem();
+            }
+        };
+        
+        // ESC fecha modal
+        document.onkeydown = function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                fecharModalQuantidade();
+            }
+        };
+    }
+    
+    function fecharModalQuantidade() {
+        document.getElementById('modalQuantidade').style.display = 'none';
+        produtoSelecionado = null;
+        
+        // Focar no campo produto novamente
+        document.getElementById('inputProduto').focus();
+        
+        // Limpar event listeners
+        document.onkeydown = null;
+    }
+    
+    // Função para adicionar item direto (sem modal)
+    function adicionarItemDireto(produto, quantidade) {
+        console.log('➕ Adicionando direto:', produto.nome, 'Qtd:', quantidade);
+        
+        // Adicionar ao carrinho via AJAX
+        fetch('/vendas/pdv/adicionar-item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                produto_id: produto.id,
+                quantidade: quantidade
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Item adicionado:', data.carrinho);
+                atualizarGrid(data.carrinho);
+                // Toastr ou notificação mais discreta (não bloqueia)
+                console.log('✅ Produto adicionado:', produto.nome);
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao adicionar item:', error);
+            alert('❌ Erro ao adicionar item. Tente novamente.');
+        });
+    }
+    
+    function confirmarAdicaoItem() {
+        if (!produtoSelecionado) {
+            alert('❌ Erro: Produto não selecionado');
+            return;
+        }
+        
+        const quantidade = parseFloat(document.getElementById('modal-input-quantidade').value);
+        
+        if (isNaN(quantidade) || quantidade <= 0) {
+            alert('⚠️ Digite uma quantidade válida!');
+            document.getElementById('modal-input-quantidade').focus();
+            return;
+        }
+        
+        // Validação de estoque movida para o backend (respeitará configuração)
+        console.log('Adicionando ao carrinho:', produtoSelecionado, 'Qtd:', quantidade);
+        
+        // IMPORTANTE: Guardar referência do produto ANTES de fechar modal
+        const produtoParaAdicionar = {
+            id: produtoSelecionado.id,
+            nome: produtoSelecionado.nome
+        };
+        
+        // Fechar modal
+        fecharModalQuantidade();
+        
+        // Adicionar ao carrinho via AJAX
+        fetch('/vendas/pdv/adicionar-item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                produto_id: produtoParaAdicionar.id,
+                quantidade: quantidade
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Item adicionado:', data.carrinho);
+                console.log('📊 Total de itens no carrinho:', data.carrinho.itens ? data.carrinho.itens.length : 0);
+                
+                // Atualizar grid ANTES do alert
+                atualizarGrid(data.carrinho);
+                
+                // Focar no campo produto novamente
+                const inputProduto = document.getElementById('inputProduto');
+                if (inputProduto) {
+                    inputProduto.focus();
+                }
+                
+                // Notificação mais discreta (sem bloquear)
+                console.log('✅ Produto adicionado com sucesso!');
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao adicionar item:', error);
+            alert('❌ Erro ao adicionar item. Tente novamente.');
+        });
+    }
+    
+    function mostrarListaProdutos(produtos) {
+        console.log('📋 Mostrando lista de produtos no modal:', produtos.length);
+        
+        // Abrir modal de produtos
+        const modal = document.getElementById('modalProdutos');
+        const resultados = document.getElementById('modal-produtos-resultados');
+        
+        // Montar tabela de resultados
+        let html = `
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f9fa; border-bottom: 2px solid #00A99D;">
+                        <th style="padding: 10px; text-align: left;">Código</th>
+                        <th style="padding: 10px; text-align: left;">Cód. Barras</th>
+                        <th style="padding: 10px; text-align: left;">Nome</th>
+                        <th style="padding: 10px; text-align: right;">Preço</th>
+                        <th style="padding: 10px; text-align: right;">Estoque</th>
+                        <th style="padding: 10px; text-align: center;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        produtos.forEach(produto => {
+            html += `
+                <tr style="border-bottom: 1px solid #ddd; cursor: pointer;" 
+                    onmouseover="this.style.background='#f0f9fa'" 
+                    onmouseout="this.style.background='white'">
+                    <td style="padding: 10px;">${produto.codigo || 'N/A'}</td>
+                    <td style="padding: 10px;">${produto.codigo_barras || 'N/A'}</td>
+                    <td style="padding: 10px;"><strong>${produto.nome}</strong></td>
+                    <td style="padding: 10px; text-align: right;">R$ ${produto.preco.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right;">${produto.estoque.toFixed(3)}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <button class="btn-selecionar-produto"
+                                data-produto-id="${produto.id}"
+                                data-produto-nome="${produto.nome.replace(/"/g, '&quot;')}"
+                                data-produto-preco="${produto.preco}"
+                                data-produto-estoque="${produto.estoque}"
+                                style="padding: 8px 16px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-check"></i> Selecionar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+            </table>
+        `;
+        
+        resultados.innerHTML = html;
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        
+        // ESC fecha modal
+        document.onkeydown = function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                fecharModalProdutos();
+            }
+        };
+    }
+    
+    function atualizarGrid(carrinho) {
+        console.log('🔄 Atualizando grid com carrinho:', carrinho);
+        
+        const tbody = document.getElementById('pdvItensGrid');
+        
+        if (!tbody) {
+            console.error('❌ Elemento pdvItensGrid não encontrado!');
+            return;
+        }
+        
+        if (!carrinho || !carrinho.itens || carrinho.itens.length === 0) {
+            console.log('📭 Carrinho vazio, mostrando mensagem');
+            // Mostrar mensagem vazia
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="pdv-produtos-empty">
+                        <i class="fas fa-shopping-cart"></i>
+                        Nenhum produto adicionado. Use o leitor de código de barras ou pressione <strong>F6</strong>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('pdvSubtotal').textContent = 'R$ 0,00';
+            return;
+        }
+        
+        console.log('📦 Adicionando', carrinho.itens.length, 'itens ao grid');
+        
+        // Limpar grid
+        tbody.innerHTML = '';
+        
+        // Adicionar itens
+        carrinho.itens.forEach((item, index) => {
+            const desconto = item.desconto || 0;
+            const totalItem = item.subtotal - desconto;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${item.codigo || 'N/A'}</td>
+                <td>${item.nome}</td>
+                <td>${item.quantidade.toFixed(3)}</td>
+                <td>R$ ${item.preco_unitario.toFixed(2)}</td>
+                <td style="color: ${desconto > 0 ? '#f59e0b' : '#666'}; font-weight: ${desconto > 0 ? 'bold' : 'normal'};">R$ ${desconto.toFixed(2)}</td>
+                <td style="font-weight: bold; color: #00A99D;">R$ ${totalItem.toFixed(2)}</td>
+                <td>
+                    <button onclick="removerItemCarrinho(${item.produto_id})" 
+                            class="btn btn-sm btn-danger"
+                            style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        // Atualizar subtotal
+        document.getElementById('pdvSubtotal').textContent = 
+            'R$ ' + carrinho.total.toFixed(2).replace('.', ',');
+    }
+    
+    function removerItemCarrinho(produto_id) {
+        if (!confirm('Deseja remover este item?')) {
+            return;
+        }
+        
+        fetch('/vendas/pdv/remover-item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ produto_id: produto_id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Item removido');
+                atualizarGrid(data.carrinho);
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao remover item:', error);
+            alert('❌ Erro ao remover item.');
+        });
+    }
+    
+    // =====================================================
+    // FASE 4: BUSCA E SELEÇÃO DE CLIENTES (F2)
+    // =====================================================
+    
+    function abrirModalClientes() {
+        console.log('👥 Abrindo modal de clientes...');
+        
+        const modal = document.getElementById('modalClientes');
+        const inputBusca = document.getElementById('modal-input-busca-cliente');
+        const resultados = document.getElementById('modal-clientes-resultados');
+        
+        // Limpar busca anterior
+        inputBusca.value = '';
+        resultados.innerHTML = `
+            <p style="text-align: center; color: #666; padding: 40px;">
+                <i class="fas fa-search fa-2x" style="display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                Digite algo para buscar clientes
+            </p>
+        `;
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        
+        // Focar no input
+        setTimeout(() => {
+            inputBusca.focus();
+        }, 100);
+        
+        // Enter no input busca
+        inputBusca.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarClientesModal();
+            }
+        };
+        
+        // ESC fecha modal
+        document.onkeydown = function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                fecharModalClientes();
+            }
+        };
+    }
+    
+    function fecharModalClientes() {
+        document.getElementById('modalClientes').style.display = 'none';
+        document.getElementById('inputProduto').focus();
+        document.onkeydown = null;
+    }
+    
+    function buscarClientesModal() {
+        const termo = document.getElementById('modal-input-busca-cliente').value.trim();
+        
+        if (termo.length < 3) {
+            alert('⚠️ Digite pelo menos 3 caracteres para buscar');
+            return;
+        }
+        
+        console.log('🔍 Buscando clientes:', termo);
+        
+        const loading = document.getElementById('modal-clientes-loading');
+        const resultados = document.getElementById('modal-clientes-resultados');
+        
+        // Mostrar loading
+        loading.style.display = 'block';
+        resultados.innerHTML = '';
+        
+        fetch('/vendas/pdv/buscar-clientes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ termo: termo })
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            
+            if (!data.success) {
+                resultados.innerHTML = `
+                    <p style="text-align: center; color: #f59e0b; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle fa-2x" style="display: block; margin-bottom: 10px;"></i>
+                        ${data.erro}
+                    </p>
+                `;
+                return;
+            }
+            
+            console.log('✅ Clientes encontrados:', data.total);
+            
+            // Montar tabela de resultados
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f0f9fa; border-bottom: 2px solid #00A99D;">
+                            <th style="padding: 10px; text-align: left;">Nome</th>
+                            <th style="padding: 10px; text-align: left;">CPF/CNPJ</th>
+                            <th style="padding: 10px; text-align: left;">Telefone</th>
+                            <th style="padding: 10px; text-align: left;">Cidade</th>
+                            <th style="padding: 10px; text-align: center;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.clientes.forEach(cliente => {
+                html += `
+                    <tr style="border-bottom: 1px solid #ddd; cursor: pointer;" 
+                        onmouseover="this.style.background='#f0f9fa'" 
+                        onmouseout="this.style.background='white'">
+                        <td style="padding: 10px;"><strong>${cliente.nome}</strong></td>
+                        <td style="padding: 10px;">${cliente.cpf_cnpj || 'N/A'}</td>
+                        <td style="padding: 10px;">${cliente.telefone || '-'}</td>
+                        <td style="padding: 10px;">${cliente.cidade || '-'}</td>
+                        <td style="padding: 10px; text-align: center;">
+                            <button onclick="selecionarCliente(${cliente.id}, '${cliente.nome}', '${cliente.cpf_cnpj}')"
+                                    style="padding: 8px 16px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-check"></i> Selecionar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            resultados.innerHTML = html;
+        })
+        .catch(error => {
+            loading.style.display = 'none';
+            console.error('❌ Erro ao buscar clientes:', error);
+            resultados.innerHTML = `
+                <p style="text-align: center; color: #dc3545; padding: 40px;">
+                    <i class="fas fa-times-circle fa-2x" style="display: block; margin-bottom: 10px;"></i>
+                    Erro ao buscar clientes. Tente novamente.
+                </p>
+            `;
+        });
+    }
+    
+    function selecionarCliente(clienteId, clienteNome, clienteCpf) {
+        console.log('👤 Selecionando cliente:', clienteId, clienteNome);
+        
+        fetch('/vendas/pdv/selecionar-cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ cliente_id: clienteId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Cliente selecionado:', data.cliente);
+                
+                // Atualizar header do PDV
+                atualizarClienteAtual(data.cliente);
+                
+                // Fechar modal
+                fecharModalClientes();
+                
+                // Focar no campo produto
+                document.getElementById('inputProduto').focus();
+                
+                console.log('✅ Cliente atualizado no PDV!');
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao selecionar cliente:', error);
+            alert('❌ Erro ao selecionar cliente. Tente novamente.');
+        });
+    }
+    
+    // Atalho F2 para abrir modal de clientes
+    document.addEventListener('keydown', function(e) {
+        // F2 - Cliente
+        if (e.key === 'F2') {
+            e.preventDefault();
+            if (configPDV.enable_f2_customer) {
+                abrirModalClientes();
+            }
+        }
+        
+        // F6 - Buscar Produto
+        if (e.key === 'F6') {
+            e.preventDefault();
+            if (configPDV.enable_f6_search) {
+                abrirModalProdutos();
+            }
+        }
+    });
+    
+    // =====================================================
+    // BUSCA DE PRODUTOS (F6)
+    // =====================================================
+    
+    function abrirModalProdutos() {
+        console.log('🔍 Abrindo modal de produtos...');
+        
+        const modal = document.getElementById('modalProdutos');
+        const inputBusca = document.getElementById('modal-input-busca-produto');
+        const resultados = document.getElementById('modal-produtos-resultados');
+        
+        // Limpar busca anterior
+        inputBusca.value = '';
+        resultados.innerHTML = `
+            <p style="text-align: center; color: #666; padding: 40px;">
+                <i class="fas fa-search fa-2x" style="display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                Digite algo para buscar produtos
+            </p>
+        `;
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        
+        // Focar no input
+        setTimeout(() => {
+            inputBusca.focus();
+        }, 100);
+        
+        // Enter no input busca
+        inputBusca.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarProdutosModal();
+            }
+        };
+        
+        // ESC fecha modal
+        document.onkeydown = function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                fecharModalProdutos();
+            }
+        };
+    }
+    
+    function fecharModalProdutos() {
+        document.getElementById('modalProdutos').style.display = 'none';
+        document.getElementById('inputProduto').focus();
+        document.onkeydown = null;
+    }
+    
+    function buscarProdutosModal() {
+        const termo = document.getElementById('modal-input-busca-produto').value.trim();
+        
+        if (termo.length < 3) {
+            alert('⚠️ Digite pelo menos 3 caracteres para buscar');
+            return;
+        }
+        
+        console.log('🔍 Buscando produtos:', termo);
+        
+        const loading = document.getElementById('modal-produtos-loading');
+        const resultados = document.getElementById('modal-produtos-resultados');
+        
+        // Mostrar loading
+        loading.style.display = 'block';
+        resultados.innerHTML = '';
+        
+        fetch('/vendas/pdv/buscar-produtos-modal', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ termo: termo })
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            
+            if (!data.success) {
+                resultados.innerHTML = `
+                    <p style="text-align: center; color: #f59e0b; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle fa-2x" style="display: block; margin-bottom: 10px;"></i>
+                        ${data.erro}
+                    </p>
+                `;
+                return;
+            }
+            
+            console.log('✅ Produtos encontrados:', data.total);
+            
+            // Montar tabela de resultados
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f0f9fa; border-bottom: 2px solid #00A99D;">
+                            <th style="padding: 10px; text-align: left;">Código</th>
+                            <th style="padding: 10px; text-align: left;">Cód. Barras</th>
+                            <th style="padding: 10px; text-align: left;">Nome</th>
+                            <th style="padding: 10px; text-align: right;">Preço</th>
+                            <th style="padding: 10px; text-align: right;">Estoque</th>
+                            <th style="padding: 10px; text-align: center;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.produtos.forEach(produto => {
+                html += `
+                    <tr style="border-bottom: 1px solid #ddd; cursor: pointer;" 
+                        onmouseover="this.style.background='#f0f9fa'" 
+                        onmouseout="this.style.background='white'">
+                        <td style="padding: 10px;">${produto.codigo || 'N/A'}</td>
+                        <td style="padding: 10px;">${produto.codigo_barras || 'N/A'}</td>
+                        <td style="padding: 10px;"><strong>${produto.nome}</strong></td>
+                        <td style="padding: 10px; text-align: right;">R$ ${produto.preco.toFixed(2)}</td>
+                        <td style="padding: 10px; text-align: right;">${produto.estoque.toFixed(3)}</td>
+                        <td style="padding: 10px; text-align: center;">
+                            <button class="btn-selecionar-produto"
+                                    data-produto-id="${produto.id}"
+                                    data-produto-nome="${produto.nome.replace(/"/g, '&quot;')}"
+                                    data-produto-preco="${produto.preco}"
+                                    data-produto-estoque="${produto.estoque}"
+                                    style="padding: 8px 16px; background: #00A99D; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-check"></i> Selecionar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            resultados.innerHTML = html;
+        })
+        .catch(error => {
+            loading.style.display = 'none';
+            console.error('❌ Erro ao buscar produtos:', error);
+            resultados.innerHTML = `
+                <p style="text-align: center; color: #dc3545; padding: 40px;">
+                    <i class="fas fa-times-circle fa-2x" style="display: block; margin-bottom: 10px;"></i>
+                    Erro ao buscar produtos. Tente novamente.
+                </p>
+            `;
+        });
+    }
+    
+    function selecionarProdutoModal(produto) {
+        console.log('📦 Produto selecionado do modal:', produto);
+        
+        // Fechar modal
+        fecharModalProdutos();
+        
+        // Verificar se deve perguntar quantidade
+        if (configPDV.ask_quantity) {
+            // Abrir modal de quantidade
+            abrirModalQuantidade(produto);
+        } else {
+            // Adicionar direto com quantidade padrão
+            adicionarItemDireto(produto, configPDV.default_quantity);
+        }
+    }
+    
+    // Event listener para botões de seleção de produto (delegated)
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-selecionar-produto')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const btn = e.target.closest('.btn-selecionar-produto');
+            const produto = {
+                id: parseInt(btn.dataset.produtoId),
+                nome: btn.dataset.produtoNome,
+                preco: parseFloat(btn.dataset.produtoPreco),
+                estoque: parseFloat(btn.dataset.produtoEstoque)
+            };
+            console.log('📦 Botão Selecionar clicado:', produto);
+            selecionarProdutoModal(produto);
+        }
+    });
+</script>
+
+{% endblock %}

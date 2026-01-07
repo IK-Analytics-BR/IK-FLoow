@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}Meu Perfil - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block page_title %}Meu Perfil{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-user"></i> Informações do Usuário</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Nome:</div>
+                    <div class="col-md-8">{{ current_user.name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Nome de Usuário:</div>
+                    <div class="col-md-8">{{ current_user.username }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Email:</div>
+                    <div class="col-md-8">{{ current_user.email }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Tipo de Usuário:</div>
+                    <div class="col-md-8">
+                        {% if current_user.is_admin() %}
+                            <span class="badge bg-danger">Administrador</span>
+                        {% elif current_user.is_supplier() %}
+                            <span class="badge bg-warning">Fornecedor</span>
+                        {% else %}
+                            <span class="badge bg-info">Usuário</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Data de Cadastro:</div>
+                    <div class="col-md-8">{{ current_user.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Último Login:</div>
+                    <div class="col-md-8">
+                        {% if current_user.last_login %}
+                            {{ current_user.last_login.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('auth.change_password') }}" class="btn btn-primary">
+                    <i class="fas fa-key"></i> Alterar Senha
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% if current_user.is_supplier() %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-truck"></i> Informações do Fornecedor</h5>
+            </div>
+            <div class="card-body">
+                {% set fornecedor = current_user.fornecedor %}
+                {% if fornecedor %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Empresa:</div>
+                    <div class="col-md-8">{{ fornecedor.nome }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">CNPJ:</div>
+                    <div class="col-md-8">{{ fornecedor.cnpj }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Telefone:</div>
+                    <div class="col-md-8">{{ fornecedor.telefone }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-bold">Cidade/UF:</div>
+                    <div class="col-md-8">{{ fornecedor.cidade }}/{{ fornecedor.estado }}</div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Você ainda não cadastrou sua empresa como fornecedor.
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                {% if fornecedor %}
+                <a href="{{ url_for('suppliers.editar', id=fornecedor.id) }}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Editar Informações
+                </a>
+                {% else %}
+                <a href="{{ url_for('suppliers.novo') }}" class="btn btn-warning">
+                    <i class="fas fa-plus"></i> Cadastrar Empresa
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if current_user.is_supplier() and fornecedor %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-cogs"></i> Insumos Fornecidos</h5>
+            </div>
+            <div class="card-body">
+                {% set insumos_fornecidos = fornecedor.insumos_fornecidos.filter_by(ativo=True).all() %}
+                {% if insumos_fornecidos %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nome</th>
+                                <th>Preço (R$)</th>
+                                <th>Prazo de Entrega</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in insumos_fornecidos %}
+                            <tr>
+                                <td>{{ item.insumo.codigo }}</td>
+                                <td>{{ item.insumo.nome }}</td>
+                                <td>{{ "%.2f"|format(item.preco) }}</td>
+                                <td>{{ item.prazo_entrega }} dias</td>
+                                <td>
+                                    <a href="{{ url_for('suppliers.adicionar_insumo', id=fornecedor.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Você ainda não cadastrou nenhum insumo no seu catálogo.
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('suppliers.adicionar_insumo', id=fornecedor.id) }}" class="btn btn-info">
+                    <i class="fas fa-plus"></i> Adicionar Insumo ao Catálogo
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

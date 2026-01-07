@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Ficha Técnica - {{ ficha.produto_nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <form method="POST" id="formFichaTecnica">
+        <!-- Cabeçalho -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <a href="{{ url_for('ficha_tecnica.visualizar', id=ficha.id) }}" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fas fa-arrow-left me-1"></i>Voltar
+                </a>
+                <h4 class="mb-0">
+                    <i class="fas fa-edit text-warning me-2"></i>
+                    Editar Ficha Técnica
+                </h4>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+
+        <!-- Informações Básicas -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-info-circle me-2"></i>Informações do Template
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <label class="form-label">Código Produto</label>
+                        <input type="text" class="form-control" value="{{ ficha.produto_codigo or '-' }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Produto</label>
+                        <input type="text" class="form-control" value="{{ ficha.produto_nome }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Nome do Template</label>
+                        <input type="text" class="form-control" name="nome_template" 
+                               value="{{ ficha.nome_template }}" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Tempo Produção (h)</label>
+                        <input type="number" class="form-control" name="tempo_producao_horas" 
+                               value="{{ ficha.tempo_producao_horas or 0 }}" step="0.5" min="0">
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-10">
+                        <label class="form-label">Observações</label>
+                        <textarea class="form-control" name="observacoes" rows="2">{{ ficha.observacoes or '' }}</textarea>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="ativo">
+                            <option value="1" {% if ficha.ativo %}selected{% endif %}>Ativo</option>
+                            <option value="0" {% if not ficha.ativo %}selected{% endif %}>Inativo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Serviços -->
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-tools me-2"></i>Mão de Obra / Serviços</span>
+                <button type="button" class="btn btn-sm btn-light" onclick="adicionarItem('servico')">
+                    <i class="fas fa-plus me-1"></i>Adicionar
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0" id="tabelaServicos">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:150px">Produto</th>
+                            <th>Descrição</th>
+                            <th class="text-center" style="width:100px">Quantidade</th>
+                            <th class="text-center" style="width:80px">Unidade</th>
+                            <th class="text-end" style="width:120px">Custo Unit.</th>
+                            <th class="text-end" style="width:120px">Total</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyServicos"></tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold">Subtotal:</td>
+                            <td class="text-end fw-bold" id="subtotalServicos">R$ 0,00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Seção Matéria Prima -->
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-cubes me-2"></i>Matéria Prima</span>
+                <button type="button" class="btn btn-sm btn-light" onclick="adicionarItem('materia_prima')">
+                    <i class="fas fa-plus me-1"></i>Adicionar
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0" id="tabelaMateriasPrimas">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:150px">Produto</th>
+                            <th>Descrição</th>
+                            <th class="text-center" style="width:100px">Quantidade</th>
+                            <th class="text-center" style="width:80px">Unidade</th>
+                            <th class="text-end" style="width:120px">Custo Unit.</th>
+                            <th class="text-end" style="width:120px">Total</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyMateriasPrimas"></tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold">Subtotal:</td>
+                            <td class="text-end fw-bold" id="subtotalMateriasPrimas">R$ 0,00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Seção Consumo Interno -->
+        <div class="card mb-3">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-industry me-2"></i>Consumo Interno</span>
+                <button type="button" class="btn btn-sm btn-dark" onclick="adicionarItem('consumo_interno')">
+                    <i class="fas fa-plus me-1"></i>Adicionar
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0" id="tabelaConsumoInterno">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:150px">Produto</th>
+                            <th>Descrição</th>
+                            <th class="text-center" style="width:100px">Quantidade</th>
+                            <th class="text-center" style="width:80px">Unidade</th>
+                            <th class="text-end" style="width:120px">Custo Unit.</th>
+                            <th class="text-end" style="width:120px">Total</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyConsumoInterno"></tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold">Subtotal:</td>
+                            <td class="text-end fw-bold" id="subtotalConsumoInterno">R$ 0,00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Resumo Total -->
+        <div class="card mb-3">
+            <div class="card-body bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <span class="text-muted">Os custos são calculados automaticamente com base nos itens cadastrados.</span>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <h4 class="mb-0">
+                            <span class="text-muted">CUSTO TOTAL:</span>
+                            <strong class="text-primary" id="custoTotalGeral">R$ 0,00</strong>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Histórico de Produção - Chão de Fábrica -->
+        <div class="card mb-3">
+            <div class="card-header bg-dark text-white">
+                <i class="fas fa-history me-2"></i>Histórico de Produção (Últimas 10 OPs) - Dados do Chão de Fábrica
+            </div>
+            <div class="card-body">
+                {% if historico_producao and historico_producao.total_ops > 0 %}
+                <!-- Resumo Calculado -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <small class="text-muted d-block">Total OPs</small>
+                            <strong class="fs-4 text-primary">{{ historico_producao.total_ops }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <small class="text-muted d-block">Unidades Produzidas</small>
+                            <strong class="fs-4 text-success">{{ historico_producao.total_quantidade }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <small class="text-muted d-block">Tempo Total</small>
+                            <strong class="fs-4 text-info">{{ historico_producao.total_tempo_horas }}h</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-2 text-center bg-warning">
+                            <small class="text-dark d-block">Tempo/Unidade (Real)</small>
+                            <strong class="fs-4 text-dark">{{ "%.2f"|format(historico_producao.tempo_por_unidade_minutos) }} min</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tempo por Etapa -->
+                {% if historico_producao.tempos_etapas %}
+                <h6 class="mt-3 mb-2"><i class="fas fa-tasks me-1"></i>Tempo Médio por Etapa (Calculado do Histórico)</h6>
+                <table class="table table-sm table-bordered mb-3">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Etapa</th>
+                            <th class="text-center">Registros</th>
+                            <th class="text-center">Mínimo</th>
+                            <th class="text-center">Médio</th>
+                            <th class="text-center">Máximo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for etapa in historico_producao.tempos_etapas %}
+                        <tr>
+                            <td><i class="fas fa-circle me-1" style="color: #6c757d; font-size: 8px;"></i>{{ etapa.etapa_nome }}</td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ etapa.qtd_registros }}</span></td>
+                            <td class="text-center text-success">{{ "%.0f"|format(etapa.tempo_min_minutos or 0) }} min</td>
+                            <td class="text-center text-primary fw-bold">{{ "%.0f"|format(etapa.tempo_medio_minutos or 0) }} min</td>
+                            <td class="text-center text-danger">{{ "%.0f"|format(etapa.tempo_max_minutos or 0) }} min</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                <!-- Sugestão de Atualização -->
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Sugestão:</strong> Com base no histórico, o tempo de produção por unidade é de 
+                    <strong>{{ "%.2f"|format(historico_producao.tempo_por_unidade_minutos) }} minutos</strong> 
+                    ({{ "%.4f"|format(historico_producao.tempo_por_unidade_horas) }}h).
+                    Considere atualizar o campo "Tempo Produção" acima e o item de serviço correspondente.
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                    <p class="mb-0">Nenhuma OP concluída encontrada para este produto.</p>
+                    <small>O histórico será preenchido automaticamente conforme OPs forem concluídas.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Campo hidden para enviar itens -->
+        <input type="hidden" name="itens_json" id="itens_json">
+    </form>
+</div>
+
+<!-- Modal Buscar Produto -->
+<div class="modal fade" id="modalBuscarProduto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-search me-2"></i>Buscar Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-3" id="inputBuscaProduto" 
+                       placeholder="Digite código ou nome do produto..." autofocus>
+                <div id="resultadosBusca" style="max-height:300px; overflow-y:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dados dos itens
+let itensTemplate = {
+    servico: [],
+    materia_prima: [],
+    consumo_interno: []
+};
+let linhaAtual = null;
+let tipoAtual = null;
+
+// Carregar itens existentes
+document.addEventListener('DOMContentLoaded', function() {
+    const itensExistentes = {{ itens | tojson | safe }};
+    
+    itensExistentes.forEach(item => {
+        const tipo = item.tipo_item;
+        if (itensTemplate[tipo]) {
+            itensTemplate[tipo].push({
+                produto_id: item.produto_id,
+                codigo: item.produto_codigo || '',
+                descricao: item.produto_nome || item.descricao || '',
+                quantidade: parseFloat(item.quantidade) || 0,
+                unidade_medida: item.unidade_medida || 'UN',
+                custo_unitario: parseFloat(item.custo_unitario_base) || 0,
+                custo_total: parseFloat(item.custo_total_base) || 0
+            });
+        }
+    });
+    
+    renderizarTodosItens();
+    calcularTotais();
+});
+
+function renderizarTodosItens() {
+    renderizarItens('servico', 'tbodyServicos');
+    renderizarItens('materia_prima', 'tbodyMateriasPrimas');
+    renderizarItens('consumo_interno', 'tbodyConsumoInterno');
+}
+
+function renderizarItens(tipo, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = '';
+    
+    itensTemplate[tipo].forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm" value="${item.codigo || ''}" 
+                       onclick="abrirBuscaProduto('${tipo}', ${index})" readonly 
+                       placeholder="Clique para buscar" style="cursor:pointer; background:#fff;">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" value="${item.descricao || ''}"
+                       onchange="atualizarItem('${tipo}', ${index}, 'descricao', this.value)">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-center" value="${item.quantidade || 0}"
+                       step="0.01" min="0" onchange="atualizarItem('${tipo}', ${index}, 'quantidade', this.value)">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm text-center" value="${item.unidade_medida || 'UN'}"
+                       onchange="atualizarItem('${tipo}', ${index}, 'unidade_medida', this.value)" style="width:70px">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-end" value="${item.custo_unitario || 0}"
+                       step="0.01" min="0" onchange="atualizarItem('${tipo}', ${index}, 'custo_unitario', this.value)">
+            </td>
+            <td class="text-end fw-bold">
+                R$ ${(item.custo_total || 0).toFixed(2)}
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem('${tipo}', ${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function adicionarItem(tipo) {
+    itensTemplate[tipo].push({
+        produto_id: null,
+        codigo: '',
+        descricao: '',
+        quantidade: 1,
+        unidade_medida: 'UN',
+        custo_unitario: 0,
+        custo_total: 0
+    });
+    renderizarTodosItens();
+}
+
+function removerItem(tipo, index) {
+    itensTemplate[tipo].splice(index, 1);
+    renderizarTodosItens();
+    calcularTotais();
+}
+
+function atualizarItem(tipo, index, campo, valor) {
+    if (campo === 'quantidade' || campo === 'custo_unitario') {
+        valor = parseFloat(valor) || 0;
+    }
+    itensTemplate[tipo][index][campo] = valor;
+    
+    // Recalcular total do item
+    const item = itensTemplate[tipo][index];
+    item.custo_total = (item.quantidade || 0) * (item.custo_unitario || 0);
+    
+    renderizarTodosItens();
+    calcularTotais();
+}
+
+function abrirBuscaProduto(tipo, index) {
+    tipoAtual = tipo;
+    linhaAtual = index;
+    document.getElementById('inputBuscaProduto').value = '';
+    document.getElementById('resultadosBusca').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('modalBuscarProduto')).show();
+    setTimeout(() => document.getElementById('inputBuscaProduto').focus(), 300);
+}
+
+document.getElementById('inputBuscaProduto').addEventListener('input', function() {
+    const termo = this.value.trim();
+    if (termo.length < 2) {
+        document.getElementById('resultadosBusca').innerHTML = '<p class="text-muted">Digite ao menos 2 caracteres...</p>';
+        return;
+    }
+    
+    // Determinar categoria baseada no tipo
+    let categoria = '';
+    if (tipoAtual === 'servico') categoria = '2';
+    else if (tipoAtual === 'materia_prima') categoria = '3';
+    
+    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria=${categoria}`)
+        .then(r => r.json())
+        .then(produtos => {
+            const div = document.getElementById('resultadosBusca');
+            if (produtos.length === 0) {
+                div.innerHTML = '<p class="text-muted">Nenhum produto encontrado</p>';
+                return;
+            }
+            
+            let html = '<div class="list-group">';
+            produtos.forEach(p => {
+                html += `<a href="#" class="list-group-item list-group-item-action" 
+                            onclick="selecionarProduto(${p.id}, '${p.codigo}', '${p.nome.replace(/'/g, "\\'")}', ${p.custo}, '${p.unidade}')">
+                    <div class="d-flex justify-content-between">
+                        <span><strong>${p.codigo || p.id}</strong> - ${p.nome}</span>
+                        <span class="text-primary">R$ ${p.custo.toFixed(2)}</span>
+                    </div>
+                </a>`;
+            });
+            html += '</div>';
+            div.innerHTML = html;
+        });
+});
+
+function selecionarProduto(id, codigo, nome, custo, unidade) {
+    itensTemplate[tipoAtual][linhaAtual].produto_id = id;
+    itensTemplate[tipoAtual][linhaAtual].codigo = codigo;
+    itensTemplate[tipoAtual][linhaAtual].descricao = nome;
+    itensTemplate[tipoAtual][linhaAtual].custo_unitario = custo;
+    itensTemplate[tipoAtual][linhaAtual].unidade_medida = unidade;
+    itensTemplate[tipoAtual][linhaAtual].custo_total = 
+        (itensTemplate[tipoAtual][linhaAtual].quantidade || 1) * custo;
+    
+    bootstrap.Modal.getInstance(document.getElementById('modalBuscarProduto')).hide();
+    renderizarTodosItens();
+    calcularTotais();
+}
+
+function calcularTotais() {
+    let totalServicos = 0, totalMaterias = 0, totalConsumo = 0;
+    
+    itensTemplate.servico.forEach(i => totalServicos += (i.custo_total || 0));
+    itensTemplate.materia_prima.forEach(i => totalMaterias += (i.custo_total || 0));
+    itensTemplate.consumo_interno.forEach(i => totalConsumo += (i.custo_total || 0));
+    
+    document.getElementById('subtotalServicos').textContent = 'R$ ' + totalServicos.toFixed(2);
+    document.getElementById('subtotalMateriasPrimas').textContent = 'R$ ' + totalMaterias.toFixed(2);
+    document.getElementById('subtotalConsumoInterno').textContent = 'R$ ' + totalConsumo.toFixed(2);
+    document.getElementById('custoTotalGeral').textContent = 'R$ ' + (totalServicos + totalMaterias + totalConsumo).toFixed(2);
+}
+
+// Preparar dados antes de enviar
+document.getElementById('formFichaTecnica').addEventListener('submit', function(e) {
+    // Montar array de todos os itens
+    const todosItens = [];
+    
+    ['servico', 'materia_prima', 'consumo_interno'].forEach(tipo => {
+        itensTemplate[tipo].forEach(item => {
+            todosItens.push({
+                tipo_item: tipo,
+                produto_id: item.produto_id,
+                descricao: item.descricao,
+                quantidade: item.quantidade,
+                unidade_medida: item.unidade_medida,
+                custo_unitario: item.custo_unitario,
+                custo_total: item.custo_total
+            });
+        });
+    });
+    
+    document.getElementById('itens_json').value = JSON.stringify(todosItens);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Romaneio de Produção - {{ grupo.orcamento_numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-layer-group"></i> Romaneio de Produção</h4>
+            <div class="text-muted">
+                Orçamento: <strong>{{ grupo.orcamento_numero }}</strong> |
+                Cliente: <strong>{{ grupo.cliente_nome }}</strong> |
+                Empresa: <strong>{{ grupo.empresa_nome }}</strong>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('orcamentos.visualizar', id=grupo.orcamento_id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Voltar ao Orçamento
+            </a>
+            <a href="{{ url_for('ordem_producao.listar_ops') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Lista de OPs
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-industry"></i> OPs do Orçamento</span>
+                <span class="badge bg-light text-dark">{{ ops|length }} OP(s)</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>OP</th>
+                            <th>Tipo</th>
+                            <th>Produto</th>
+                            <th class="text-center">Qtd</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Ficha Técnica</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ops %}
+                            {% for op in ops %}
+                            <tr class="{{ 'table-success' if op.tipo_op == 'separacao' else ('table-warning' if op.tipo_op == 'mista' else '') }}">
+                                <td class="fw-semibold">{{ op.numero_op or ('OP #' ~ op.ordem_producao_id) }}</td>
+                                <td>
+                                    {% if op.tipo_op == 'separacao' %}
+                                        <span class="badge bg-info"><i class="fas fa-boxes me-1"></i>SEPARAÇÃO</span>
+                                        <br><small class="text-muted">Produto em estoque</small>
+                                    {% elif op.tipo_op == 'mista' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-tasks me-1"></i>MISTA</span>
+                                        <br><small class="text-muted">Estoque + Produção</small>
+                                    {% else %}
+                                        <span class="badge bg-primary"><i class="fas fa-industry me-1"></i>PRODUÇÃO</span>
+                                    {% endif %}
+                                    {% if op.obs_estoque %}
+                                        <br><small class="text-info" title="{{ op.obs_estoque }}"><i class="fas fa-info-circle"></i> {{ op.obs_estoque[:50] }}{% if op.obs_estoque|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ op.produto_nome }}</td>
+                                <td class="text-center">{{ op.quantidade_orcamento }}</td>
+                                <td class="text-center">
+                                    {% if op.status == 'pendente' %}
+                                        <span class="badge bg-secondary">Pendente</span>
+                                    {% elif op.status == 'em_producao' %}
+                                        <span class="badge bg-warning text-dark">Em Produção</span>
+                                    {% elif op.status == 'concluida' %}
+                                        <span class="badge bg-success">Concluída</span>
+                                    {% elif op.status == 'cancelada' %}
+                                        <span class="badge bg-danger">Cancelada</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ op.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if op.tipo_op == 'separacao' %}
+                                        <span class="badge bg-info">N/A</span>
+                                    {% elif op.tem_template or op.usou_template %}
+                                        <span class="badge bg-success">OK</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Sem FT</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-info" title="Visualizar">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if not (op.tem_template or op.usou_template) %}
+                                    <a href="{{ url_for('ordem_producao.importar_template_para_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-secondary" title="Importar Ficha Técnica">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <form method="post" action="{{ url_for('ordem_producao.criar_template_da_op', id=op.ordem_producao_id) }}" style="display: inline;" onsubmit="return confirm('Criar Ficha Técnica a partir desta OP e aplicar?');">
+                                        <button type="submit" class="btn btn-sm btn-success" title="Criar Ficha Técnica">
+                                            <i class="fas fa-magic"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if op.status == 'pendente' %}
+                                    <a href="{{ url_for('ordem_producao.editar_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-primary" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Nenhuma OP encontrada para este orçamento.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

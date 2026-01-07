@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}{% if account %}Editar{% else %}Nova{% endif %} Conta Contábil - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{% if account %}Editar{% else %}Nova{% endif %} Conta Contábil</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('chart_of_accounts.chart_of_accounts_list') }}">Plano de Contas</a></li>
+                    <li class="breadcrumb-item active">{% if account %}Editar{% else %}Nova{% endif %}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-{% if account %}edit{% else %}plus{% endif %} me-1"></i>
+            {% if account %}Editar Conta{% else %}Cadastrar Nova Conta{% endif %}
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('chart_of_accounts.chart_of_accounts_edit', account_id=account.id) if account else url_for('chart_of_accounts.chart_of_accounts_create') }}">
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="code" class="form-label">Código <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="code" 
+                               name="code" 
+                               value="{{ account.code if account else '' }}"
+                               {% if account %}readonly{% endif %}
+                               required
+                               placeholder="Ex: 1.1.01">
+                        <small class="form-text text-muted">Formato: X.X.XX</small>
+                    </div>
+                    
+                    <div class="col-md-9">
+                        <label for="name" class="form-label">Nome <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="name" 
+                               name="name" 
+                               value="{{ account.name if account else '' }}"
+                               required
+                               placeholder="Ex: Caixa e Bancos">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="type" class="form-label">Tipo <span class="text-danger">*</span></label>
+                        <select class="form-select" 
+                                id="type" 
+                                name="type" 
+                                {% if account %}disabled{% endif %}
+                                required>
+                            <option value="">Selecione</option>
+                            <option value="asset" {% if account and account.type == 'asset' %}selected{% endif %}>Ativo</option>
+                            <option value="liability" {% if account and account.type == 'liability' %}selected{% endif %}>Passivo</option>
+                            <option value="equity" {% if account and account.type == 'equity' %}selected{% endif %}>Patrimônio Líquido</option>
+                            <option value="revenue" {% if account and account.type == 'revenue' %}selected{% endif %}>Receita</option>
+                            <option value="expense" {% if account and account.type == 'expense' %}selected{% endif %}>Despesa</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="level" class="form-label">Nível <span class="text-danger">*</span></label>
+                        <select class="form-select" 
+                                id="level" 
+                                name="level"
+                                {% if account %}disabled{% endif %}
+                                required>
+                            <option value="1" {% if account and account.level == 1 %}selected{% endif %}>Nível 1 (Grupo)</option>
+                            <option value="2" {% if account and account.level == 2 %}selected{% endif %}>Nível 2 (Subgrupo)</option>
+                            <option value="3" {% if account and account.level == 3 %}selected{% endif %}>Nível 3 (Conta)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="parent_id" class="form-label">Conta Pai</label>
+                        <select class="form-select" 
+                                id="parent_id" 
+                                name="parent_id"
+                                {% if account %}disabled{% endif %}>
+                            <option value="">Nenhuma (Raiz)</option>
+                            {% for parent in parent_accounts %}
+                            <option value="{{ parent.id }}" {% if account and account.parent_id == parent.id %}selected{% endif %}>
+                                {{ parent.full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Apenas para níveis 2 e 3</small>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="is_analytical" 
+                                   name="is_analytical"
+                                   {% if account and account.is_analytical %}checked{% endif %}
+                                   {% if not account %}checked{% endif %}>
+                            <label class="form-check-label" for="is_analytical">
+                                <strong>Conta Analítica</strong> (aceita lançamentos)
+                            </label>
+                            <br>
+                            <small class="form-text text-muted">
+                                Marque se esta conta pode ser usada em contas a pagar/receber. 
+                                Deixe desmarcado para contas apenas de agrupamento.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">Descrição</label>
+                        <textarea class="form-control" 
+                                  id="description" 
+                                  name="description" 
+                                  rows="3"
+                                  placeholder="Descreva o propósito desta conta contábil...">{{ account.description if account else '' }}</textarea>
+                    </div>
+                </div>
+                
+                {% if account %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Nota:</strong> Código, Tipo, Nível e Conta Pai não podem ser alterados após criação para manter a integridade do plano de contas.
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Atenção:</strong> 
+                    <ul class="mb-0 mt-2">
+                        <li>Certifique-se de que o código não existe no sistema</li>
+                        <li>Contas de Nível 1 não precisam de conta pai</li>
+                        <li>Contas de Nível 2 e 3 devem ter uma conta pai</li>
+                        <li>Apenas contas analíticas podem ser usadas em lançamentos</li>
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('chart_of_accounts.chart_of_accounts_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Atualizar opções baseado no nível selecionado
+        $('#level').on('change', function() {
+            var level = $(this).val();
+            var $parentSelect = $('#parent_id');
+            
+            if (level == '1') {
+                $parentSelect.val('').prop('disabled', true);
+                $parentSelect.closest('.col-md-4').find('small').text('Contas de nível 1 não têm pai');
+            } else {
+                $parentSelect.prop('disabled', false);
+                $parentSelect.closest('.col-md-4').find('small').text('Selecione a conta de nível superior');
+            }
+        });
+        
+        // Trigger inicial
+        $('#level').trigger('change');
+        
+        // Validação de código
+        $('#code').on('blur', function() {
+            var code = $(this).val();
+            var level = $('#level').val();
+            
+            // Validar formato baseado no nível
+            var regex;
+            if (level == '1') {
+                regex = /^\d$/; // 1 dígito
+            } else if (level == '2') {
+                regex = /^\d\.\d$/; // X.X
+            } else if (level == '3') {
+                regex = /^\d\.\d\.\d{1,2}$/; // X.X.XX
+            }
+            
+            if (code && !regex.test(code)) {
+                alert('Formato de código inválido para o nível selecionado!\n\n' +
+                      'Nível 1: Um dígito (ex: 1)\n' +
+                      'Nível 2: X.X (ex: 1.1)\n' +
+                      'Nível 3: X.X.XX (ex: 1.1.01)');
+                $(this).focus();
+            }
+        });
+    });
+</script>
+{% endblock %}

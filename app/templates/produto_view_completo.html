@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Produto - {{ produto.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Visualizar Produto</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('produto.produtos') }}">Produtos</a></li>
+        <li class="breadcrumb-item active">{{ produto.name }}</li>
+    </ol>
+
+    <!-- Cabeçalho com ações -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="fas fa-box-open me-1"></i>
+                <strong>{{ produto.name }}</strong>
+                {% if produto.internal_code %}
+                <span class="badge bg-secondary ms-2">{{ produto.internal_code }}</span>
+                {% endif %}
+            </span>
+            <div>
+                <a href="{{ url_for('produto.produto_editar', id=produto.id) }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <a href="{{ url_for('produto.produtos') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-8">
+            <!-- Identificação Básica -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i> Identificação Básica
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Nome do Produto</label>
+                            <p class="fw-bold mb-0">{{ produto.name }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Código Interno</label>
+                            <p class="fw-bold mb-0">{{ produto.internal_code or '-' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Código de Barras</label>
+                            <p class="fw-bold mb-0">{{ produto.barcode or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="text-muted small">Descrição</label>
+                            <p class="mb-0">{{ produto.description or 'Sem descrição' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Unidade de Medida</label>
+                            <p class="fw-bold mb-0">{{ produto.unit_measure or '-' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Categoria</label>
+                            <p class="mb-0">{{ categoria.name if categoria else (produto.category or '-') }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Marca</label>
+                            <p class="mb-0">{{ marca.name if marca else '-' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Modelo</label>
+                            <p class="mb-0">{{ modelo.name if modelo else '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Grupo</label>
+                            <p class="mb-0">{{ grupo.name if grupo else '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Subgrupo</label>
+                            <p class="mb-0">{{ subgrupo.name if subgrupo else '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Tipo</label>
+                            <p class="mb-0">
+                                {% if produto.product_type == 'standalone' %}Produto Simples
+                                {% elif produto.product_type == 'parent' %}Produto Pai
+                                {% elif produto.product_type == 'child' %}Insumo/Componente
+                                {% else %}{{ produto.product_type or '-' }}{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preços -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-dollar-sign me-1"></i> Preços e Valores
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Preço de Custo</label>
+                            <p class="fw-bold mb-0 text-danger">R$ {{ "%.2f"|format(produto.cost_price or 0) }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Margem</label>
+                            <p class="fw-bold mb-0">{{ "%.2f"|format(produto.margin or 0) }}%</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Preço de Venda</label>
+                            <p class="fw-bold mb-0 text-success fs-5">R$ {{ "%.2f"|format(produto.price or 0) }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Desconto Máximo</label>
+                            <p class="fw-bold mb-0">{{ "%.2f"|format(produto.max_discount or 0) }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados Fiscais -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-file-invoice me-1"></i> Dados Fiscais
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">NCM</label>
+                            <p class="fw-bold mb-0">{{ produto.ncm or '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">CEST</label>
+                            <p class="mb-0">{{ produto.cest or '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Origem</label>
+                            <p class="mb-0">
+                                {% if produto.origin == 0 or produto.origin == '0' %}0 - Nacional
+                                {% elif produto.origin == 1 or produto.origin == '1' %}1 - Estrangeira (Importação direta)
+                                {% elif produto.origin == 2 or produto.origin == '2' %}2 - Estrangeira (Adquirida no mercado interno)
+                                {% else %}{{ produto.origin or '-' }}{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">CFOP Entrada</label>
+                            <p class="mb-0">{{ produto.cfop_in or '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">CFOP Saída</label>
+                            <p class="mb-0">{{ produto.cfop_out or '-' }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">CST/CSOSN</label>
+                            <p class="mb-0">{{ produto.cst_csosn or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">ICMS</label>
+                            <p class="mb-0">{{ "%.2f"|format(produto.icms_rate or 0) }}%</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">PIS</label>
+                            <p class="mb-0">{{ "%.2f"|format(produto.pis_rate or 0) }}%</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">COFINS</label>
+                            <p class="mb-0">{{ "%.2f"|format(produto.cofins_rate or 0) }}%</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">IPI</label>
+                            <p class="mb-0">{{ "%.2f"|format(produto.ipi_rate or 0) }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compras -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-shopping-cart me-1"></i> Informações de Compras
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Fornecedor Principal</label>
+                            <p class="mb-0">{{ fornecedor.name if fornecedor else '-' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Código no Fornecedor</label>
+                            <p class="mb-0">{{ produto.supplier_code or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Último Preço de Compra</label>
+                            <p class="fw-bold mb-0">R$ {{ "%.2f"|format(produto.last_purchase_price or 0) }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Prazo Médio de Entrega</label>
+                            <p class="mb-0">{{ produto.avg_delivery_time or '-' }} dias</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estoque e Logística -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-boxes me-1"></i> Estoque e Logística
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Estoque Atual</label>
+                            <p class="fw-bold mb-0 fs-5 
+                               {% if produto.stock_quantity and produto.min_stock and produto.stock_quantity <= produto.min_stock %}text-danger
+                               {% else %}text-success{% endif %}">
+                                {{ produto.stock_quantity or 0 }} {{ produto.unit_measure or 'UN' }}
+                            </p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Estoque Mínimo</label>
+                            <p class="mb-0">{{ produto.min_stock or 0 }} {{ produto.unit_measure or 'UN' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Estoque Máximo</label>
+                            <p class="mb-0">{{ produto.max_stock or '-' }} {{ produto.unit_measure or 'UN' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Localização</label>
+                            <p class="mb-0">{{ produto.location or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Peso Líquido</label>
+                            <p class="mb-0">{{ produto.net_weight or '-' }} kg</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Peso Bruto</label>
+                            <p class="mb-0">{{ produto.gross_weight or '-' }} kg</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Dimensões (C x L x A)</label>
+                            <p class="mb-0">{{ produto.length_cm or '-' }} x {{ produto.width_cm or '-' }} x {{ produto.height_cm or '-' }} cm</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Volume</label>
+                            <p class="mb-0">{{ produto.volume_m3 or '-' }} m³</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Controle de Lote</label>
+                            <p class="mb-0">
+                                {% if produto.lot_control %}<span class="badge bg-success">Sim</span>
+                                {% else %}<span class="badge bg-secondary">Não</span>{% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Controle de Série</label>
+                            <p class="mb-0">
+                                {% if produto.serial_control %}<span class="badge bg-success">Sim</span>
+                                {% else %}<span class="badge bg-secondary">Não</span>{% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">Produto Importado</label>
+                            <p class="mb-0">
+                                {% if produto.imported %}<span class="badge bg-info">Sim</span>
+                                {% else %}<span class="badge bg-secondary">Não</span>{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Especificações Técnicas (DNA) -->
+            {% if especificacao %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-dna me-1"></i> Especificações Técnicas (DNA do Produto)
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-dark mb-3">
+                        <strong>🧬 Código DNA:</strong>
+                        <span class="badge bg-success fs-6 ms-2">{{ especificacao.codigo_dna }}</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-primary">📐 Dimensões</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><td class="text-muted">Largura:</td><td>{{ especificacao.largura_mm or '-' }} mm</td></tr>
+                                <tr><td class="text-muted">Comprimento:</td><td>{{ especificacao.comprimento_mm or '-' }} mm</td></tr>
+                                <tr><td class="text-muted">Espessura:</td><td>{{ especificacao.espessura_mm or '-' }} mm</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-primary">🔧 Tipo e Material</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><td class="text-muted">Tipo:</td><td>{{ tipo_correia.nome if tipo_correia else '-' }}</td></tr>
+                                <tr><td class="text-muted">Material:</td><td>{{ material_correia.nome if material_correia else '-' }}</td></tr>
+                                <tr><td class="text-muted">Cor:</td><td>{{ especificacao.cor or '-' }}</td></tr>
+                                <tr><td class="text-muted">Dureza:</td><td>{{ especificacao.dureza_shore or '-' }} Shore A</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-primary">🏗️ Estrutura</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><td class="text-muted">Nº Lonas:</td><td>{{ especificacao.numero_lonas or '-' }}</td></tr>
+                                <tr><td class="text-muted">Tipo Lona:</td><td>{{ especificacao.tipo_lona or '-' }}</td></tr>
+                                <tr><td class="text-muted">Emenda:</td><td>{{ especificacao.tipo_emenda or '-' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% if especificacao.aplicacao or especificacao.ambiente %}
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Aplicação</label>
+                            <p class="mb-0">{{ especificacao.aplicacao or '-' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ambiente</label>
+                            <p class="mb-0">{{ especificacao.ambiente or '-' }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ficha Técnica de Produção -->
+            {% if ficha_tecnica %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-clipboard-list me-1"></i> Ficha Técnica de Produção
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="text-muted small">Custo Base</label>
+                            <p class="fw-bold mb-0 text-success">R$ {{ "%.2f"|format(ficha_tecnica.custo_base or 0) }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="text-muted small">Tempo Produção</label>
+                            <p class="mb-0">{{ ficha_tecnica.tempo_producao_minutos or 0 }} minutos</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="text-muted small">Status</label>
+                            <p class="mb-0">
+                                {% if ficha_tecnica.ativo %}<span class="badge bg-success">Ativa</span>
+                                {% else %}<span class="badge bg-secondary">Inativa</span>{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if ficha_tecnica_itens %}
+                    <h6 class="mt-3">Itens da Ficha Técnica</h6>
+                    <table class="table table-sm table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Item</th>
+                                <th>Quantidade</th>
+                                <th>Custo Unit.</th>
+                                <th>Custo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ficha_tecnica_itens %}
+                            <tr>
+                                <td>
+                                    {% if item.tipo_item == 'servico' %}<span class="badge bg-primary">Serviço</span>
+                                    {% elif item.tipo_item == 'materia_prima' %}<span class="badge bg-warning text-dark">Matéria Prima</span>
+                                    {% else %}<span class="badge bg-info">Consumo</span>{% endif %}
+                                </td>
+                                <td>{{ item.descricao or item.produto_nome or '-' }}</td>
+                                <td>{{ item.quantidade }} {{ item.unidade_medida or '' }}</td>
+                                <td>R$ {{ "%.2f"|format(item.custo_unitario or 0) }}</td>
+                                <td>R$ {{ "%.2f"|format(item.custo_total or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Observações -->
+            {% if produto.notes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-sticky-note me-1"></i> Observações
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ produto.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Foto do Produto -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-image me-1"></i> Foto do Produto
+                </div>
+                <div class="card-body text-center">
+                    {% if produto.photo_url %}
+                    <img src="{{ produto.photo_url }}" alt="{{ produto.name }}" class="img-fluid rounded mb-2" style="max-height: 300px;">
+                    <br>
+                    <a href="{{ produto.photo_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-external-link-alt"></i> Abrir Imagem
+                    </a>
+                    {% else %}
+                    <div class="text-muted py-4">
+                        <i class="fas fa-image fa-3x mb-2"></i>
+                        <p>Sem imagem cadastrada</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-toggle-on me-1"></i> Status
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Situação:</strong>
+                        {% if produto.active %}<span class="badge bg-success">Ativo</span>
+                        {% else %}<span class="badge bg-danger">Inativo</span>{% endif %}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Cadastrado em:</strong><br>
+                        <small class="text-muted">{{ produto.created_at.strftime('%d/%m/%Y %H:%M') if produto.created_at else '-' }}</small>
+                    </p>
+                    <p class="mb-0">
+                        <strong>Última atualização:</strong><br>
+                        <small class="text-muted">{{ produto.updated_at.strftime('%d/%m/%Y %H:%M') if produto.updated_at else '-' }}</small>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Ações Rápidas -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-bolt me-1"></i> Ações Rápidas
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('produto.produto_editar', id=produto.id) }}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Editar Produto
+                        </a>
+                        {% if ficha_tecnica %}
+                        <a href="{{ url_for('ficha_tecnica.visualizar', id=ficha_tecnica.id) }}" class="btn btn-success">
+                            <i class="fas fa-clipboard-list"></i> Ver Ficha Técnica
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('ficha_tecnica.novo', produto_id=produto.id) }}" class="btn btn-outline-success">
+                            <i class="fas fa-plus"></i> Criar Ficha Técnica
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('produto.produtos') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar à Lista
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

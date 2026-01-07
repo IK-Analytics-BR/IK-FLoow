@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Modelo: {{ modelo.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Modelo: {{ modelo.name }}</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('produto.produtos') }}">Produtos</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('product_model.modelos') }}">Modelos</a></li>
+    <li class="breadcrumb-item active">Visualizar</li>
+  </ol>
+
+  <div class="card mb-4">
+    <div class="card-header"><i class="fas fa-tag me-1"></i> Informações do Modelo</div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-2">Nome</dt>
+        <dd class="col-sm-10">{{ modelo.name }}</dd>
+        <dt class="col-sm-2">Descrição</dt>
+        <dd class="col-sm-10">{{ modelo.description }}</dd>
+        <dt class="col-sm-2">Status</dt>
+        <dd class="col-sm-10">{{ 'Ativo' if modelo.active else 'Inativo' }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><i class="fas fa-boxes me-1"></i> Produtos deste Modelo</div>
+    <div class="card-body table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Categoria</th>
+            <th>Marca</th>
+            <th>Preço</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in produtos %}
+          <tr>
+            <td>{{ p.id }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.category_id }}</td>
+            <td>{{ p.brand_id }}</td>
+            <td>{{ '%.2f'|format(p.price or 0) }}</td>
+            <td>
+              <a class="btn btn-sm btn-info" href="{{ url_for('produto.produto_visualizar', id=p.id) }}"><i class="fas fa-eye"></i></a>
+              <a class="btn btn-sm btn-warning" href="{{ url_for('produto.produto_editar', id=p.id) }}"><i class="fas fa-edit"></i></a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted">Nenhum produto associado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

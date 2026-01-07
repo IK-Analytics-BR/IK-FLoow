@@ -1,0 +1,69 @@
+# ========================================
+# ARQUIVO .gitignore
+# ========================================
+
+# Arquivos de ambiente (CONTÉM SENHAS!)
+.env
+.env.local
+.env.production
+*.env
+
+# Ambiente virtual Python
+venv/
+env/
+ENV/
+.venv
+
+# Arquivos Python compilados
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Arquivos de distribuição
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+logs/
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads e temporários
+uploads/
+tmp/
+temp/
+*.tmp
+
+# Backups
+*.backup
+*.bak
+*.old
+
+# Certificados e chaves
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+
+# Configurações locais
+config.local.py
+settings.local.py

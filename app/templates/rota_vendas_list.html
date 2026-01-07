@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Rotas de Vendas - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Rotas de Vendas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Rotas de Vendas</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-route me-1"></i>
+            Lista de Rotas de Vendas
+            <a href="{{ url_for('rota_vendas.rota_vendas_cadastrar') }}" class="btn btn-primary btn-sm float-end">
+                <i class="fas fa-plus"></i> Nova Rota
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar rota...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <select id="vendedorFilter" class="form-select">
+                            <option value="">Todos os vendedores</option>
+                            {% set vendedores = [] %}
+                            {% for rota in rotas %}
+                                {% if rota.seller_name not in vendedores %}
+                                    {% set vendedores = vendedores + [rota.seller_name] %}
+                                    <option value="{{ rota.seller_name }}">{{ rota.seller_name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="rotasTable">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Vendedor</th>
+                            <th>Frequência</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rota in rotas %}
+                        <tr>
+                            <td>{{ rota.code }}</td>
+                            <td>{{ rota.name }}</td>
+                            <td>{{ rota.seller_name }}</td>
+                            <td>
+                                {% if rota.frequency == 'daily' %}
+                                    Diária
+                                {% elif rota.frequency == 'weekly' %}
+                                    Semanal
+                                {% elif rota.frequency == 'monthly' %}
+                                    Mensal
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('rota_vendas.rota_vendas_view', route_id=rota.id) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('rota_vendas.rota_vendas_editar', route_id=rota.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger btn-sm" title="Excluir" data-bs-toggle="modal" data-bs-target="#deleteModal{{ rota.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ rota.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ rota.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ rota.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Tem certeza que deseja excluir a rota <strong>{{ rota.name }}</strong>?
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('rota_vendas.rota_vendas_excluir', route_id=rota.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#rotasTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Filtro por vendedor
+        $("#vendedorFilter").on("change", function() {
+            var value = $(this).val().toLowerCase();
+            if (value === "") {
+                // Mostrar todas as linhas se nenhum vendedor for selecionado
+                $("#rotasTable tbody tr").show();
+            } else {
+                // Filtrar por vendedor
+                $("#rotasTable tbody tr").filter(function() {
+                    var vendedor = $(this).find("td:eq(2)").text().toLowerCase();
+                    $(this).toggle(vendedor === value);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

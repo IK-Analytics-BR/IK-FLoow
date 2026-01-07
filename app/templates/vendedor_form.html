@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Novo Vendedor' if not vendedor_id else 'Editar Vendedor' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    {% if show_duplicate_modal %}
+    <!-- Modal para aviso de CPF já cadastrado -->
+    <div class="modal fade" id="duplicateDocumentModal" tabindex="-1" aria-labelledby="duplicateDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="duplicateDocumentModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        CPF já cadastrado
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <p><strong>Atenção!</strong> O CPF informado já está cadastrado para:</n></p>
+                        <p class="fs-5">{{ entidade.name }}</p>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Informações do cadastro existente
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>CPF:</strong> {{ entidade.cpf }}</p>
+                                    <p><strong>Nome:</strong> {{ entidade.name }}</p>
+                                    {% if entidade.phone %}<p><strong>Telefone:</strong> {{ entidade.phone }}</p>{% endif %}
+                                    {% if entidade.email %}<p><strong>Email:</strong> {{ entidade.email }}</p>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-question-circle me-2"></i>
+                                    O que deseja fazer?
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for(editar_url, vendedor_id=entidade.id) }}" class="btn btn-primary">
+                                            <i class="fas fa-edit me-2"></i>
+                                            Editar cadastro existente
+                                        </a>
+                                        <a href="{{ url_for(visualizar_url, vendedor_id=entidade.id) }}" class="btn btn-info">
+                                            <i class="fas fa-eye me-2"></i>
+                                            Visualizar cadastro existente
+                                        </a>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            <i class="fas fa-times me-2"></i>
+                                            Fechar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var duplicateModal = new bootstrap.Modal(document.getElementById('duplicateDocumentModal'));
+            duplicateModal.show();
+        });
+    </script>
+    {% endif %}
+    <h1 class="mt-4">{{ 'Novo Vendedor' if not vendedor_id else 'Editar Vendedor' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('vendedor.vendedores') }}">Vendedores</a></li>
+        <li class="breadcrumb-item active">{{ 'Novo Vendedor' if not vendedor_id else 'Editar Vendedor' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-user-tie me-1"></i>
+            {{ 'Novo Vendedor' if not vendedor_id else 'Editar Vendedor' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('vendedor.vendedor_cadastrar') if not vendedor_id else url_for('vendedor.vendedor_editar', vendedor_id=vendedor_id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ vendedor.name if vendedor else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="cpf" class="form-label">CPF <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="cpf" name="cpf" value="{{ vendedor.cpf if vendedor else '' }}" required>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="region" class="form-label">Região de Atuação <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="region" name="region" value="{{ vendedor.region if vendedor else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="phone" name="phone" value="{{ vendedor.phone if vendedor else '' }}">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ vendedor.email if vendedor else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="active" {% if vendedor and vendedor.status == 'active' %}selected{% endif %}>Ativo</option>
+                            <option value="inactive" {% if vendedor and vendedor.status == 'inactive' %}selected{% endif %}>Inativo</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="clientes" class="form-label">Clientes Vinculados</label>
+                        <select class="form-select" id="clientes" name="clientes" multiple data-placeholder="Selecione os clientes">
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" {% if clientes_ids and cliente.id in clientes_ids %}selected{% endif %}>
+                                {{ cliente.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Selecione os clientes que este vendedor atende.</div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('vendedor.vendedores') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Inicializar Select2 para múltipla seleção
+        $('#clientes').select2({
+            placeholder: "Selecione os clientes",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Máscara para CPF
+        $('#cpf').mask('000.000.000-00', {reverse: true});
+        
+        // Máscara para telefone
+        $('#phone').mask('(00) 00000-0000');
+    });
+</script>
+{% endblock %}

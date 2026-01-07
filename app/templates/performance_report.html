@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório de Desempenho - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Relatório de Desempenho</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.cmms_dashboard') }}">Dashboard CMMS</a></li>
+        <li class="breadcrumb-item active">Relatório de Desempenho</li>
+    </ol>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('dashboard.performance_report') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Data Inicial</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">Data Final</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="customer_id" class="form-label">Cliente</label>
+                    <select class="form-select" id="customer_id" name="customer_id">
+                        <option value="">Todos os clientes</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer_id|int == customer.id %}selected{% endif %}>
+                            {{ customer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="equipment_id" class="form-label">Equipamento</label>
+                    <select class="form-select" id="equipment_id" name="equipment_id">
+                        <option value="">Todos os equipamentos</option>
+                        {% for equipment in equipments %}
+                        <option value="{{ equipment.id }}" data-customer="{{ equipment.customer_id }}" class="equipment-option" {% if equipment_id|int == equipment.id %}selected{% endif %}>
+                            {{ equipment.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{{ url_for('dashboard.performance_report') }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-undo me-1"></i> Limpar
+                    </a>
+                    <a href="{{ url_for('dashboard.export_report', report_type='performance') }}" class="btn btn-success">
+                        <i class="fas fa-file-csv me-1"></i> Exportar CSV
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Informações sobre os indicadores -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Indicadores de Desempenho
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>MTBF (Mean Time Between Failures)</h5>
+                    <p>Tempo médio entre falhas. Quanto maior, melhor a confiabilidade do equipamento.</p>
+                    <p><strong>Fórmula:</strong> Tempo total de operação / Número de falhas</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>MTTR (Mean Time To Repair)</h5>
+                    <p>Tempo médio para reparo. Quanto menor, mais eficiente é a manutenção.</p>
+                    <p><strong>Fórmula:</strong> Tempo total de reparo / Número de reparos</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Disponibilidade</h5>
+                    <p>Percentual de tempo em que o equipamento está disponível para operação.</p>
+                    <p><strong>Fórmula:</strong> MTBF / (MTBF + MTTR) ou 1 - (Tempo de parada / Tempo total)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabela de Desempenho -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            Indicadores por Equipamento
+        </div>
+        <div class="card-body">
+            {% if performance_data %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Equipamento</th>
+                            <th>MTBF (horas)</th>
+                            <th>MTTR (horas)</th>
+                            <th>Disponibilidade</th>
+                            <th>Falhas</th>
+                            <th>Tempo de Parada (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in performance_data %}
+                        <tr>
+                            <td>{{ item.equipment_name }}</td>
+                            <td>
+                                {% if item.mtbf %}
+                                {{ "%.2f"|format(item.mtbf) }}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.mttr %}
+                                {{ "%.2f"|format(item.mttr) }}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.availability %}
+                                {{ "%.2f"|format(item.availability * 100) }}%
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.failure_count or 0 }}</td>
+                            <td>{{ item.total_downtime_minutes or 0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhum dado de desempenho encontrado para os filtros selecionados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    MTBF por Equipamento
+                </div>
+                <div class="card-body">
+                    <canvas id="mtbfChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    MTTR por Equipamento
+                </div>
+                <div class="card-body">
+                    <canvas id="mttrChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Disponibilidade por Equipamento
+                </div>
+                <div class="card-body">
+                    <canvas id="availabilityChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Número de Falhas por Equipamento
+                </div>
+                <div class="card-body">
+                    <canvas id="failuresChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Análise de Desempenho -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chart-line me-1"></i>
+            Análise de Desempenho
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Resumo</h5>
+                    {% if performance_data %}
+                    {% set best_mtbf = performance_data|sort(attribute='mtbf', reverse=True)|first %}
+                    {% set worst_mtbf = performance_data|sort(attribute='mtbf')|first %}
+                    {% set best_mttr = performance_data|sort(attribute='mttr')|first %}
+                    {% set worst_mttr = performance_data|sort(attribute='mttr', reverse=True)|first %}
+                    {% set best_availability = performance_data|sort(attribute='availability', reverse=True)|first %}
+                    {% set worst_availability = performance_data|sort(attribute='availability')|first %}
+                    
+                    <p>
+                        <strong>Melhor MTBF:</strong> {{ best_mtbf.equipment_name }} ({{ "%.2f"|format(best_mtbf.mtbf) }} horas)<br>
+                        <strong>Pior MTBF:</strong> {{ worst_mtbf.equipment_name }} ({{ "%.2f"|format(worst_mtbf.mtbf) }} horas)<br>
+                        <strong>Melhor MTTR:</strong> {{ best_mttr.equipment_name }} ({{ "%.2f"|format(best_mttr.mttr) }} horas)<br>
+                        <strong>Pior MTTR:</strong> {{ worst_mttr.equipment_name }} ({{ "%.2f"|format(worst_mttr.mttr) }} horas)<br>
+                        <strong>Melhor Disponibilidade:</strong> {{ best_availability.equipment_name }} ({{ "%.2f"|format(best_availability.availability * 100) }}%)<br>
+                        <strong>Pior Disponibilidade:</strong> {{ worst_availability.equipment_name }} ({{ "%.2f"|format(worst_availability.availability * 100) }}%)
+                    </p>
+                    {% else %}
+                    <p>Nenhum dado disponível para análise.</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h5>Recomendações</h5>
+                    <ul>
+                        {% if performance_data %}
+                        {% set worst_mtbf = performance_data|sort(attribute='mtbf')|first %}
+                        {% set worst_mttr = performance_data|sort(attribute='mttr', reverse=True)|first %}
+                        <li>Revisar o plano de manutenção preventiva para {{ worst_mtbf.equipment_name }} para aumentar o MTBF.</li>
+                        <li>Melhorar o processo de manutenção para {{ worst_mttr.equipment_name }} para reduzir o MTTR.</li>
+                        <li>Considerar treinamento adicional para técnicos que trabalham com equipamentos de baixa disponibilidade.</li>
+                        <li>Implementar monitoramento em tempo real para equipamentos críticos.</li>
+                        {% else %}
+                        <li>Implementar coleta de dados de falhas e reparos para todos os equipamentos.</li>
+                        <li>Estabelecer um sistema de registro de tempo de parada para calcular indicadores de desempenho.</li>
+                        <li>Treinar a equipe para registrar corretamente os dados de manutenção.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[2, 'asc']],
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ]
+        });
+        
+        // Filtrar equipamentos por cliente
+        $('#customer_id').change(function() {
+            var customerId = $(this).val();
+            
+            // Esconder todos os equipamentos
+            $('.equipment-option').hide();
+            
+            if (customerId) {
+                // Mostrar apenas os equipamentos do cliente selecionado
+                $('.equipment-option[data-customer="' + customerId + '"]').show();
+            } else {
+                // Se nenhum cliente selecionado, mostrar todos
+                $('.equipment-option').show();
+            }
+            
+            // Limpar a seleção atual
+            $('#equipment_id').val('');
+        });
+        
+        // Gráfico de MTBF
+        var ctxMtbf = document.getElementById('mtbfChart').getContext('2d');
+        new Chart(ctxMtbf, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in performance_data %}
+                        {% if item.mtbf %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                        {% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'MTBF (horas)',
+                    data: [
+                        {% for item in performance_data %}
+                            {% if item.mtbf %}
+                            {{ item.mtbf }}{{ "," if not loop.last }}
+                            {% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de MTTR
+        var ctxMttr = document.getElementById('mttrChart').getContext('2d');
+        new Chart(ctxMttr, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in performance_data %}
+                        {% if item.mttr %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                        {% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'MTTR (horas)',
+                    data: [
+                        {% for item in performance_data %}
+                            {% if item.mttr %}
+                            {{ item.mttr }}{{ "," if not loop.last }}
+                            {% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de Disponibilidade
+        var ctxAvailability = document.getElementById('availabilityChart').getContext('2d');
+        new Chart(ctxAvailability, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in performance_data %}
+                        {% if item.availability %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                        {% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Disponibilidade (%)',
+                    data: [
+                        {% for item in performance_data %}
+                            {% if item.availability %}
+                            {{ item.availability * 100 }}{{ "," if not loop.last }}
+                            {% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de Falhas
+        var ctxFailures = document.getElementById('failuresChart').getContext('2d');
+        new Chart(ctxFailures, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in performance_data %}
+                        '{{ item.equipment_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Número de Falhas',
+                    data: [
+                        {% for item in performance_data %}
+                            {{ item.failure_count or 0 }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.5)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

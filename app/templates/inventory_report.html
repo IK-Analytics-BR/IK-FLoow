@@ -1,0 +1,711 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Estoque - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Relatórios de Estoque</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.inventory_list') }}">Estoque</a></li>
+        <li class="breadcrumb-item active">Relatórios</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+            <div class="float-end">
+                <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="printReport()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" action="{{ url_for('inventory.inventory_report') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="report_type" class="form-label">Tipo de Relatório</label>
+                        <select class="form-select" id="report_type" name="report_type" onchange="this.form.submit()">
+                            <option value="current" {% if report_type == 'current' %}selected{% endif %}>Posição Atual</option>
+                            <option value="movements" {% if report_type == 'movements' %}selected{% endif %}>Movimentações</option>
+                            <option value="low_stock" {% if report_type == 'low_stock' %}selected{% endif %}>Produtos Abaixo do Mínimo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category_id" class="form-label">Categoria</label>
+                        <select class="form-select" id="category_id" name="category_id" onchange="this.form.submit()">
+                            <option value="">Todas as categorias</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if category_id|int == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="location_id" class="form-label">Local</label>
+                        <select class="form-select" id="location_id" name="location_id" onchange="this.form.submit()">
+                            <option value="">Todos os locais</option>
+                            {% for location in locations %}
+                            <option value="{{ location.id }}" {% if location_id|int == location.id %}selected{% endif %}>
+                                {{ location.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <input type="text" id="searchInput" class="form-control" placeholder="Buscar...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if report_type == 'movements' %}
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}" onchange="this.form.submit()">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Data Final</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}" onchange="this.form.submit()">
+                    </div>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            {% if report_type == 'current' %}
+                Posição Atual de Estoque
+            {% elif report_type == 'movements' %}
+                Movimentações de Estoque
+            {% elif report_type == 'low_stock' %}
+                Produtos Abaixo do Estoque Mínimo
+            {% endif %}
+            <span class="badge bg-primary ms-2">{{ total_items }} item(s)</span>
+            {% if total_value is not none %}
+            <span class="badge bg-success ms-2">Valor Total: R$ {{ "%.2f"|format(total_value) }}</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="reportTable">
+                    <thead>
+                        {% if report_type == 'current' %}
+                        <tr>
+                            <th>Código</th>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th>Local</th>
+                            <th>Quantidade</th>
+                            <th>Unidade</th>
+                            <th>Mínimo</th>
+                            <th>Máximo</th>
+                            <th>Valor Unitário</th>
+                            <th>Valor Total</th>
+                        </tr>
+                        {% elif report_type == 'movements' %}
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Produto</th>
+                            <th>Tipo</th>
+                            <th>Quantidade</th>
+                            <th>Local</th>
+                            <th>Custo Unit.</th>
+                            <th>Referência</th>
+                            <th>Observações</th>
+                            <th>Usuário</th>
+                        </tr>
+                        {% elif report_type == 'low_stock' %}
+                        <tr>
+                            <th>Código</th>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th>Local</th>
+                            <th>Estoque Atual</th>
+                            <th>Estoque Mínimo</th>
+                            <th>Faltante</th>
+                            <th>Unidade</th>
+                            <th>Custo Unit.</th>
+                            <th>Valor Faltante</th>
+                        </tr>
+                        {% endif %}
+                    </thead>
+                    <tbody>
+                        {% if report_type == 'current' %}
+                            {% for item in report_data %}
+                            <tr class="
+                                {% if item.quantity <= item.min_stock and item.min_stock > 0 %}table-danger{% endif %}
+                                {% if item.quantity >= item.max_stock and item.max_stock > 0 %}table-warning{% endif %}
+                                {% if item.quantity == 0 %}table-secondary{% endif %}
+                            ">
+                                <td>{{ item.code or item.sku or '-' }}</td>
+                                <td>{{ item.product_name }}</td>
+                                <td>{{ item.category_name or '-' }}</td>
+                                <td>{{ item.location_name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit }}</td>
+                                <td>{{ item.min_stock }}</td>
+                                <td>{{ item.max_stock }}</td>
+                                <td>R$ {{ "%.2f"|format(item.sale_price) if item.sale_price else '0.00' }}</td>
+                                <td>R$ {{ "%.2f"|format(item.total_value) if item.total_value else '0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% elif report_type == 'movements' %}
+                            {% for item in report_data %}
+                            <tr class="
+                                {% if item.movement_type == 'purchase' %}table-success{% endif %}
+                                {% if item.movement_type == 'sale' %}table-danger{% endif %}
+                                {% if item.movement_type == 'adjustment_add' %}table-info{% endif %}
+                                {% if item.movement_type == 'adjustment_subtract' %}table-warning{% endif %}
+                                {% if item.movement_type == 'transfer_in' %}table-primary{% endif %}
+                                {% if item.movement_type == 'transfer_out' %}table-secondary{% endif %}
+                            ">
+                                <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ item.product_name }}</td>
+                                <td>
+                                    {% if item.movement_type == 'purchase' %}
+                                        <span class="badge bg-success">Compra</span>
+                                    {% elif item.movement_type == 'sale' %}
+                                        <span class="badge bg-danger">Venda</span>
+                                    {% elif item.movement_type == 'adjustment_add' %}
+                                        <span class="badge bg-info">Ajuste (Entrada)</span>
+                                    {% elif item.movement_type == 'adjustment_subtract' %}
+                                        <span class="badge bg-warning">Ajuste (Saída)</span>
+                                    {% elif item.movement_type == 'transfer_in' %}
+                                        <span class="badge bg-primary">Transferência (Entrada)</span>
+                                    {% elif item.movement_type == 'transfer_out' %}
+                                        <span class="badge bg-secondary">Transferência (Saída)</span>
+                                    {% else %}
+                                        <span class="badge bg-dark">{{ item.movement_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.quantity }} {{ item.unit }}</td>
+                                <td>{{ item.location_name }}</td>
+                                <td>R$ {{ "%.2f"|format(item.unit_cost) if item.unit_cost else '0.00' }}</td>
+                                <td>{{ item.reference_type }} {{ item.reference_id if item.reference_id }}</td>
+                                <td>{{ item.notes }}</td>
+                                <td>{{ item.created_by_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% elif report_type == 'low_stock' %}
+                            {% for item in report_data %}
+                            <tr class="table-danger">
+                                <td>{{ item.code or item.sku or '-' }}</td>
+                                <td>{{ item.product_name }}</td>
+                                <td>{{ item.category_name or '-' }}</td>
+                                <td>{{ item.location_name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.min_stock }}</td>
+                                <td>{{ item.missing_quantity }}</td>
+                                <td>{{ item.unit }}</td>
+                                <td>R$ {{ "%.2f"|format(item.purchase_price) if item.purchase_price else '0.00' }}</td>
+                                <td>R$ {{ "%.2f"|format(item.missing_quantity * item.purchase_price) if item.missing_quantity and item.purchase_price else '0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not report_data %}
+            <div class="alert alert-info">
+                Nenhum dado encontrado para os filtros selecionados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    {% if report_type == 'current' %}
+                        Valor de Estoque por Categoria
+                    {% elif report_type == 'movements' %}
+                        Movimentações por Tipo
+                    {% elif report_type == 'low_stock' %}
+                        Valor Faltante por Categoria
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartOne" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    {% if report_type == 'current' %}
+                        Distribuição de Estoque por Local
+                    {% elif report_type == 'movements' %}
+                        Movimentações por Período
+                    {% elif report_type == 'low_stock' %}
+                        Distribuição de Itens Faltantes
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartTwo" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#reportTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Gráficos
+        {% if report_type == 'current' %}
+            // Preparar dados para o gráfico de valor por categoria
+            var categoryData = {};
+            var locationData = {};
+            
+            {% for item in report_data %}
+                // Dados por categoria
+                var category = "{{ item.category_name or 'Sem Categoria' }}";
+                var itemValue = {{ (item.sale_price or 0) * item.quantity }};
+                
+                if (categoryData[category]) {
+                    categoryData[category] += itemValue;
+                } else {
+                    categoryData[category] = itemValue;
+                }
+                
+                // Dados por local
+                var location = "{{ item.location_name }}";
+                
+                if (locationData[location]) {
+                    locationData[location] += itemValue;
+                } else {
+                    locationData[location] = itemValue;
+                }
+            {% endfor %}
+            
+            // Gráfico de valor por categoria
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var categoryLabels = Object.keys(categoryData);
+                var categoryValues = Object.values(categoryData);
+                var categoryColors = generateColors(categoryLabels.length);
+                
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            label: "Valor de Estoque (R$)",
+                            backgroundColor: categoryColors,
+                            borderColor: categoryColors.map(color => color.replace("0.8", "1")),
+                            borderWidth: 1,
+                            data: categoryValues
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de distribuição por local
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                var locationLabels = Object.keys(locationData);
+                var locationValues = Object.values(locationData);
+                var locationColors = generateColors(locationLabels.length);
+                
+                new Chart(ctxTwo, {
+                    type: "pie",
+                    data: {
+                        labels: locationLabels,
+                        datasets: [{
+                            backgroundColor: locationColors,
+                            data: locationValues
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.raw || 0;
+                                        var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        var percentage = Math.round((value / total) * 100);
+                                        return label + ': R$ ' + value.toFixed(2) + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% elif report_type == 'movements' %}
+            // Preparar dados para o gráfico de movimentações por tipo
+            var typeData = {
+                'purchase': 0,
+                'sale': 0,
+                'adjustment_add': 0,
+                'adjustment_subtract': 0,
+                'transfer_in': 0,
+                'transfer_out': 0
+            };
+            
+            var dateData = {};
+            
+            {% for item in report_data %}
+                // Dados por tipo
+                var type = "{{ item.movement_type }}";
+                if (typeData[type] !== undefined) {
+                    typeData[type] += {{ item.quantity }};
+                }
+                
+                // Dados por data
+                var date = "{{ item.created_at.strftime('%Y-%m-%d') }}";
+                if (!dateData[date]) {
+                    dateData[date] = {
+                        'in': 0,
+                        'out': 0
+                    };
+                }
+                
+                if (['purchase', 'adjustment_add', 'transfer_in'].includes(type)) {
+                    dateData[date]['in'] += {{ item.quantity }};
+                } else if (['sale', 'adjustment_subtract', 'transfer_out'].includes(type)) {
+                    dateData[date]['out'] += {{ item.quantity }};
+                }
+            {% endfor %}
+            
+            // Gráfico de movimentações por tipo
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: ["Compra", "Venda", "Ajuste (Entrada)", "Ajuste (Saída)", "Transferência (Entrada)", "Transferência (Saída)"],
+                        datasets: [{
+                            label: "Quantidade",
+                            backgroundColor: [
+                                "rgba(40, 167, 69, 0.8)",
+                                "rgba(220, 53, 69, 0.8)",
+                                "rgba(23, 162, 184, 0.8)",
+                                "rgba(255, 193, 7, 0.8)",
+                                "rgba(13, 110, 253, 0.8)",
+                                "rgba(108, 117, 125, 0.8)"
+                            ],
+                            borderColor: [
+                                "rgba(40, 167, 69, 1)",
+                                "rgba(220, 53, 69, 1)",
+                                "rgba(23, 162, 184, 1)",
+                                "rgba(255, 193, 7, 1)",
+                                "rgba(13, 110, 253, 1)",
+                                "rgba(108, 117, 125, 1)"
+                            ],
+                            borderWidth: 1,
+                            data: [
+                                typeData['purchase'],
+                                typeData['sale'],
+                                typeData['adjustment_add'],
+                                typeData['adjustment_subtract'],
+                                typeData['transfer_in'],
+                                typeData['transfer_out']
+                            ]
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de movimentações por período
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                // Ordenar datas
+                var dates = Object.keys(dateData).sort();
+                var inData = [];
+                var outData = [];
+                
+                // Preparar dados para o gráfico
+                for (var i = 0; i < dates.length; i++) {
+                    var date = dates[i];
+                    inData.push(dateData[date]['in']);
+                    outData.push(dateData[date]['out']);
+                }
+                
+                // Formatar datas para exibição (DD/MM)
+                var displayDates = dates.map(function(date) {
+                    return date.substring(5); // Formato MM-DD
+                });
+                
+                new Chart(ctxTwo, {
+                    type: "line",
+                    data: {
+                        labels: displayDates,
+                        datasets: [
+                            {
+                                label: "Entradas",
+                                backgroundColor: "rgba(40, 167, 69, 0.2)",
+                                borderColor: "rgba(40, 167, 69, 1)",
+                                borderWidth: 2,
+                                pointRadius: 3,
+                                pointBackgroundColor: "rgba(40, 167, 69, 1)",
+                                pointBorderColor: "#fff",
+                                pointHoverRadius: 5,
+                                fill: true,
+                                data: inData
+                            },
+                            {
+                                label: "Saídas",
+                                backgroundColor: "rgba(220, 53, 69, 0.2)",
+                                borderColor: "rgba(220, 53, 69, 1)",
+                                borderWidth: 2,
+                                pointRadius: 3,
+                                pointBackgroundColor: "rgba(220, 53, 69, 1)",
+                                pointBorderColor: "#fff",
+                                pointHoverRadius: 5,
+                                fill: true,
+                                data: outData
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        {% elif report_type == 'low_stock' %}
+            // Preparar dados para o gráfico de valor faltante por categoria
+            var categoryData = {};
+            var productData = {};
+            
+            {% for item in report_data %}
+                // Dados por categoria
+                var category = "{{ item.category_name or 'Sem Categoria' }}";
+                var itemValue = {{ (item.purchase_price or 0) * item.missing_quantity }};
+                
+                if (categoryData[category]) {
+                    categoryData[category] += itemValue;
+                } else {
+                    categoryData[category] = itemValue;
+                }
+                
+                // Dados por produto
+                var product = "{{ item.product_name }}";
+                
+                if (productData[product]) {
+                    productData[product] += {{ item.missing_quantity }};
+                } else {
+                    productData[product] = {{ item.missing_quantity }};
+                }
+            {% endfor %}
+            
+            // Gráfico de valor faltante por categoria
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var categoryLabels = Object.keys(categoryData);
+                var categoryValues = Object.values(categoryData);
+                var categoryColors = generateColors(categoryLabels.length);
+                
+                new Chart(ctxOne, {
+                    type: "bar",
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            label: "Valor Faltante (R$)",
+                            backgroundColor: categoryColors,
+                            borderColor: categoryColors.map(color => color.replace("0.8", "1")),
+                            borderWidth: 1,
+                            data: categoryValues
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de distribuição de itens faltantes
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                var productLabels = Object.keys(productData);
+                var productValues = Object.values(productData);
+                var productColors = generateColors(productLabels.length);
+                
+                new Chart(ctxTwo, {
+                    type: "pie",
+                    data: {
+                        labels: productLabels,
+                        datasets: [{
+                            backgroundColor: productColors,
+                            data: productValues
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.raw || 0;
+                                        var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        var percentage = Math.round((value / total) * 100);
+                                        return label + ': ' + value.toFixed(2) + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+    
+    // Função para gerar cores aleatórias
+    function generateColors(count) {
+        var colors = [];
+        for (var i = 0; i < count; i++) {
+            var r = Math.floor(Math.random() * 200) + 55;
+            var g = Math.floor(Math.random() * 200) + 55;
+            var b = Math.floor(Math.random() * 200) + 55;
+            colors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+        }
+        return colors;
+    }
+    
+    // Função para exportar para PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // Criar novo documento PDF
+        const doc = new jsPDF();
+        
+        // Título
+        doc.setFontSize(18);
+        doc.text('Relatório de Estoque', 14, 22);
+        
+        // Subtítulo
+        doc.setFontSize(12);
+        var subtitle = '';
+        {% if report_type == 'current' %}
+            subtitle = 'Posição Atual de Estoque';
+        {% elif report_type == 'movements' %}
+            subtitle = 'Movimentações de Estoque';
+        {% elif report_type == 'low_stock' %}
+            subtitle = 'Produtos Abaixo do Estoque Mínimo';
+        {% endif %}
+        doc.text(subtitle, 14, 30);
+        
+        // Informações do relatório
+        doc.setFontSize(10);
+        doc.text('Data do relatório: ' + new Date().toLocaleDateString(), 14, 40);
+        doc.text('Total de itens: {{ total_items }}', 14, 45);
+        {% if total_value is not none %}
+        doc.text('Valor total: R$ {{ "%.2f"|format(total_value) }}', 14, 50);
+        {% endif %}
+        
+        // Tabela de dados
+        doc.autoTable({
+            html: '#reportTable',
+            startY: 55,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            styles: { fontSize: 8 }
+        });
+        
+        // Salvar o PDF
+        doc.save('relatorio_estoque_{{ report_type }}.pdf');
+    }
+    
+    // Função para exportar para Excel
+    function exportToExcel() {
+        // Criar uma nova planilha
+        const wb = XLSX.utils.book_new();
+        
+        // Converter a tabela para uma planilha
+        const ws = XLSX.utils.table_to_sheet(document.getElementById('reportTable'));
+        
+        // Adicionar a planilha ao livro
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+        
+        // Salvar o arquivo
+        XLSX.writeFile(wb, 'relatorio_estoque_{{ report_type }}.xlsx');
+    }
+    
+    // Função para imprimir o relatório
+    function printReport() {
+        window.print();
+    }
+</script>
+
+<style media="print">
+    @page {
+        size: landscape;
+    }
+    
+    .card-header, .breadcrumb, form, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    table {
+        width: 100% !important;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Contas a Receber - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Contas a Receber</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Contas a Receber</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-hand-holding-usd me-1"></i>
+            Lista de Contas a Receber
+            <a href="{{ url_for('accounts_receivable.accounts_receivable_create') }}" class="btn btn-primary btn-sm float-end">
+                <i class="fas fa-plus"></i> Nova Conta
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar conta...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="statusFilter" class="form-select" onchange="applyFilters()">
+                        <option value="all" {% if status == 'all' %}selected{% endif %}>Todos os status</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pendentes</option>
+                        <option value="received" {% if status == 'received' %}selected{% endif %}>Recebidas</option>
+                        <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>Vencidas</option>
+                        <option value="canceled" {% if status == 'canceled' %}selected{% endif %}>Canceladas</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="periodFilter" class="form-select" onchange="applyFilters()">
+                        <option value="all" {% if period == 'all' %}selected{% endif %}>Todos os períodos</option>
+                        <option value="today" {% if period == 'today' %}selected{% endif %}>Vence hoje</option>
+                        <option value="week" {% if period == 'week' %}selected{% endif %}>Próximos 7 dias</option>
+                        <option value="month" {% if period == 'month' %}selected{% endif %}>Próximos 30 dias</option>
+                        <option value="overdue" {% if period == 'overdue' %}selected{% endif %}>Vencidas</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="customerFilter" class="form-select" onchange="applyFilters()">
+                        <option value="">Todos os clientes</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer_id|int == customer.id %}selected{% endif %}>
+                            {{ customer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="receivablesTable">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Cliente</th>
+                            <th>Valor</th>
+                            <th>Vencimento</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receivable in receivables %}
+                        <tr class="
+                            {% if receivable.status == 'overdue' %}table-danger{% endif %}
+                            {% if receivable.status == 'received' %}table-success{% endif %}
+                            {% if receivable.status == 'canceled' %}table-secondary{% endif %}
+                        ">
+                            <td>
+                                {{ receivable.description }}
+                                {% if receivable.invoice_number %}
+                                <br><small class="text-muted">NF: {{ receivable.invoice_number }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ receivable.customer_name }}</td>
+                            <td>R$ {{ "%.2f"|format(receivable.total_amount) }}</td>
+                            <td>
+                                {{ receivable.due_date.strftime('%d/%m/%Y') }}
+                                {% if receivable.installments > 1 %}
+                                <br><small class="text-muted">{{ receivable.installments }}x</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if receivable.status == 'pending' %}
+                                    <span class="badge bg-warning">Pendente</span>
+                                {% elif receivable.status == 'received' %}
+                                    <span class="badge bg-success">Recebida</span>
+                                {% elif receivable.status == 'overdue' %}
+                                    <span class="badge bg-danger">Vencida</span>
+                                {% elif receivable.status == 'canceled' %}
+                                    <span class="badge bg-secondary">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('accounts_receivable.accounts_receivable_view', receivable_id=receivable.id) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if receivable.status not in ['received', 'canceled'] %}
+                                <a href="{{ url_for('accounts_receivable.accounts_receivable_edit', receivable_id=receivable.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-success btn-sm" title="Registrar Recebimento" data-bs-toggle="modal" data-bs-target="#receiptModal{{ receivable.id }}">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" title="Excluir" data-bs-toggle="modal" data-bs-target="#deleteModal{{ receivable.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ receivable.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ receivable.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ receivable.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Tem certeza que deseja excluir a conta <strong>{{ receivable.description }}</strong>?
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('accounts_receivable.accounts_receivable_delete', receivable_id=receivable.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Modal de recebimento -->
+                                <div class="modal fade" id="receiptModal{{ receivable.id }}" tabindex="-1" aria-labelledby="receiptModalLabel{{ receivable.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="receiptModalLabel{{ receivable.id }}">Registrar Recebimento</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Conta: <strong>{{ receivable.description }}</strong></p>
+                                                <p>Valor: <strong>R$ {{ "%.2f"|format(receivable.total_amount) }}</strong></p>
+                                                
+                                                <form action="{{ url_for('accounts_receivable.accounts_receivable_receive_installment', installment_id=receivable.id) }}" method="post" id="receiptForm{{ receivable.id }}">
+                                                    <div class="mb-3">
+                                                        <label for="receipt_date" class="form-label">Data do Recebimento</label>
+                                                        <input type="date" class="form-control" id="receipt_date" name="receipt_date" value="{{ now().strftime('%Y-%m-%d') }}">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="receipt_amount" class="form-label">Valor Recebido</label>
+                                                        <input type="text" class="form-control" id="receipt_amount" name="receipt_amount" value="{{ "%.2f"|format(receivable.total_amount) }}">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="payment_method" class="form-label">Forma de Recebimento</label>
+                                                        <select class="form-select" id="payment_method" name="payment_method">
+                                                            <option value="cash">Dinheiro</option>
+                                                            <option value="credit_card">Cartão de Crédito</option>
+                                                            <option value="debit_card">Cartão de Débito</option>
+                                                            <option value="pix">PIX</option>
+                                                            <option value="boleto">Boleto</option>
+                                                            <option value="transfer">Transferência</option>
+                                                            <option value="check">Cheque</option>
+                                                            <option value="other">Outro</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="notes" class="form-label">Observações</label>
+                                                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <button type="submit" form="receiptForm{{ receivable.id }}" class="btn btn-success">Registrar Recebimento</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not receivables %}
+            <div class="alert alert-info">
+                Nenhuma conta a receber encontrada.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Contas a Receber por Vencimento
+                </div>
+                <div class="card-body">
+                    <canvas id="receivablesByDueDate" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Contas a Receber por Status
+                </div>
+                <div class="card-body">
+                    <canvas id="receivablesByStatus" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Função para aplicar filtros
+    function applyFilters() {
+        var status = document.getElementById('statusFilter').value;
+        var period = document.getElementById('periodFilter').value;
+        var customer = document.getElementById('customerFilter').value;
+        
+        var url = "{{ url_for('accounts_receivable.accounts_receivable_list') }}?status=" + status + "&period=" + period;
+        
+        if (customer) {
+            url += "&customer_id=" + customer;
+        }
+        
+        window.location.href = url;
+    }
+    
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#receivablesTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Gráfico de contas por vencimento
+        var ctxDueDate = document.getElementById("receivablesByDueDate");
+        if (ctxDueDate) {
+            // Dados do gráfico calculados pelo servidor
+            var chartData = {
+                overdue: {{ receivables|selectattr('status', 'equalto', 'overdue')|sum(attribute='total_amount')|default(0) }},
+                today: {{ receivables|selectattr('due_date', 'equalto', now().date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
+                week: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=7)).date())|selectattr('due_date', 'gt', now().date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
+                month: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=30)).date())|selectattr('due_date', 'gt', (now() + timedelta(days=7)).date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
+                future: {{ receivables|selectattr('due_date', 'gt', (now() + timedelta(days=30)).date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }}
+            };
+            
+            new Chart(ctxDueDate, {
+                type: "bar",
+                data: {
+                    labels: ["Vencidas", "Hoje", "Próximos 7 dias", "Próximos 30 dias", "Futuro"],
+                    datasets: [{
+                        label: "Valor Total (R$)",
+                        backgroundColor: [
+                            "rgba(220, 53, 69, 0.8)",
+                            "rgba(255, 193, 7, 0.8)",
+                            "rgba(13, 110, 253, 0.8)",
+                            "rgba(23, 162, 184, 0.8)",
+                            "rgba(40, 167, 69, 0.8)"
+                        ],
+                        borderColor: [
+                            "rgba(220, 53, 69, 1)",
+                            "rgba(255, 193, 7, 1)",
+                            "rgba(13, 110, 253, 1)",
+                            "rgba(23, 162, 184, 1)",
+                            "rgba(40, 167, 69, 1)"
+                        ],
+                        borderWidth: 1,
+                        data: [chartData.overdue, chartData.today, chartData.week, chartData.month, chartData.future]
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de contas por status
+        var ctxStatus = document.getElementById("receivablesByStatus");
+        if (ctxStatus) {
+            // Dados do gráfico calculados pelo servidor
+            var statusData = {
+                pending: {{ receivables|selectattr('status', 'equalto', 'pending')|list|length }},
+                received: {{ receivables|selectattr('status', 'equalto', 'received')|list|length }},
+                overdue: {{ receivables|selectattr('status', 'equalto', 'overdue')|list|length }},
+                canceled: {{ receivables|selectattr('status', 'equalto', 'canceled')|list|length }}
+            };
+            
+            new Chart(ctxStatus, {
+                type: "pie",
+                data: {
+                    labels: ["Pendentes", "Recebidas", "Vencidas", "Canceladas"],
+                    datasets: [{
+                        backgroundColor: [
+                            "rgba(255, 193, 7, 0.8)",
+                            "rgba(40, 167, 69, 0.8)",
+                            "rgba(220, 53, 69, 0.8)",
+                            "rgba(108, 117, 125, 0.8)"
+                        ],
+                        data: [statusData.pending, statusData.received, statusData.overdue, statusData.canceled]
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

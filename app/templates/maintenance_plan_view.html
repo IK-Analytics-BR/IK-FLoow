@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Plano de Manutenção: {{ plan.task }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Plano de Manutenção: {{ plan.task }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('maintenance_plan.maintenance_plan_list') }}">Planos de Manutenção</a></li>
+        <li class="breadcrumb-item active">Visualizar Plano</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações do Plano
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>ID:</th>
+                            <td>{{ plan.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cliente:</th>
+                            <td>
+                                <a href="{{ url_for('cliente.cliente_visualizar', id=plan.customer_id) }}">
+                                    {{ plan.customer_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Equipamento:</th>
+                            <td>
+                                <a href="{{ url_for('equipamento.equipamento_visualizar', id=plan.equipment_id) }}">
+                                    {{ plan.equipment_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Componente:</th>
+                            <td>
+                                {% if plan.supply_id %}
+                                <a href="{{ url_for('insumo.insumo_visualizar', id=plan.supply_id) }}">
+                                    {{ plan.supply_name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Tipo:</th>
+                            <td>
+                                {% if plan.type == 'preventive' %}
+                                <span class="badge bg-success">Preventiva</span>
+                                {% elif plan.type == 'corrective' %}
+                                <span class="badge bg-danger">Corretiva</span>
+                                {% elif plan.type == 'predictive' %}
+                                <span class="badge bg-info">Preditiva</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Gatilho:</th>
+                            <td>
+                                {% if plan.trigger_type == 'hours' %}
+                                <span class="badge bg-primary">{{ plan.trigger_value }} horas</span>
+                                {% elif plan.trigger_type == 'cycles' %}
+                                <span class="badge bg-warning">{{ plan.trigger_value }} ciclos</span>
+                                {% elif plan.trigger_type == 'time' %}
+                                <span class="badge bg-secondary">{{ plan.trigger_value }} dias</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Tarefa:</th>
+                            <td>{{ plan.task }}</td>
+                        </tr>
+                        <tr>
+                            <th>Tempo de Execução:</th>
+                            <td>{{ plan.standard_execution_time }} minutos</td>
+                        </tr>
+                        <tr>
+                            <th>Instruções:</th>
+                            <td>
+                                {% if plan.instructions %}
+                                <pre class="bg-light p-2 rounded">{{ plan.instructions }}</pre>
+                                {% else %}
+                                <span class="text-muted">Nenhuma instrução específica.</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Data de Criação:</th>
+                            <td>{{ plan.created_at }}</td>
+                        </tr>
+                        <tr>
+                            <th>Última Atualização:</th>
+                            <td>{{ plan.updated_at }}</td>
+                        </tr>
+                    </table>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('maintenance_plan.maintenance_plan_edit', plan_id=plan.id) }}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <form action="{{ url_for('maintenance_plan.maintenance_plan_delete', plan_id=plan.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este plano de manutenção?');">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Excluir
+                            </button>
+                        </form>
+                        <a href="{{ url_for('maintenance_plan.maintenance_plan_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Próxima Manutenção
+                </div>
+                <div class="card-body">
+                    {% if next_maintenance %}
+                        {% if plan.trigger_type == 'time' %}
+                            <div class="alert {% if next_maintenance.remaining <= 0 %}alert-danger{% elif next_maintenance.remaining <= 7 %}alert-warning{% else %}alert-success{% endif %}">
+                                <h5>Próxima manutenção em: {{ next_maintenance.date.strftime('%d/%m/%Y') }}</h5>
+                                
+                                {% if next_maintenance.remaining <= 0 %}
+                                    <p><strong>Atrasada!</strong> Deveria ter sido realizada há {{ -next_maintenance.remaining }} dias.</p>
+                                {% elif next_maintenance.remaining <= 7 %}
+                                    <p><strong>Atenção!</strong> Faltam apenas {{ next_maintenance.remaining }} dias.</p>
+                                {% else %}
+                                    <p>Faltam {{ next_maintenance.remaining }} dias.</p>
+                                {% endif %}
+                            </div>
+                        {% elif plan.trigger_type == 'hours' %}
+                            <div class="alert {% if next_maintenance.remaining <= 0 %}alert-danger{% elif next_maintenance.remaining <= 100 %}alert-warning{% else %}alert-success{% endif %}">
+                                <h5>Próxima manutenção em: {{ next_maintenance.hours }} horas</h5>
+                                
+                                {% if next_maintenance.remaining <= 0 %}
+                                    <p><strong>Atrasada!</strong> O equipamento já ultrapassou {{ -next_maintenance.remaining }} horas do limite.</p>
+                                {% elif next_maintenance.remaining <= 100 %}
+                                    <p><strong>Atenção!</strong> Faltam apenas {{ next_maintenance.remaining }} horas.</p>
+                                {% else %}
+                                    <p>Faltam {{ next_maintenance.remaining }} horas.</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="text-center mt-3">
+                            <button class="btn btn-primary" onclick="alert('Funcionalidade em desenvolvimento')">
+                                <i class="fas fa-tools"></i> Criar Ordem de Serviço
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p>Não há informações suficientes para calcular a próxima manutenção.</p>
+                            <p>Possíveis motivos:</p>
+                            <ul>
+                                <li>Nenhuma manutenção anterior registrada</li>
+                                <li>Dados de horímetro não disponíveis</li>
+                                <li>Tipo de gatilho não suportado para previsão</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-history me-1"></i>
+                    Histórico de Manutenções
+                </div>
+                <div class="card-body">
+                    {% if service_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>OS</th>
+                                        <th>Data</th>
+                                        <th>Técnico</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in service_orders %}
+                                    <tr>
+                                        <td>{{ order.order_number }}</td>
+                                        <td>{{ order.open_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ order.technician_name or 'Não atribuído' }}</td>
+                                        <td>
+                                            {% if order.status == 'open' %}
+                                            <span class="badge bg-primary">Aberta</span>
+                                            {% elif order.status == 'in_progress' %}
+                                            <span class="badge bg-warning">Em Andamento</span>
+                                            {% elif order.status == 'completed' %}
+                                            <span class="badge bg-success">Concluída</span>
+                                            {% elif order.status == 'canceled' %}
+                                            <span class="badge bg-danger">Cancelada</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Nenhuma ordem de serviço registrada para este plano de manutenção.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[1, 'desc']],
+            pageLength: 5
+        });
+    });
+</script>
+{% endblock %}

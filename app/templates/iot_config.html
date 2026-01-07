@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de IoT - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Configuração de Integração com IoT</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('integration.integrations_dashboard') }}">Integrações</a></li>
+        <li class="breadcrumb-item active">Configuração de IoT</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cog me-1"></i>
+                    Configurações de Conexão
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('integration.iot_update_config') }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {% if iot_status.enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="enabled">Habilitar Integração com IoT</label>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="integration_type" class="form-label">Tipo de Integração</label>
+                                    <select class="form-select" id="integration_type" name="integration_type">
+                                        <option value="mqtt" {% if iot_status.integration_type == 'mqtt' %}selected{% endif %}>MQTT</option>
+                                        <option value="rest" {% if iot_status.integration_type == 'rest' %}selected{% endif %}>REST API</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Configurações MQTT -->
+                        <div id="mqtt_config" class="row mb-3" {% if iot_status.integration_type != 'mqtt' %}style="display: none;"{% endif %}>
+                            <div class="col-md-12">
+                                <h5>Configurações MQTT</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="mqtt_broker" class="form-label">Broker MQTT</label>
+                                    <input type="text" class="form-control" id="mqtt_broker" name="mqtt_broker" value="{{ iot_status.mqtt_broker }}" placeholder="broker.example.com">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="mqtt_port" class="form-label">Porta MQTT</label>
+                                    <input type="number" class="form-control" id="mqtt_port" name="mqtt_port" value="{{ iot_status.mqtt_port }}" placeholder="1883">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="mqtt_topic_prefix" class="form-label">Prefixo de Tópico</label>
+                                    <input type="text" class="form-control" id="mqtt_topic_prefix" name="mqtt_topic_prefix" value="{{ iot_status.mqtt_topic_prefix }}" placeholder="cmms/equipment/">
+                                    <div class="form-text">Formato esperado: cmms/equipment/{device_id}/data</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="mqtt_username" class="form-label">Usuário MQTT</label>
+                                    <input type="text" class="form-control" id="mqtt_username" name="mqtt_username" value="{{ iot_status.mqtt_username }}" placeholder="Usuário para autenticação">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="mqtt_password" class="form-label">Senha MQTT</label>
+                                    <input type="password" class="form-control" id="mqtt_password" name="mqtt_password" placeholder="Senha para autenticação">
+                                    <div class="form-text">Deixe em branco para manter a senha atual.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Configurações REST API -->
+                        <div id="rest_config" class="row mb-3" {% if iot_status.integration_type != 'rest' %}style="display: none;"{% endif %}>
+                            <div class="col-md-12">
+                                <h5>Configurações REST API</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="rest_api_url" class="form-label">URL da API</label>
+                                    <input type="url" class="form-control" id="rest_api_url" name="rest_api_url" value="{{ iot_status.rest_api_url }}" placeholder="https://iot.example.com/api">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="rest_api_key" class="form-label">Chave de API</label>
+                                    <input type="password" class="form-control" id="rest_api_key" name="rest_api_key" placeholder="Chave de API para autenticação">
+                                    <div class="form-text">Deixe em branco para manter a chave atual.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar Configurações
+                            </button>
+                            <button type="button" id="testConnection" class="btn btn-secondary">
+                                <i class="fas fa-plug me-1"></i> Testar Conexão
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-microchip me-1"></i>
+                    Controle de Integração
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Status da Integração</h5>
+                                    <p class="card-text">
+                                        {% if iot_status.enabled %}
+                                        <span class="badge bg-success">Habilitada</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Desabilitada</span>
+                                        {% endif %}
+                                        
+                                        <span class="ms-2">Tipo: {{ iot_status.integration_type|upper }}</span>
+                                    </p>
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" id="startIntegration" class="btn btn-success btn-sm">
+                                            <i class="fas fa-play me-1"></i> Iniciar
+                                        </button>
+                                        <button type="button" id="stopIntegration" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-stop me-1"></i> Parar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Coleta de Dados</h5>
+                                    <p class="card-text">
+                                        {% if iot_status.integration_type == 'mqtt' %}
+                                        Os dados são coletados automaticamente via MQTT.
+                                        {% else %}
+                                        Busque dados manualmente ou configure uma tarefa agendada.
+                                        {% endif %}
+                                    </p>
+                                    <div class="d-flex justify-content-center">
+                                        <button type="button" id="fetchData" class="btn btn-primary btn-sm" {% if iot_status.integration_type != 'rest' %}disabled{% endif %}>
+                                            <i class="fas fa-download me-1"></i> Buscar Dados Agora
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-link me-1"></i>
+                    Mapeamento de Dispositivos
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Registrar Novo Dispositivo</h5>
+                            <form id="registerDeviceForm">
+                                <div class="mb-3">
+                                    <label for="device_id" class="form-label">ID do Dispositivo</label>
+                                    <input type="text" class="form-control" id="device_id" name="device_id" placeholder="ID único do dispositivo IoT">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="equipment_id" class="form-label">Equipamento</label>
+                                    <select class="form-select" id="equipment_id" name="equipment_id">
+                                        <option value="">Selecione um equipamento</option>
+                                        {% for equipment in equipments %}
+                                        <option value="{{ equipment.id }}">{{ equipment.name }} ({{ equipment.model }}) - {{ equipment.customer_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <button type="button" id="registerDevice" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Registrar Dispositivo
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Dispositivos Registrados</h5>
+                            {% if registered_devices %}
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID do Dispositivo</th>
+                                            <th>Equipamento</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for device in registered_devices %}
+                                        <tr>
+                                            <td>{{ device.device_id }}</td>
+                                            <td>{{ device.equipment_name }} ({{ device.equipment_model }})</td>
+                                            <td>
+                                                <button type="button" class="btn btn-danger btn-sm unregister-btn" data-device-id="{{ device.device_id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                Nenhum dispositivo registrado.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações sobre Integração com IoT
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Formato de Dados MQTT</h5>
+                            <p>Os dispositivos devem publicar dados no formato JSON no tópico:</p>
+                            <pre>cmms/equipment/{device_id}/data</pre>
+                            <p>Exemplo de payload:</p>
+                            <pre>{
+  "device_id": "dev123",
+  "hour_meter": 1234.5,
+  "sensors": {
+    "temperature": 25.5,
+    "vibration": 0.8,
+    "pressure": 2.1
+  },
+  "alerts": [
+    {
+      "type": "high_temperature",
+      "message": "Temperatura acima do normal",
+      "priority": "high"
+    }
+  ]
+}</pre>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Formato de Dados REST API</h5>
+                            <p>Para enviar dados via API REST, faça uma requisição POST para:</p>
+                            <pre>{{ url_for('integration.iot_api_receive_data', _external=True) }}</pre>
+                            <p>Inclua o cabeçalho <code>X-API-Token</code> com o token configurado.</p>
+                            <p>O corpo da requisição deve seguir o mesmo formato JSON do MQTT.</p>
+                            
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Importante:</strong> Mantenha o token de API seguro e não o compartilhe.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Resultado -->
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resultModalLabel">Resultado da Operação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="resultMessage"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Alternar entre configurações MQTT e REST
+        $('#integration_type').change(function() {
+            var type = $(this).val();
+            if (type === 'mqtt') {
+                $('#mqtt_config').show();
+                $('#rest_config').hide();
+                $('#fetchData').prop('disabled', true);
+            } else {
+                $('#mqtt_config').hide();
+                $('#rest_config').show();
+                $('#fetchData').prop('disabled', false);
+            }
+        });
+        
+        // Testar conexão
+        $('#testConnection').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.iot_test_connection") }}',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                    $('#resultModalLabel').text('Teste de Conexão');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao executar teste de conexão.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Iniciar integração
+        $('#startIntegration').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.iot_start_integration") }}',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                    $('#resultModalLabel').text('Iniciar Integração');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao iniciar integração.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Parar integração
+        $('#stopIntegration').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.iot_stop_integration") }}',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                    $('#resultModalLabel').text('Parar Integração');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao parar integração.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Buscar dados
+        $('#fetchData').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.iot_fetch_data") }}',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                    $('#resultModalLabel').text('Buscar Dados');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao buscar dados.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Registrar dispositivo
+        $('#registerDevice').click(function() {
+            var device_id = $('#device_id').val();
+            var equipment_id = $('#equipment_id').val();
+            
+            if (!device_id || !equipment_id) {
+                $('#resultMessage').html('<div class="alert alert-danger">ID do dispositivo e equipamento são obrigatórios.</div>');
+                $('#resultModalLabel').text('Erro');
+                $('#resultModal').modal('show');
+                return;
+            }
+            
+            $.ajax({
+                url: '{{ url_for("integration.iot_register_device") }}',
+                type: 'POST',
+                data: {
+                    device_id: device_id,
+                    equipment_id: equipment_id
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                        // Recarregar a página após sucesso
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                    $('#resultModalLabel').text('Registrar Dispositivo');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao registrar dispositivo.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Remover registro de dispositivo
+        $('.unregister-btn').click(function() {
+            var device_id = $(this).data('device-id');
+            
+            if (confirm('Tem certeza que deseja remover o registro deste dispositivo?')) {
+                $.ajax({
+                    url: '{{ url_for("integration.iot_unregister_device") }}',
+                    type: 'POST',
+                    data: {
+                        device_id: device_id
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                            // Recarregar a página após sucesso
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                        }
+                        $('#resultModalLabel').text('Remover Registro');
+                        $('#resultModal').modal('show');
+                    },
+                    error: function() {
+                        $('#resultMessage').html('<div class="alert alert-danger">Erro ao remover registro.</div>');
+                        $('#resultModalLabel').text('Erro');
+                        $('#resultModal').modal('show');
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes da Conta a Pagar - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes da Conta a Pagar</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('accounts_payable.accounts_payable_list') }}">Contas a Pagar</a></li>
+        <li class="breadcrumb-item active">Detalhes da Conta</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-file-invoice-dollar me-1"></i>
+                    Informações da Conta
+                    <div class="float-end">
+                        {% if payable.status not in ['paid', 'canceled'] %}
+                        <a href="{{ url_for('accounts_payable.accounts_payable_edit', payable_id=payable.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5 class="card-title">{{ payable.description }}</h5>
+                        <p class="card-text">
+                            <span class="badge 
+                                {% if payable.status == 'pending' %}bg-warning{% endif %}
+                                {% if payable.status == 'paid' %}bg-success{% endif %}
+                                {% if payable.status == 'overdue' %}bg-danger{% endif %}
+                                {% if payable.status == 'canceled' %}bg-secondary{% endif %}
+                            ">
+                                {% if payable.status == 'pending' %}Pendente{% endif %}
+                                {% if payable.status == 'paid' %}Paga{% endif %}
+                                {% if payable.status == 'overdue' %}Vencida{% endif %}
+                                {% if payable.status == 'canceled' %}Cancelada{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>Fornecedor:</th>
+                            <td>{{ payable.supplier_name }}</td>
+                        </tr>
+                        {% if payable.invoice_number %}
+                        <tr>
+                            <th>Nota Fiscal:</th>
+                            <td>{{ payable.invoice_number }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Valor Total:</th>
+                            <td>R$ {{ "%.2f"|format(payable.total_amount) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Parcelas:</th>
+                            <td>{{ payable.installments }}x</td>
+                        </tr>
+                        <tr>
+                            <th>Data de Emissão:</th>
+                            <td>{{ payable.issue_date.strftime('%d/%m/%Y') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Data de Vencimento:</th>
+                            <td>{{ payable.due_date.strftime('%d/%m/%Y') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Forma de Pagamento:</th>
+                            <td>
+                                {% if payable.payment_method == 'boleto' %}Boleto{% endif %}
+                                {% if payable.payment_method == 'ted' %}TED{% endif %}
+                                {% if payable.payment_method == 'pix' %}PIX{% endif %}
+                                {% if payable.payment_method == 'credit_card' %}Cartão de Crédito{% endif %}
+                                {% if payable.payment_method == 'debit_card' %}Cartão de Débito{% endif %}
+                                {% if payable.payment_method == 'cash' %}Dinheiro{% endif %}
+                                {% if payable.payment_method == 'check' %}Cheque{% endif %}
+                                {% if payable.payment_method == 'other' %}Outro{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Conta Bancária:</th>
+                            <td>{{ payable.bank_account_name }}</td>
+                        </tr>
+                        {% if payable.payment_date %}
+                        <tr>
+                            <th>Data de Pagamento:</th>
+                            <td>{{ payable.payment_date.strftime('%d/%m/%Y') }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Origem:</th>
+                            <td>
+                                {% if payable.origin == 'purchase' %}Compra{% endif %}
+                                {% if payable.origin == 'manual' %}Lançamento Manual{% endif %}
+                            </td>
+                        </tr>
+                        {% if payable.notes %}
+                        <tr>
+                            <th>Observações:</th>
+                            <td>{{ payable.notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list-alt me-1"></i>
+                    Parcelas
+                </div>
+                <div class="card-body">
+                    {% if installments %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Parcela</th>
+                                    <th>Valor</th>
+                                    <th>Vencimento</th>
+                                    <th>Status</th>
+                                    <th>Pagamento</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for installment in installments %}
+                                <tr class="
+                                    {% if installment.status == 'overdue' %}table-danger{% endif %}
+                                    {% if installment.status == 'paid' %}table-success{% endif %}
+                                    {% if installment.status == 'canceled' %}table-secondary{% endif %}
+                                ">
+                                    <td>{{ installment.installment_number }}/{{ payable.installments }}</td>
+                                    <td>R$ {{ "%.2f"|format(installment.amount) }}</td>
+                                    <td>{{ installment.due_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {% if installment.status == 'pending' %}
+                                            <span class="badge bg-warning">Pendente</span>
+                                        {% elif installment.status == 'paid' %}
+                                            <span class="badge bg-success">Paga</span>
+                                        {% elif installment.status == 'overdue' %}
+                                            <span class="badge bg-danger">Vencida</span>
+                                        {% elif installment.status == 'canceled' %}
+                                            <span class="badge bg-secondary">Cancelada</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if installment.payment_date %}
+                                            {{ installment.payment_date.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if installment.status == 'pending' or installment.status == 'overdue' %}
+                                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal{{ installment.id }}">
+                                            <i class="fas fa-dollar-sign"></i> Pagar
+                                        </button>
+                                        
+                                        <!-- Modal de pagamento -->
+                                        <div class="modal fade" id="paymentModal{{ installment.id }}" tabindex="-1" aria-labelledby="paymentModalLabel{{ installment.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="paymentModalLabel{{ installment.id }}">Registrar Pagamento</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Parcela: <strong>{{ installment.installment_number }}/{{ payable.installments }}</strong></p>
+                                                        <p>Valor: <strong>R$ {{ "%.2f"|format(installment.amount) }}</strong></p>
+                                                        <p>Vencimento: <strong>{{ installment.due_date.strftime('%d/%m/%Y') }}</strong></p>
+                                                        
+                                                        <form action="{{ url_for('accounts_payable.accounts_payable_pay_installment', installment_id=installment.id) }}" method="post" id="paymentForm{{ installment.id }}">
+                                                            <div class="mb-3">
+                                                                <label for="payment_date" class="form-label">Data do Pagamento</label>
+                                                                <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ now().strftime('%Y-%m-%d') }}">
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="payment_amount" class="form-label">Valor Pago</label>
+                                                                <input type="text" class="form-control money" id="payment_amount" name="payment_amount" value="{{ "%.2f"|format(installment.amount) }}">
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="payment_method" class="form-label">Forma de Pagamento</label>
+                                                                <select class="form-select" id="payment_method" name="payment_method">
+                                                                    <option value="boleto" {% if payable.payment_method == 'boleto' %}selected{% endif %}>Boleto</option>
+                                                                    <option value="ted" {% if payable.payment_method == 'ted' %}selected{% endif %}>TED</option>
+                                                                    <option value="pix" {% if payable.payment_method == 'pix' %}selected{% endif %}>PIX</option>
+                                                                    <option value="credit_card" {% if payable.payment_method == 'credit_card' %}selected{% endif %}>Cartão de Crédito</option>
+                                                                    <option value="debit_card" {% if payable.payment_method == 'debit_card' %}selected{% endif %}>Cartão de Débito</option>
+                                                                    <option value="cash" {% if payable.payment_method == 'cash' %}selected{% endif %}>Dinheiro</option>
+                                                                    <option value="check" {% if payable.payment_method == 'check' %}selected{% endif %}>Cheque</option>
+                                                                    <option value="other" {% if payable.payment_method == 'other' %}selected{% endif %}>Outro</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="notes" class="form-label">Observações</label>
+                                                                <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" form="paymentForm{{ installment.id }}" class="btn btn-success">Registrar Pagamento</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% elif installment.status == 'paid' %}
+                                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#reversalModal{{ installment.id }}">
+                                            <i class="fas fa-undo"></i> Estornar
+                                        </button>
+                                        
+                                        <!-- Modal de estorno -->
+                                        <div class="modal fade" id="reversalModal{{ installment.id }}" tabindex="-1" aria-labelledby="reversalModalLabel{{ installment.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-warning">
+                                                        <h5 class="modal-title text-dark" id="reversalModalLabel{{ installment.id }}">
+                                                            <i class="fas fa-undo"></i> Estornar Pagamento
+                                                        </h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="alert alert-warning">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            <strong>Atenção!</strong> Esta ação irá:
+                                                            <ul class="mb-0 mt-2">
+                                                                <li>Voltar a parcela para status "Pendente"</li>
+                                                                <li>Criar uma ENTRADA no fluxo de caixa</li>
+                                                                <li>Atualizar o saldo da conta bancária</li>
+                                                            </ul>
+                                                        </div>
+                                                        
+                                                        <h6>Detalhes da Parcela:</h6>
+                                                        <table class="table table-sm">
+                                                            <tr>
+                                                                <th width="40%">Parcela:</th>
+                                                                <td>{{ installment.installment_number }}/{{ payable.installments }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Valor:</th>
+                                                                <td><strong>R$ {{ "%.2f"|format(installment.amount|to_float) }}</strong></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Pago em:</th>
+                                                                <td>{{ installment.payment_date.strftime('%d/%m/%Y') if installment.payment_date else '-' }}</td>
+                                                            </tr>
+                                                        </table>
+                                                        
+                                                        <hr>
+                                                        
+                                                        <form action="{{ url_for('accounts_payable.accounts_payable_reverse_installment', installment_id=installment.id) }}" method="post" id="reversalForm{{ installment.id }}">
+                                                            <div class="mb-3">
+                                                                <label for="reversal_date{{ installment.id }}" class="form-label">
+                                                                    <i class="fas fa-calendar"></i> Data do Estorno <span class="text-danger">*</span>
+                                                                </label>
+                                                                <input type="date" 
+                                                                       id="reversal_date{{ installment.id }}"
+                                                                       name="reversal_date" 
+                                                                       class="form-control" 
+                                                                       value="{{ now().strftime('%Y-%m-%d') }}" 
+                                                                       required>
+                                                                <small class="form-text text-muted">Data em que o estorno será registrado</small>
+                                                            </div>
+                                                            
+                                                            <div class="mb-3">
+                                                                <label for="reversal_reason{{ installment.id }}" class="form-label">
+                                                                    <i class="fas fa-comment"></i> Motivo do Estorno <span class="text-danger">*</span>
+                                                                </label>
+                                                                <textarea id="reversal_reason{{ installment.id }}"
+                                                                          name="reversal_reason" 
+                                                                          class="form-control" 
+                                                                          rows="3" 
+                                                                          placeholder="Ex: Erro no lançamento, pagamento duplicado, devolução..."
+                                                                          required></textarea>
+                                                                <small class="form-text text-muted">Este motivo aparecerá no fluxo de caixa</small>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            <i class="fas fa-times"></i> Cancelar
+                                                        </button>
+                                                        <button type="submit" form="reversalForm{{ installment.id }}" class="btn btn-warning">
+                                                            <i class="fas fa-undo"></i> Confirmar Estorno
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma parcela encontrada para esta conta.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Cronograma de Pagamentos
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentSchedule" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir a conta <strong>{{ payable.description }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('accounts_payable.accounts_payable_delete', payable_id=payable.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-maskmoney/3.0.2/jquery.maskMoney.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Inicializar máscara para valores monetários
+        $('.money').maskMoney({
+            prefix: '',
+            allowNegative: false,
+            thousands: '.',
+            decimal: ',',
+            affixesStay: false
+        });
+        
+        // Gráfico de cronograma de pagamentos
+        var ctx = document.getElementById("paymentSchedule");
+        if (ctx) {
+            new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: [
+                        {% for installment in installments %}
+                            "{{ installment.due_date.strftime('%d/%m/%Y') }}"{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    datasets: [{
+                        label: "Valor da Parcela",
+                        lineTension: 0.3,
+                        backgroundColor: "rgba(2,117,216,0.2)",
+                        borderColor: "rgba(2,117,216,1)",
+                        pointRadius: 5,
+                        pointBackgroundColor: "rgba(2,117,216,1)",
+                        pointBorderColor: "rgba(255,255,255,0.8)",
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: "rgba(2,117,216,1)",
+                        pointHitRadius: 50,
+                        pointBorderWidth: 2,
+                        data: [
+                            {% for installment in installments %}
+                                {{ installment.amount }}{% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                min: 0,
+                                max: {{ (installments|map(attribute='amount')|max|to_float * 1.2) if installments else 0 }},
+                                maxTicksLimit: 5
+                            },
+                            grid: {
+                                color: "rgba(0, 0, 0, .125)"
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

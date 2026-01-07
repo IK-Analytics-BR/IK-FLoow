@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes da Conta Bancária - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes da Conta Bancária</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('bank_account.bank_accounts_list') }}">Contas Bancárias</a></li>
+        <li class="breadcrumb-item active">Detalhes da Conta</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-university me-1"></i>
+                    Informações da Conta
+                    <div class="float-end">
+                        <a href="{{ url_for('bank_account.bank_account_edit', account_id=account.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5 class="card-title">{{ account.name }}</h5>
+                        <p class="card-text">
+                            <span class="badge {{ 'bg-success' if account.status == 'active' else 'bg-secondary' }}">
+                                {{ 'Ativo' if account.status == 'active' else 'Inativo' }}
+                            </span>
+                        </p>
+                    </div>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>Centro de Custo:</th>
+                            <td>{{ account.cost_center }}</td>
+                        </tr>
+                        {% if account.agency %}
+                        <tr>
+                            <th>Agência:</th>
+                            <td>{{ account.agency }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if account.account_number %}
+                        <tr>
+                            <th>Conta:</th>
+                            <td>{{ account.account_number }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if account.pix_key %}
+                        <tr>
+                            <th>Chave PIX:</th>
+                            <td>{{ account.pix_key }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Cadastrado em:</th>
+                            <td>{{ account.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Última atualização:</th>
+                            <td>{{ account.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Resumo Financeiro
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-12 mb-4">
+                            <h5>Saldo Atual</h5>
+                            <h2 class="{{ 'text-success' if balance >= 0 else 'text-danger' }}">
+                                R$ {{ "%.2f"|format(balance) }}
+                            </h2>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 text-center">
+                            <h6>Entradas</h6>
+                            <p class="text-success">R$ {{ "%.2f"|format(cash_flow|selectattr('type', 'equalto', 'income')|sum(attribute='amount')) }}</p>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <h6>Saídas</h6>
+                            <p class="text-danger">R$ {{ "%.2f"|format(cash_flow|selectattr('type', 'equalto', 'expense')|sum(attribute='amount')) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list-alt me-1"></i>
+                    Últimas Movimentações
+                </div>
+                <div class="card-body">
+                    {% if cash_flow %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in cash_flow %}
+                                <tr>
+                                    <td>{{ movement.date.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ movement.description }}</td>
+                                    <td>
+                                        {% if movement.type == 'income' %}
+                                            <span class="badge bg-success">Entrada</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Saída</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if movement.type == 'income' else 'text-danger' }}">
+                                        R$ {{ "%.2f"|format(movement.amount) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma movimentação financeira registrada para esta conta.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="#" class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye"></i> Ver Todas as Movimentações
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Gráfico de Movimentações
+                </div>
+                <div class="card-body">
+                    <canvas id="cashFlowChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir a conta <strong>{{ account.name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('bank_account.bank_account_delete', account_id=account.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Dados para o gráfico
+        var cashFlowData = {
+            labels: [
+                {% for movement in cash_flow %}
+                    "{{ movement.date.strftime('%d/%m') }}"{{ "," if not loop.last }}
+                {% endfor %}
+            ],
+            datasets: [
+                {
+                    label: "Saldo",
+                    lineTension: 0.3,
+                    backgroundColor: "rgba(2,117,216,0.2)",
+                    borderColor: "rgba(2,117,216,1)",
+                    pointRadius: 5,
+                    pointBackgroundColor: "rgba(2,117,216,1)",
+                    pointBorderColor: "rgba(255,255,255,0.8)",
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: "rgba(2,117,216,1)",
+                    pointHitRadius: 50,
+                    pointBorderWidth: 2,
+                    data: [
+                        {% set running_balance = 0 %}
+                        {% for movement in cash_flow %}
+                            {% set running_balance = running_balance + (movement.amount if movement.type == 'income' else -movement.amount) %}
+                            {{ running_balance }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ]
+                }
+            ]
+        };
+
+        // Opções do gráfico
+        var options = {
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    ticks: {
+                        min: 0,
+                        max: {{ balance * 1.2 if balance > 0 else 0 }},
+                        maxTicksLimit: 5
+                    },
+                    grid: {
+                        color: "rgba(0, 0, 0, .125)"
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        };
+
+        // Criar o gráfico
+        var ctx = document.getElementById("cashFlowChart");
+        if (ctx) {
+            new Chart(ctx, {
+                type: "line",
+                data: cashFlowData,
+                options: options
+            });
+        }
+    });
+</script>
+{% endblock %}

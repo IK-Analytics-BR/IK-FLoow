@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+
+{% block title %}{% if cliente %}Editar{% else %}Cadastrar{% endif %} Cliente - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    {% if show_duplicate_modal %}
+    <!-- Modal para confirmação quando um documento duplicado é encontrado -->
+    <div class="modal fade" id="duplicateDocumentModal" tabindex="-1" aria-labelledby="duplicateDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="duplicateDocumentModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Documento já cadastrado
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <p><strong>Atenção!</strong> O {{ tipo_documento }} informado já está cadastrado para:</p>
+                        <p class="fs-5">{{ entidade.name }}</p>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Informações do cadastro existente
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>{{ tipo_documento }}:</strong> {{ entidade.cnpj }}</p>
+                                    <p><strong>Nome:</strong> {{ entidade.name }}</p>
+                                    <p><strong>Cidade/UF:</strong> {{ entidade.city }}/{{ entidade.state }}</p>
+                                    <p><strong>Telefone:</strong> {{ entidade.phone }}</p>
+                                    <p><strong>Email:</strong> {{ entidade.email }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-question-circle me-2"></i>
+                                    O que deseja fazer?
+                                </div>
+                                <div class="card-body">
+                                    <p>Escolha uma das opções abaixo:</p>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for(editar_url, id=entidade.id) }}" class="btn btn-primary">
+                                            <i class="fas fa-edit me-2"></i>
+                                            Editar cadastro existente
+                                        </a>
+                                        <a href="{{ url_for(visualizar_url, id=entidade.id) }}" class="btn btn-info">
+                                            <i class="fas fa-eye me-2"></i>
+                                            Visualizar cadastro existente
+                                        </a>
+                                        <form action="{{ url_for(forcar_url) }}" method="post" id="forceCreateForm">
+                                            <input type="hidden" name="force_create" value="true">
+                                            {% for key, value in form_data.items() %}
+                                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                            {% endfor %}
+                                            <button type="submit" class="btn btn-danger w-100 mt-2">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                Forçar criação de novo cadastro
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-secondary mt-2" data-bs-dismiss="modal">
+                                            <i class="fas fa-times me-2"></i>
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script para abrir o modal automaticamente -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var duplicateModal = new bootstrap.Modal(document.getElementById('duplicateDocumentModal'));
+            duplicateModal.show();
+        });
+    </script>
+    {% endif %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{% if cliente %}Editar{% else %}Cadastrar{% endif %} Cliente</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('cliente.clientes') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-edit me-1"></i>
+                    {% if cliente %}Editar Cliente: {{ cliente.name }}{% else %}Novo Cliente{% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('cliente.cliente_cadastrar') if not cliente else url_for('cliente.cliente_editar', id=cliente.id) }}">
+                        {% if cliente %}
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="id" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="id" name="id" value="{{ cliente.id }}" readonly>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="name" class="form-label required-field">Nome Fantasia</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ cliente.name }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="razao_social" class="form-label required-field">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social" name="razao_social" value="{{ cliente.razao_social if cliente and cliente.razao_social else '' }}" required>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label required-field">Nome Fantasia</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="razao_social" class="form-label required-field">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social" name="razao_social" value="{{ cliente.razao_social if cliente and cliente.razao_social else '' }}" required>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cnpj" class="form-label required-field">CPF/CNPJ</label>
+                                <input type="text" class="form-control" id="cnpj" name="cnpj" placeholder="CPF ou CNPJ" value="{{ cliente.cnpj if cliente and cliente.cnpj != None else '' }}" required>
+                                <div class="form-text">Informe CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ie" class="form-label">Inscrição Estadual</label>
+                                <input type="text" class="form-control" id="ie" name="ie" placeholder="Inscrição Estadual" value="{{ cliente.ie if cliente and cliente.ie else '' }}">
+                                <div class="form-text">Deixe em branco para ISENTO</div>
+                            </div>
+                        </div>
+                        
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label required-field">Telefone</label>
+                                <input type="text" class="form-control" id="phone" name="phone" placeholder="(00) 00000-0000" value="{{ cliente.phone if cliente and cliente.phone != None else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label required-field">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ cliente.email if cliente and cliente.email != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="contact_name" class="form-label">Nome do Contato</label>
+                                <input type="text" class="form-control" id="contact_name" name="contact_name" value="{{ cliente.contact_name if cliente and cliente.contact_name != None else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contact_role" class="form-label">Cargo do Contato</label>
+                                <input type="text" class="form-control" id="contact_role" name="contact_role" value="{{ cliente.contact_role if cliente and cliente.contact_role != None else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="cep" class="form-label required-field">CEP</label>
+                                <input type="text" class="form-control" id="cep" name="cep" placeholder="00000-000" value="{{ cliente.cep if cliente and cliente.cep != None else '' }}" required>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="address" class="form-label required-field">Logradouro</label>
+                                <input type="text" class="form-control" id="address" name="address" value="{{ cliente.address if cliente and cliente.address != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label for="number" class="form-label required-field">Número</label>
+                                <input type="text" class="form-control" id="number" name="number" value="{{ cliente.number if cliente and cliente.number != None else '' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="complement" class="form-label">Complemento</label>
+                                <input type="text" class="form-control" id="complement" name="complement" value="{{ cliente.complement if cliente and cliente.complement != None else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="neighborhood" class="form-label required-field">Bairro</label>
+                                <input type="text" class="form-control" id="neighborhood" name="neighborhood" value="{{ cliente.neighborhood if cliente and cliente.neighborhood != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="reference" class="form-label">Ponto de Referência</label>
+                                <input type="text" class="form-control" id="reference" name="reference" value="{{ cliente.reference if cliente and cliente.reference != None else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="city" class="form-label required-field">Cidade</label>
+                                <input type="text" class="form-control" id="city" name="city" value="{{ cliente.city if cliente and cliente.city != None else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="state" class="form-label required-field">Estado</label>
+                                <select class="form-select" id="state" name="state" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="AC" {% if cliente and cliente.state == 'AC' %}selected{% endif %}>Acre</option>
+                                    <option value="AL" {% if cliente and cliente.state == 'AL' %}selected{% endif %}>Alagoas</option>
+                                    <option value="AP" {% if cliente and cliente.state == 'AP' %}selected{% endif %}>Amapá</option>
+                                    <option value="AM" {% if cliente and cliente.state == 'AM' %}selected{% endif %}>Amazonas</option>
+                                    <option value="BA" {% if cliente and cliente.state == 'BA' %}selected{% endif %}>Bahia</option>
+                                    <option value="CE" {% if cliente and cliente.state == 'CE' %}selected{% endif %}>Ceará</option>
+                                    <option value="DF" {% if cliente and cliente.state == 'DF' %}selected{% endif %}>Distrito Federal</option>
+                                    <option value="ES" {% if cliente and cliente.state == 'ES' %}selected{% endif %}>Espírito Santo</option>
+                                    <option value="GO" {% if cliente and cliente.state == 'GO' %}selected{% endif %}>Goiás</option>
+                                    <option value="MA" {% if cliente and cliente.state == 'MA' %}selected{% endif %}>Maranhão</option>
+                                    <option value="MT" {% if cliente and cliente.state == 'MT' %}selected{% endif %}>Mato Grosso</option>
+                                    <option value="MS" {% if cliente and cliente.state == 'MS' %}selected{% endif %}>Mato Grosso do Sul</option>
+                                    <option value="MG" {% if cliente and cliente.state == 'MG' %}selected{% endif %}>Minas Gerais</option>
+                                    <option value="PA" {% if cliente and cliente.state == 'PA' %}selected{% endif %}>Pará</option>
+                                    <option value="PB" {% if cliente and cliente.state == 'PB' %}selected{% endif %}>Paraíba</option>
+                                    <option value="PR" {% if cliente and cliente.state == 'PR' %}selected{% endif %}>Paraná</option>
+                                    <option value="PE" {% if cliente and cliente.state == 'PE' %}selected{% endif %}>Pernambuco</option>
+                                    <option value="PI" {% if cliente and cliente.state == 'PI' %}selected{% endif %}>Piauí</option>
+                                    <option value="RJ" {% if cliente and cliente.state == 'RJ' %}selected{% endif %}>Rio de Janeiro</option>
+                                    <option value="RN" {% if cliente and cliente.state == 'RN' %}selected{% endif %}>Rio Grande do Norte</option>
+                                    <option value="RS" {% if cliente and cliente.state == 'RS' %}selected{% endif %}>Rio Grande do Sul</option>
+                                    <option value="RO" {% if cliente and cliente.state == 'RO' %}selected{% endif %}>Rondônia</option>
+                                    <option value="RR" {% if cliente and cliente.state == 'RR' %}selected{% endif %}>Roraima</option>
+                                    <option value="SC" {% if cliente and cliente.state == 'SC' %}selected{% endif %}>Santa Catarina</option>
+                                    <option value="SP" {% if cliente and cliente.state == 'SP' %}selected{% endif %}>São Paulo</option>
+                                    <option value="SE" {% if cliente and cliente.state == 'SE' %}selected{% endif %}>Sergipe</option>
+                                    <option value="TO" {% if cliente and cliente.state == 'TO' %}selected{% endif %}>Tocantins</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="latitude" class="form-label">Latitude</label>
+                                <input type="text" class="form-control" id="latitude" name="latitude" placeholder="Ex: -23.5505" value="{{ cliente.latitude if cliente and cliente.latitude else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="longitude" class="form-label">Longitude</label>
+                                <input type="text" class="form-control" id="longitude" name="longitude" placeholder="Ex: -46.6333" value="{{ cliente.longitude if cliente and cliente.longitude else '' }}">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="form-text">Coordenadas geográficas para mapeamento. Serão preenchidas automaticamente ao informar o CEP.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('cliente.clientes') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                {% if cliente %}
+                                <a href="{{ url_for('cliente.cliente_excluir', id=cliente.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir este cliente?');">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <p>Preencha todos os campos obrigatórios marcados com <span class="text-danger">*</span></p>
+                    <p>O CPF/CNPJ deve ser informado no formato: 000.000.000-00 ou 00.000.000/0000-00</p>
+                    <p>O telefone deve ser informado no formato: (00) 00000-0000</p>
+                    <p>O CEP preencherá automaticamente o endereço quando digitado.</p>
+                </div>
+            </div>
+            <div class="card mb-4" id="cnae_card" data-customer-id="{{ cliente.id if cliente else '' }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-industry me-1"></i>
+                        CNAE do Cliente
+                    </div>
+                    {% if cliente %}
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('cliente.cliente_visualizar', id=cliente.id) }}">Visualizar</a>
+                    {% else %}
+                    <span class="text-muted small">Salve o cadastro para habilitar</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label for="cnae_search" class="form-label">Buscar CNAE (código ou descrição)</label>
+                        <input id="cnae_search" class="form-control" placeholder="Ex.: 0145-7/01 ou AVES" {% if not cliente %}disabled{% endif %} />
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="form-check me-3">
+                            <input class="form-check-input" type="checkbox" id="cnae_is_primary" {% if not cliente %}disabled{% endif %}>
+                            <label class="form-check-label" for="cnae_is_primary">Definir como principal</label>
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="btn_add_cnae" {% if not cliente %}disabled{% endif %}>
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                    </div>
+                    <div id="cnae_suggestions" class="list-group mb-3" style="max-height: 160px; overflow:auto;"></div>
+                    <div>
+                        <h6 class="mb-2">Vinculados</h6>
+                        <div id="cnae_linked">
+                            {% if not cliente %}
+                            <div class="text-muted small">Nenhum CNAE exibido. Salve o cadastro para vincular CNAEs.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Incluir script de verificação de documentos -->
+<script src="{{ url_for('static', filename='js/document_check.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Formatação de CPF/CNPJ
+        document.getElementById('cnpj').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 14) value = value.slice(0, 14);
+            
+            // Formata como CPF (11 dígitos)
+            if (value.length <= 11) {
+                if (value.length > 9) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+                } else if (value.length > 6) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d*).*/, '$1.$2.$3');
+                } else if (value.length > 3) {
+                    value = value.replace(/^(\d{3})(\d*).*/, '$1.$2');
+                }
+            }
+            // Formata como CNPJ (mais de 11 dígitos)
+            else {
+                if (value.length > 12) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+                } else if (value.length > 8) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d*).*/, '$1.$2.$3/$4');
+                } else if (value.length > 5) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d*).*/, '$1.$2.$3');
+                } else if (value.length > 2) {
+                    value = value.replace(/^(\d{2})(\d*).*/, '$1.$2');
+                }
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Formatação de telefone
+        document.getElementById('phone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            
+            if (value.length > 10) {
+                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{2})(\d{4})(\d*).*/, '($1) $2-$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d*).*/, '($1) $2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Formatação de CEP
+        document.getElementById('cep').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.slice(0, 8);
+            
+            if (value.length > 5) {
+                value = value.replace(/^(\d{5})(\d{3}).*/, '$1-$2');
+            }
+            
+            e.target.value = value;
+            
+            // Se o CEP estiver completo, busca o endereço
+            if (value.length === 8) { // 00000000 (8 caracteres sem hífen)
+                buscarEnderecoPorCEP(value);
+            }
+        });
+        
+        // Evento para buscar endereço quando o CEP perde o foco
+        document.getElementById('cep').addEventListener('blur', function() {
+            buscarEnderecoPorCEP(this.value);
+        });
+        
+        // Função para buscar endereço pelo CEP usando a API ViaCEP
+        function buscarEnderecoPorCEP(cep) {
+            // Remove caracteres não numéricos
+            cep = cep.replace(/\D/g, '');
+            
+            if (cep.length !== 8) return;
+            
+            // Mostra indicador de carregamento
+            document.getElementById('address').value = 'Buscando...';
+            document.getElementById('city').value = 'Buscando...';
+            document.getElementById('state').value = '';
+            document.getElementById('neighborhood').value = 'Buscando...';
+            document.getElementById('latitude').value = '';
+            document.getElementById('longitude').value = '';
+            
+            // Faz a requisição para a API ViaCEP
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.erro) {
+                        document.getElementById('address').value = data.logradouro;
+                        document.getElementById('city').value = data.localidade;
+                        document.getElementById('state').value = data.uf;
+                        document.getElementById('neighborhood').value = data.bairro;
+                        
+                        // Foca no campo de número após preencher o endereço
+                        document.getElementById('number').focus();
+                    } else {
+                        alert('CEP não encontrado.');
+                        document.getElementById('address').value = '';
+                        document.getElementById('city').value = '';
+                        document.getElementById('state').value = '';
+                        document.getElementById('neighborhood').value = '';
+                        document.getElementById('latitude').value = '';
+                        document.getElementById('longitude').value = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar CEP:', error);
+                    alert('Erro ao buscar CEP. Tente novamente.');
+                    document.getElementById('address').value = '';
+                    document.getElementById('city').value = '';
+                    document.getElementById('state').value = '';
+                    document.getElementById('neighborhood').value = '';
+                    document.getElementById('latitude').value = '';
+                    document.getElementById('longitude').value = '';
+                });
+        }
+        
+        // Adicionar evento para buscar coordenadas quando o número for preenchido
+        document.getElementById('number').addEventListener('blur', function() {
+            const numero = this.value;
+            if (numero) {
+                const cep = document.getElementById('cep').value;
+                const logradouro = document.getElementById('address').value;
+                const bairro = document.getElementById('neighborhood').value;
+                const cidade = document.getElementById('city').value;
+                const estado = document.getElementById('state').value;
+                
+                // Verificar se todos os campos necessários estão preenchidos
+                if (cep && logradouro && cidade && estado) {
+                    // Montar o endereço completo com o número
+                    const enderecoCompleto = `${logradouro}, ${numero}, ${bairro}, ${cidade}, ${estado}, Brasil, ${cep}`;
+                    document.getElementById('latitude').value = 'Buscando...';
+                    document.getElementById('longitude').value = 'Buscando...';
+                    buscarCoordenadas(enderecoCompleto);
+                }
+            }
+        });
+        
+        // Função para buscar coordenadas geográficas usando o OpenStreetMap Nominatim
+        function buscarCoordenadas(endereco) {
+            // Codifica o endereço para URL
+            const enderecoEncoded = encodeURIComponent(endereco);
+            console.log('Buscando coordenadas para:', endereco);
+            
+            // Configuração da requisição com User-Agent (recomendado pela API Nominatim)
+            const options = {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'SupplyChainSystem/1.0',
+                    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+                }
+            };
+            
+            // Faz a requisição para a API Nominatim do OpenStreetMap
+            fetch(`https://nominatim.openstreetmap.org/search?q=${enderecoEncoded}&format=json&limit=1&addressdetails=1`, options)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro na resposta da API: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Resposta da API Nominatim:', data);
+                    if (data && data.length > 0) {
+                        const latitude = data[0].lat;
+                        const longitude = data[0].lon;
+                        console.log('Coordenadas encontradas:', latitude, longitude);
+                        
+                        document.getElementById('latitude').value = latitude;
+                        document.getElementById('longitude').value = longitude;
+                    } else {
+                        console.log('Coordenadas não encontradas para o endereço.');
+                        document.getElementById('latitude').value = '';
+                        document.getElementById('longitude').value = '';
+                        alert('Não foi possível encontrar as coordenadas para este endereço. Por favor, verifique se o endereço está correto ou insira as coordenadas manualmente.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar coordenadas:', error);
+                    document.getElementById('latitude').value = '';
+                    document.getElementById('longitude').value = '';
+                    alert('Erro ao buscar coordenadas: ' + error.message);
+                });
+        }
+
+        // ============================
+        // CNAE - Executa apenas se o card existir (cliente já criado)
+        // ============================
+        const cnaeCard = document.getElementById('cnae_card');
+        if (cnaeCard) {
+            const customerId = cnaeCard.dataset.customerId;
+            if (!customerId) {
+                // Cadastro novo: mantém UI desabilitada e não conecta handlers
+                return;
+            }
+            const $cnaeSearch = document.getElementById('cnae_search');
+            const $cnaeIsPrimary = document.getElementById('cnae_is_primary');
+            const $cnaeSuggestions = document.getElementById('cnae_suggestions');
+            const $cnaeLinked = document.getElementById('cnae_linked');
+            const $btnAddCnae = document.getElementById('btn_add_cnae');
+
+            async function loadLinkedCnaes() {
+                const r = await fetch(`/clientes/${customerId}/cnaes`);
+                const items = await r.json();
+                if (!Array.isArray(items)) return;
+                $cnaeLinked.innerHTML = items.map(i => `
+                    <div class="d-flex align-items-center justify-content-between border rounded p-2 mb-2">
+                        <div>
+                            <strong>${i.subclasse_codigo}</strong>
+                            ${i.is_primary ? '<span class="badge bg-primary ms-2">Principal</span>' : ''}<br>
+                            <small>${i.subclasse_descricao || ''}</small>
+                        </div>
+                        <div>
+                            ${i.is_primary ? '' : `<button class="btn btn-sm btn-outline-primary me-2" data-action="make-primary" data-code="${i.subclasse_codigo}">Principal</button>`}
+                            <button class="btn btn-sm btn-outline-danger" data-action="remove" data-code="${i.subclasse_codigo}">Remover</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            async function searchCnae(q) {
+                if (!q || q.length < 2) { $cnaeSuggestions.innerHTML = ''; return; }
+                const r = await fetch(`/api/cnae/search?q=${encodeURIComponent(q)}`);
+                const items = await r.json();
+                $cnaeSuggestions.innerHTML = items.map(i => `
+                    <button type="button" class="list-group-item list-group-item-action" data-code="${i.subclasse_codigo}">
+                        <div><strong>${i.subclasse_codigo}</strong></div>
+                        <div class="small text-muted">${i.subclasse_descricao || ''}</div>
+                    </button>
+                `).join('');
+            }
+
+            $cnaeSearch && $cnaeSearch.addEventListener('input', (e) => searchCnae(e.target.value));
+
+            $cnaeSuggestions && $cnaeSuggestions.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-code]');
+                if (!btn) return;
+                $cnaeSearch.value = btn.dataset.code;
+                $cnaeSuggestions.innerHTML = '';
+            });
+
+            $btnAddCnae && $btnAddCnae.addEventListener('click', async () => {
+                const code = ($cnaeSearch.value || '').trim();
+                if (!code) { alert('Informe um CNAE válido.'); return; }
+                const body = { subclasse_codigo: code, is_primary: $cnaeIsPrimary.checked };
+                const r = await fetch(`/clientes/${customerId}/cnaes`, {
+                    method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(body)
+                });
+                if (!r.ok) { const err = await r.json().catch(()=>({error:'Erro'})); alert('Falha ao adicionar: ' + (err.error||r.statusText)); return; }
+                $cnaeIsPrimary.checked = false;
+                $cnaeSearch.value = '';
+                await loadLinkedCnaes();
+            });
+
+            $cnaeLinked && $cnaeLinked.addEventListener('click', async (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const code = btn.dataset.code;
+                if (btn.dataset.action === 'remove') {
+                    const r = await fetch(`/clientes/${customerId}/cnaes/${encodeURIComponent(code)}`, { method: 'DELETE' });
+                    if (!r.ok) { alert('Falha ao remover'); return; }
+                    await loadLinkedCnaes();
+                } else if (btn.dataset.action === 'make-primary') {
+                    const r = await fetch(`/clientes/${customerId}/cnaes/${encodeURIComponent(code)}`, { method: 'PUT' });
+                    if (!r.ok) { alert('Falha ao definir principal'); return; }
+                    await loadLinkedCnaes();
+                }
+            });
+
+            // Carrega inicialmente os CNAEs vinculados
+            loadLinkedCnaes();
+        }
+    });
+</script>
+{% endblock %}

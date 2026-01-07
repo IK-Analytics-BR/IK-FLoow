@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Cliente em Potencial - {{ cliente.RAZAO_SOCIAL }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Cliente em Potencial</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('clientes_potenciais.lista') }}">Clientes em Potencial</a></li>
+        <li class="breadcrumb-item active">Visualizar</li>
+    </ol>
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-building me-2"></i>{{ cliente.RAZAO_SOCIAL }}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <form method="POST" action="{{ url_for('clientes_potenciais.tornar_cliente_ativo', id=cliente.id) }}" 
+                      onsubmit="return confirm('Confirma a conversão deste cliente potencial em cliente ativo?\n\nTodos os dados serão importados para a base de clientes.');">
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fas fa-check-circle"></i> Tornar Cliente Ativo
+                    </button>
+                </form>
+            </div>
+            <a href="{{ url_for('clientes_potenciais.lista') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informações Básicas -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-info-circle me-2"></i>Informações Básicas
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">ID:</th>
+                                <td>{{ cliente.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>CNPJ:</th>
+                                <td><strong class="font-monospace">{{ cliente.CNPJ }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Razão Social:</th>
+                                <td><strong>{{ cliente.RAZAO_SOCIAL }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Nome Fantasia:</th>
+                                <td>{{ cliente.NOME_FANTASIA or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>CNAE Principal:</th>
+                                <td class="font-monospace">{{ cliente.CNAE_FISCAL_PRINCIPAL or '-' }}</td>
+                            </tr>
+                            {% if cliente.CNAE_FISCAL_SECUNDARIA %}
+                            <tr>
+                                <th>CNAE Secundária:</th>
+                                <td><small class="font-monospace">{{ cliente.CNAE_FISCAL_SECUNDARIA }}</small></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>Situação Cadastral:</th>
+                                <td>
+                                    {% if cliente.SITUACAO_CADASTRAL == '2' %}
+                                        <span class="badge bg-success">ATIVA</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ cliente.SITUACAO_CADASTRAL }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Data da Situação:</th>
+                                <td>{{ cliente.DATA_SITUACAO_CADASTRAL or '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informações da Empresa -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-briefcase me-2"></i>Informações da Empresa
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">Porte:</th>
+                                <td>
+                                    {% if cliente.PORTE_EMPRESA == '01' %}
+                                        MEI
+                                    {% elif cliente.PORTE_EMPRESA == '03' %}
+                                        Empresa de Pequeno Porte
+                                    {% elif cliente.PORTE_EMPRESA == '05' %}
+                                        Demais
+                                    {% else %}
+                                        {{ cliente.PORTE_EMPRESA or '-' }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Capital Social:</th>
+                                <td>{{ "R$ {:,.2f}".format(cliente.CAPITAL_SOCIAL|float) if cliente.CAPITAL_SOCIAL else '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Natureza Jurídica:</th>
+                                <td>{{ cliente.NATUREZA_JURIDICA or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Qualificação Responsável:</th>
+                                <td>{{ cliente.QUALIFICACAO_RESPONSAVEL or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Ente Federativo:</th>
+                                <td>{{ cliente.ENTE_FEDERATIVO or '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endereço -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-map-marker-alt me-2"></i>Endereço
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">CEP:</th>
+                                <td class="font-monospace">{{ cliente.CEP or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Logradouro:</th>
+                                <td>{{ cliente.LOGRADOURO or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Número:</th>
+                                <td>{{ cliente.NUMERO or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Complemento:</th>
+                                <td>{{ cliente.COMPLEMENTO or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Bairro:</th>
+                                <td>{{ cliente.BAIRRO or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Município:</th>
+                                <td><strong>{{ cliente.MUNICIPIO or '-' }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>UF:</th>
+                                <td><strong>{{ cliente.UF or '-' }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contato -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-phone me-2"></i>Contato
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">Telefone 1:</th>
+                                <td>
+                                    {% if cliente.DDD_1 and cliente.TELEFONE_1 %}
+                                        <a href="tel:{{ cliente.DDD_1 }}{{ cliente.TELEFONE_1 }}" class="text-decoration-none">
+                                            <i class="fas fa-phone me-1"></i>
+                                            ({{ cliente.DDD_1 }}) {{ cliente.TELEFONE_1 }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Telefone 2:</th>
+                                <td>
+                                    {% if cliente.DDD_2 and cliente.TELEFONE_2 %}
+                                        <a href="tel:{{ cliente.DDD_2 }}{{ cliente.TELEFONE_2 }}" class="text-decoration-none">
+                                            <i class="fas fa-phone me-1"></i>
+                                            ({{ cliente.DDD_2 }}) {{ cliente.TELEFONE_2 }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Email:</th>
+                                <td>
+                                    {% if cliente.EMAIL %}
+                                        <a href="mailto:{{ cliente.EMAIL }}" class="text-decoration-none">
+                                            <i class="fas fa-envelope me-1"></i>
+                                            {{ cliente.EMAIL }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Geolocalização -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-globe me-2"></i>Geolocalização
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 30%;">Latitude:</th>
+                                        <td class="font-monospace">{{ cliente.LATITUDE or '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Longitude:</th>
+                                        <td class="font-monospace">{{ cliente.LONGITUDE or '-' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Status:</th>
+                                        <td>
+                                            {% if cliente.LATITUDE and cliente.LONGITUDE %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Geolocalizado
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-times-circle me-1"></i>Não Geolocalizado
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            {% if cliente.LATITUDE and cliente.LONGITUDE %}
+                                <a href="https://www.google.com/maps?q={{ cliente.LATITUDE }},{{ cliente.LONGITUDE }}" 
+                                   target="_blank" 
+                                   class="btn btn-primary btn-sm">
+                                    <i class="fas fa-map-marked-alt me-1"></i>Ver no Google Maps
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão Voltar -->
+    <div class="mb-4">
+        <a href="{{ url_for('clientes_potenciais.lista') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar para Lista
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializa tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+<!-- Aba de Estoque e Logística -->
+<div class="tab-pane fade" id="stock" role="tabpanel" aria-labelledby="stock-tab">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-warehouse me-1"></i> Estoque e Logística
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" placeholder="Quantidade em Estoque" value="{{ produto.stock_quantity if produto and produto.stock_quantity else '0' }}" step="0.01" min="0" readonly>
+                                <label for="stock_quantity">Quantidade em Estoque (Total)</label>
+                            </div>
+                            <div class="form-text text-info">Este valor é calculado automaticamente a partir da tabela de estoque.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="min_stock" name="min_stock" placeholder="Estoque Mínimo" value="{{ produto.min_stock if produto and produto.min_stock else '' }}" step="0.01" min="0">
+                                <label for="min_stock">Estoque Mínimo</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="max_stock" name="max_stock" placeholder="Estoque Máximo" value="{{ produto.max_stock if produto and produto.max_stock else '' }}" step="0.01" min="0">
+                                <label for="max_stock">Estoque Máximo</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if estoque %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <h5 class="mb-3">Estoque por Local</h5>
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Local</th>
+                                        <th>Quantidade</th>
+                                        <th>Mínimo</th>
+                                        <th>Máximo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in estoque %}
+                                    <tr>
+                                        <td>{{ item.location_name }}</td>
+                                        <td>{{ item.quantity }} {{ produto.unit_measure }}</td>
+                                        <td>{{ item.min_stock }} {{ produto.unit_measure }}</td>
+                                        <td>{{ item.max_stock }} {{ produto.unit_measure }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <div class="form-text text-info">Para ajustar o estoque, use a opção "Ajustar Estoque" no menu Estoque.</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="location" name="location" placeholder="Localização Física" value="{{ produto.location if produto and produto.location else '' }}">
+                                <label for="location">Localização Física</label>
+                            </div>
+                            <div class="form-text">Ex.: Almoxarifado A, Prateleira 3</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="lot_number" name="lot_number" placeholder="Lote / Série" value="{{ produto.lot_number if produto and produto.lot_number else '' }}">
+                                <label for="lot_number">Lote / Série</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="date" class="form-control" id="expiry_date" name="expiry_date" placeholder="Data de Validade" value="{{ produto.expiry_date.strftime('%Y-%m-%d') if produto and produto.expiry_date else '' }}">
+                                <label for="expiry_date">Data de Validade</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-box-open me-1"></i> Dimensões e Peso
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="net_weight" name="net_weight" placeholder="Peso Líquido" value="{{ produto.net_weight if produto and produto.net_weight else '' }}" step="0.001" min="0">
+                                                <label for="net_weight">Peso Líquido (kg)</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="gross_weight" name="gross_weight" placeholder="Peso Bruto" value="{{ produto.gross_weight if produto and produto.gross_weight else '' }}" step="0.001" min="0">
+                                                <label for="gross_weight">Peso Bruto (kg)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="length_cm" name="length_cm" placeholder="Comprimento" value="{{ produto.length_cm if produto and produto.length_cm else '' }}" step="0.01" min="0" onchange="calculateVolume()">
+                                                <label for="length_cm">Comprimento (cm)</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="width_cm" name="width_cm" placeholder="Largura" value="{{ produto.width_cm if produto and produto.width_cm else '' }}" step="0.01" min="0" onchange="calculateVolume()">
+                                                <label for="width_cm">Largura (cm)</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="height_cm" name="height_cm" placeholder="Altura" value="{{ produto.height_cm if produto and produto.height_cm else '' }}" step="0.01" min="0" onchange="calculateVolume()">
+                                                <label for="height_cm">Altura (cm)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-floating mb-3">
+                                                <input type="number" class="form-control" id="volume_m3" name="volume_m3" placeholder="Volume" value="{{ produto.volume_m3 if produto and produto.volume_m3 else '' }}" step="0.001" min="0" readonly>
+                                                <label for="volume_m3">Volume (m³)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4 info-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i> Informações de Estoque
+                </div>
+                <div class="card-body">
+                    <p>Registre aqui os dados de estoque e logística do produto.</p>
+                    <p><strong>Estoque Mínimo:</strong> Quantidade mínima que deve haver em estoque (nível de alerta).</p>
+                    <p><strong>Estoque Máximo:</strong> Quantidade máxima que deve ser mantida em estoque.</p>
+                    <p><strong>Localização Física:</strong> Onde o produto está armazenado no depósito.</p>
+                    <p><strong>Dimensões:</strong> As medidas do produto são usadas para cálculo de frete e armazenamento.</p>
+                    <p>O volume em m³ é calculado automaticamente a partir das dimensões.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

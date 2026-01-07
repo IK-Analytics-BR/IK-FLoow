@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Técnicos - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Técnicos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Técnicos</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users-cog me-1"></i>
+            Lista de Técnicos
+            <div class="float-end">
+                <a href="{{ url_for('technician.technician_create') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Novo Técnico
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar técnico...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" id="filterAll">Todos</button>
+                        <button type="button" class="btn btn-outline-success" id="filterActive">Ativos</button>
+                        <button type="button" class="btn btn-outline-warning" id="filterOnLeave">Afastados</button>
+                        <button type="button" class="btn btn-outline-danger" id="filterInactive">Inativos</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="techniciansTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Registro</th>
+                            <th>Especialidade</th>
+                            <th>Contato</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for technician in technicians %}
+                        <tr data-status="{{ technician.status }}">
+                            <td>{{ technician.name }}</td>
+                            <td>{{ technician.registration_number }}</td>
+                            <td>{{ technician.specialty or 'Não especificado' }}</td>
+                            <td>
+                                {% if technician.phone %}
+                                    <i class="fas fa-phone-alt me-1"></i> {{ technician.phone }}<br>
+                                {% endif %}
+                                {% if technician.email %}
+                                    <i class="fas fa-envelope me-1"></i> {{ technician.email }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if technician.status == 'active' %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% elif technician.status == 'inactive' %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% elif technician.status == 'on_leave' %}
+                                    <span class="badge bg-warning">Afastado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('technician.technician_view', technician_id=technician.id) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('technician.technician_edit', technician_id=technician.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-danger btn-sm" title="Excluir" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal{{ technician.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ technician.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ technician.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ technician.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Tem certeza que deseja excluir o técnico <strong>{{ technician.name }}</strong>?</p>
+                                                <p class="text-danger">Esta ação não pode ser desfeita.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('technician.technician_delete', technician_id=technician.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not technicians %}
+            <div class="alert alert-info">
+                Nenhum técnico cadastrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Distribuição por Status
+                </div>
+                <div class="card-body">
+                    <canvas id="statusDistribution" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Técnicos por Especialidade
+                </div>
+                <div class="card-body">
+                    <canvas id="specialtyDistribution" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#techniciansTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Filtros por status
+        $("#filterAll").click(function() {
+            $("#techniciansTable tbody tr").show();
+            $(".btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-danger").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        $("#filterActive").click(function() {
+            $("#techniciansTable tbody tr").hide();
+            $("#techniciansTable tbody tr[data-status='active']").show();
+            $(".btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-danger").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        $("#filterOnLeave").click(function() {
+            $("#techniciansTable tbody tr").hide();
+            $("#techniciansTable tbody tr[data-status='on_leave']").show();
+            $(".btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-danger").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        $("#filterInactive").click(function() {
+            $("#techniciansTable tbody tr").hide();
+            $("#techniciansTable tbody tr[data-status='inactive']").show();
+            $(".btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-danger").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        // Gráfico de distribuição por status
+        var ctxStatus = document.getElementById("statusDistribution");
+        if (ctxStatus) {
+            // Contar técnicos por status
+            var activeCount = $("#techniciansTable tbody tr[data-status='active']").length;
+            var inactiveCount = $("#techniciansTable tbody tr[data-status='inactive']").length;
+            var onLeaveCount = $("#techniciansTable tbody tr[data-status='on_leave']").length;
+            
+            new Chart(ctxStatus, {
+                type: "pie",
+                data: {
+                    labels: ["Ativos", "Inativos", "Afastados"],
+                    datasets: [{
+                        backgroundColor: [
+                            "rgba(40, 167, 69, 0.8)",
+                            "rgba(220, 53, 69, 0.8)",
+                            "rgba(255, 193, 7, 0.8)"
+                        ],
+                        data: [activeCount, inactiveCount, onLeaveCount]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.label || '';
+                                    var value = context.raw || 0;
+                                    var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    var percentage = Math.round((value / total) * 100);
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de técnicos por especialidade
+        var ctxSpecialty = document.getElementById("specialtyDistribution");
+        if (ctxSpecialty) {
+            // Extrair especialidades únicas
+            var specialtiesMap = {};
+            $("#techniciansTable tbody tr").each(function() {
+                var specialty = $(this).find("td:eq(2)").text().trim();
+                if (specialty && specialty !== 'Não especificado') {
+                    if (specialtiesMap[specialty]) {
+                        specialtiesMap[specialty]++;
+                    } else {
+                        specialtiesMap[specialty] = 1;
+                    }
+                }
+            });
+            
+            // Converter para arrays para o gráfico
+            var specialtyLabels = [];
+            var specialtyData = [];
+            var specialtyColors = [];
+            
+            for (var specialty in specialtiesMap) {
+                specialtyLabels.push(specialty);
+                specialtyData.push(specialtiesMap[specialty]);
+                
+                // Gerar cor aleatória
+                var r = Math.floor(Math.random() * 200) + 55;
+                var g = Math.floor(Math.random() * 200) + 55;
+                var b = Math.floor(Math.random() * 200) + 55;
+                specialtyColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+            }
+            
+            new Chart(ctxSpecialty, {
+                type: "bar",
+                data: {
+                    labels: specialtyLabels,
+                    datasets: [{
+                        label: "Técnicos",
+                        backgroundColor: specialtyColors,
+                        borderColor: specialtyColors.map(color => color.replace("0.8", "1")),
+                        borderWidth: 1,
+                        data: specialtyData
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

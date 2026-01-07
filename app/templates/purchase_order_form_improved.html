@@ -1,0 +1,692 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Editar' if order else 'Novo' }} Pedido de Compra{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{{ 'Editar' if order else 'Novo' }} Pedido de Compra</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('purchase_order.purchase_orders_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <form method="post" id="purchaseOrderForm">
+        <!-- Cabeçalho do Pedido -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-file-invoice me-1"></i> Cabeçalho do Pedido
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="order_number" name="order_number" value="{{ order.order_number if order else '' }}" readonly>
+                            <label for="order_number">Nº do Pedido</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="order_date" name="order_date" value="{{ order.order_date.strftime('%Y-%m-%d') if order and order.order_date else today }}" required>
+                            <label for="order_date">Data do Pedido <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="status" name="status">
+                                <option value="draft" {{ 'selected' if not order or order.status == 'draft' else '' }}>Rascunho</option>
+                                <option value="sent" {{ 'selected' if order and order.status == 'sent' else '' }}>Enviado</option>
+                                <option value="confirmed" {{ 'selected' if order and order.status == 'confirmed' else '' }}>Confirmado</option>
+                                <option value="approved" {{ 'selected' if order and order.status == 'approved' else '' }}>Aprovado</option>
+                                <option value="partially_received" {{ 'selected' if order and order.status == 'partially_received' else '' }}>Recebido Parcial</option>
+                                <option value="received" {{ 'selected' if order and order.status == 'received' else '' }}>Recebido</option>
+                                <option value="completed" {{ 'selected' if order and order.status == 'completed' else '' }}>Concluído</option>
+                                <option value="canceled" {{ 'selected' if order and order.status == 'canceled' else '' }}>Cancelado</option>
+                                <option value="cancelled" {{ 'selected' if order and order.status == 'cancelled' else '' }}>Cancelado</option>
+                            </select>
+                            <label for="status">Status do Pedido</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date" value="{{ order.expected_delivery_date.strftime('%Y-%m-%d') if order and order.expected_delivery_date else '' }}">
+                            <label for="expected_delivery_date">Previsão de Entrega</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="supplier_id" name="supplier_id" required>
+                                <option value="">Selecione um fornecedor</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}" {{ 'selected' if order and order.supplier_id == supplier.id else '' }}>{{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="supplier_id">Fornecedor <span class="text-danger">*</span></label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="supplier_tax_id" name="supplier_tax_id" value="{{ supplier_tax_id if supplier_tax_id else '' }}" readonly>
+                            <label for="supplier_tax_id">CNPJ/CPF do Fornecedor</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="contact_name" name="contact_name" value="{{ order.contact_name if order else '' }}">
+                            <label for="contact_name">Contato / Vendedor</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="payment_term_id" name="payment_term_id">
+                                <option value="">Selecione</option>
+                                {% for term in payment_terms %}
+                                <option value="{{ term.id }}" {{ 'selected' if order and order.payment_term_id == term.id else '' }}>{{ term.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="payment_term_id">Condição de Pagamento</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="payment_method_id" name="payment_method_id">
+                                <option value="">Selecione</option>
+                                {% for method in payment_methods %}
+                                <option value="{{ method.id }}" {{ 'selected' if order and order.payment_method_id == method.id else '' }}>{{ method.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="payment_method_id">Forma de Pagamento</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="cost_center_id" name="cost_center_id">
+                                <option value="">Selecione</option>
+                                {% for center in cost_centers %}
+                                <option value="{{ center.id }}" {{ 'selected' if order and order.cost_center_id == center.id else '' }}>{{ center.code }} - {{ center.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="cost_center_id">Centro de Custo / Projeto</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="delivery_address" name="delivery_address" style="height: 100px">{{ order.delivery_address if order else '' }}</textarea>
+                            <label for="delivery_address">Endereço de Entrega</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Itens do Pedido -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-list me-1"></i> Itens do Pedido
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="itemsTable" style="min-width: 800px;">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px">#</th>
+                                <th>Produto</th>
+                                <th style="width: 80px">Unidade</th>
+                                <th style="width: 100px">Quantidade</th>
+                                <th style="width: 120px">Preço Unit.</th>
+                                <th style="width: 100px">Desconto (%)</th>
+                                <th style="width: 120px">Total</th>
+                                <th style="width: 60px">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if order and items %}
+                                {% for item in items %}
+                                <tr data-id="{{ item.id }}">
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <select class="form-select product-select" name="items[{{ loop.index0 }}][product_id]" required>
+                                            <option value="">Selecione um produto</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-unit="{{ product.unit }}" data-price="{{ product.purchase_price }}" {{ 'selected' if item.product_id == product.id else '' }}>{{ product.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control item-unit" name="items[{{ loop.index0 }}][unit]" value="{{ item.unit }}" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-quantity" name="items[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}" min="0.01" step="0.01" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-price" name="items[{{ loop.index0 }}][unit_price]" value="{{ item.unit_price }}" min="0.01" step="0.01" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-discount" name="items[{{ loop.index0 }}][discount_percent]" value="{{ item.discount_percent }}" min="0" max="100" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-total" name="items[{{ loop.index0 }}][total_price]" value="{{ item.total_price }}" readonly>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr data-id="new">
+                                    <td>1</td>
+                                    <td>
+                                        <select class="form-select product-select" name="items[0][product_id]" required>
+                                            <option value="">Selecione um produto</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-unit="{{ product.unit_measure }}" data-price="{{ product.cost_price }}">{{ product.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control item-unit" name="items[0][unit]" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-quantity" name="items[0][quantity]" min="0.01" step="0.01" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-price" name="items[0][unit_price]" min="0.01" step="0.01" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-discount" name="items[0][discount_percent]" value="0" min="0" max="100" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-total" name="items[0][total_price]" readonly>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="8">
+                                    <button type="button" class="btn btn-sm btn-success" id="addItem">
+                                        <i class="fas fa-plus"></i> Adicionar Item
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Totais do Pedido -->
+        <div class="card mb-4" id="totalsSection">
+            <div class="card-header">
+                <i class="fas fa-calculator me-1"></i> Totais do Pedido
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="notes" name="notes" style="height: 100px">{{ order.notes if order else '' }}</textarea>
+                            <label for="notes">Observações</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="subtotal">Subtotal</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="subtotal" name="subtotal" value="{{ order.subtotal if order else '0.00' }}" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="discount_percent">Desconto (%)</label>
+                                <div class="input-group mb-3">
+                                    <input type="number" class="form-control" id="discount_percent" name="discount_percent" value="{{ order.discount_percent if order else '0.00' }}" min="0" max="100" step="0.01">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="discount_value">Valor do Desconto</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="discount_value" name="discount_value" value="{{ order.discount_value if order else '0.00' }}" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="shipping_cost">Frete</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="shipping_cost" name="shipping_cost" value="{{ order.shipping_cost if order else '0.00' }}" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="insurance_cost">Seguro</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="insurance_cost" name="insurance_cost" value="{{ order.insurance_cost if order else '0.00' }}" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="other_costs">Outros Custos</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="other_costs" name="other_costs" value="{{ order.other_costs if order else '0.00' }}" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="tax_value">Impostos</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="tax_value" name="tax_value" value="{{ order.tax_value if order else '0.00' }}" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="total_value">Valor Total</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="total_value" name="total_value" value="{{ order.total_value if order else '0.00' }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+            <a href="{{ url_for('purchase_order.purchase_orders_list') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+
+<!-- Template para novos itens -->
+<template id="itemTemplate">
+    <tr data-id="new">
+        <td class="item-index">1</td>
+        <td>
+            <select class="form-select product-select" name="items[INDEX][product_id]" required>
+                <option value="">Selecione um produto</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" data-unit="{{ product.unit_measure }}" data-price="{{ product.cost_price }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="text" class="form-control item-unit" name="items[INDEX][unit]" readonly>
+        </td>
+        <td>
+            <input type="number" class="form-control item-quantity" name="items[INDEX][quantity]" value="1" min="0.01" step="0.01" required>
+        </td>
+        <td>
+            <input type="number" class="form-control item-price" name="items[INDEX][unit_price]" min="0.01" step="0.01" required>
+        </td>
+        <td>
+            <input type="number" class="form-control item-discount" name="items[INDEX][discount_percent]" value="0" min="0" max="100" step="0.01">
+        </td>
+        <td>
+            <input type="number" class="form-control item-total" name="items[INDEX][total_price]" readonly>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger remove-item"><i class="fas fa-trash"></i></button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Select2 para fornecedores
+        $('#supplier_id').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Selecione um fornecedor'
+        });
+
+        // Inicializar Select2 para produtos
+        $('.product-select').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Selecione um produto'
+        });
+        
+        // Carregar dados do fornecedor ao iniciar a página se já houver um fornecedor selecionado
+        const initialSupplierId = $('#supplier_id').val();
+        if (initialSupplierId) {
+            loadSupplierData(initialSupplierId);
+        }
+
+        // Função para carregar dados do fornecedor
+        function loadSupplierData(supplierId) {
+            if (!supplierId) return;
+            
+            // Buscar informações do fornecedor via AJAX
+            $.ajax({
+                url: '/api/suppliers/' + supplierId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Resposta da API de fornecedor:', data);
+                    console.log('CNPJ/tax_id:', data.tax_id);
+                    
+                    // Preencher CNPJ/CPF do fornecedor
+                    $('#supplier_tax_id').val(data.tax_id || '');
+                    
+                    // Preencher outros campos
+                    $('#contact_name').val(data.contact_name || '');
+                    $('#delivery_address').val(data.address || '');
+                    
+                    // Preencher cidade e estado se disponíveis
+                    if (data.city && data.state) {
+                        let addressText = $('#delivery_address').val();
+                        if (addressText && !addressText.includes(data.city)) {
+                            addressText += '\n' + data.city + ' - ' + data.state;
+                            if (data.zip_code) {
+                                addressText += '\nCEP: ' + data.zip_code;
+                            }
+                            $('#delivery_address').val(addressText);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erro ao buscar informações do fornecedor:', error);
+                    console.error('Status:', status);
+                    console.error('Resposta:', xhr.responseText);
+                }
+            });
+        }
+        
+        // Atualizar informações do fornecedor quando selecionado
+        $('#supplier_id').on('change', function() {
+            const supplierId = $(this).val();
+            loadSupplierData(supplierId);
+            
+            if (!supplierId) {
+                $('#supplier_tax_id').val('');
+                $('#contact_name').val('');
+                $('#delivery_address').val('');
+            }
+        });
+
+        // Adicionar novo item
+        $('#addItem').on('click', function() {
+            console.log('Botão Adicionar Item clicado');
+            
+            try {
+                const tbody = $('#itemsTable tbody');
+                console.log('Tbody encontrado:', tbody.length > 0);
+                
+                const template = document.getElementById('itemTemplate');
+                console.log('Template encontrado:', template !== null);
+                
+                if (!template) {
+                    console.error('Elemento template não encontrado!');
+                    alert('Erro ao adicionar item: template não encontrado');
+                    return;
+                }
+                
+                const templateContent = template.content.cloneNode(true);
+                console.log('Template clonado com sucesso');
+                
+                const index = tbody.find('tr').length;
+                console.log('Número de linhas existentes:', index);
+                
+                // Atualizar índices
+                const indexCell = templateContent.querySelector('.item-index');
+                if (indexCell) {
+                    indexCell.textContent = index + 1;
+                }
+                
+                // Atualizar nomes dos campos
+                const inputs = templateContent.querySelectorAll('[name*="INDEX"]');
+                console.log('Inputs encontrados:', inputs.length);
+                
+                inputs.forEach(input => {
+                    const oldName = input.name;
+                    input.name = input.name.replace('INDEX', index);
+                    console.log(`Nome atualizado: ${oldName} -> ${input.name}`);
+                });
+                
+                // Adicionar à tabela
+                tbody.append(templateContent);
+                
+                // Inicializar Select2 para o novo produto
+                $('.product-select').last().select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Selecione um produto'
+                });
+                
+                // Adicionar event listeners
+                setupItemEventListeners(tbody.find('tr').last());
+                
+                // Recalcular totais
+                calculateTotals();
+            } catch (error) {
+                console.error('Erro ao adicionar item:', error);
+                alert('Erro ao adicionar item: ' + error.message);
+            }
+        });
+
+        // Remover item
+        $(document).on('click', '.remove-item', function() {
+            const tbody = $('#itemsTable tbody');
+            if (tbody.find('tr').length > 1) {
+                $(this).closest('tr').remove();
+                
+                // Renumerar itens
+                tbody.find('tr').each(function(index) {
+                    $(this).find('.item-index').text(index + 1);
+                    
+                    // Atualizar nomes dos campos
+                    $(this).find('[name*="items["]').each(function() {
+                        const name = $(this).attr('name');
+                        const newName = name.replace(/items\[\d+\]/, 'items[' + index + ']');
+                        $(this).attr('name', newName);
+                    });
+                });
+                
+                // Recalcular totais
+                calculateTotals();
+            } else {
+                alert('O pedido deve ter pelo menos um item.');
+            }
+        });
+
+        // Configurar event listeners para os itens existentes
+        $('#itemsTable tbody tr').each(function() {
+            setupItemEventListeners($(this));
+        });
+
+        // Calcular totais iniciais
+        calculateTotals();
+
+        // Event listeners para campos que afetam o total
+        $('#discount_percent, #shipping_cost, #insurance_cost, #other_costs, #tax_value').on('input', calculateTotals);
+
+        // Função para configurar event listeners para um item
+        function setupItemEventListeners(row) {
+            // Quando selecionar um produto
+            row.find('.product-select').on('change', function() {
+                const productId = $(this).val();
+                console.log('Produto selecionado:', productId);
+                
+                if (!productId) {
+                    row.find('.item-unit').val('');
+                    row.find('.item-price').val('');
+                    calculateItemTotal(row);
+                    calculateTotals();
+                    return;
+                }
+                
+                // Usar dados do option selecionado
+                const option = $(this).find('option:selected');
+                console.log('Option selecionada:', option.text());
+                console.log('Dados do option - unit:', option.data('unit'), 'price:', option.data('price'));
+                
+                const unit = option.data('unit');
+                const price = option.data('price');
+                
+                // Preencher campos com os dados do option
+                row.find('.item-unit').val(unit || '');
+                row.find('.item-price').val(price || 0);
+                
+                // Definir quantidade padrão se estiver vazia
+                if (!row.find('.item-quantity').val()) {
+                    row.find('.item-quantity').val(1);
+                }
+                
+                calculateItemTotal(row);
+                calculateTotals();
+                
+                // Buscar informações detalhadas do produto via API
+                console.log('Buscando informações do produto via API:', productId);
+                
+                $.ajax({
+                    url: '/api/products/' + productId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log('Resposta da API de produto:', data);
+                        
+                        // Preencher unidade de medida se estiver disponível
+                        if (data.unit_measure) {
+                            console.log('Unidade de medida encontrada:', data.unit_measure);
+                            row.find('.item-unit').val(data.unit_measure);
+                        }
+                        
+                        // Usar o último preço de compra ou o preço de custo
+                        if (data.last_purchase_price && data.last_purchase_price > 0) {
+                            console.log('Último preço de compra encontrado:', data.last_purchase_price);
+                            row.find('.item-price').val(data.last_purchase_price);
+                            
+                            // Adicionar tooltip com informação da última compra
+                            if (data.last_purchase_date) {
+                                row.find('.item-price').attr('title', `Última compra em ${data.last_purchase_date}`);
+                                row.find('.item-price').tooltip({placement: 'top'});
+                            }
+                        } else if (data.cost_price && data.cost_price > 0) {
+                            console.log('Preço de custo encontrado:', data.cost_price);
+                            row.find('.item-price').val(data.cost_price);
+                        }
+                        
+                        calculateItemTotal(row);
+                        calculateTotals();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Erro ao buscar informações do produto:', error);
+                        console.error('Status:', status);
+                        console.error('Resposta:', xhr.responseText);
+                    }
+                });
+            });
+            
+            // Quando alterar quantidade, preço ou desconto
+            row.find('.item-quantity, .item-price, .item-discount').on('input', function() {
+                calculateItemTotal(row);
+                calculateTotals();
+            });
+        }
+
+        // Calcular total de um item
+        function calculateItemTotal(row) {
+            const quantity = parseFloat(row.find('.item-quantity').val()) || 0;
+            const price = parseFloat(row.find('.item-price').val()) || 0;
+            const discount = parseFloat(row.find('.item-discount').val()) || 0;
+            
+            const totalBeforeDiscount = quantity * price;
+            const discountAmount = totalBeforeDiscount * (discount / 100);
+            const total = totalBeforeDiscount - discountAmount;
+            
+            // Formatar o valor com 2 casas decimais
+            row.find('.item-total').val(total.toFixed(2));
+            
+            // Adicionar tooltip com detalhes do cálculo
+            const tooltipText = `
+                Quantidade: ${quantity}
+                Preço Unit.: R$ ${price.toFixed(2)}
+                Subtotal: R$ ${totalBeforeDiscount.toFixed(2)}
+                Desconto (${discount}%): R$ ${discountAmount.toFixed(2)}
+                Total: R$ ${total.toFixed(2)}
+            `;
+            
+            row.find('.item-total').attr('title', tooltipText);
+            if (!row.find('.item-total').data('bs-tooltip')) {
+                row.find('.item-total').tooltip({placement: 'left'});
+            }
+        }
+
+        // Calcular totais do pedido
+        function calculateTotals() {
+            let subtotal = 0;
+            let itemCount = 0;
+            
+            // Somar totais dos itens
+            $('#itemsTable tbody tr').each(function() {
+                const total = parseFloat($(this).find('.item-total').val()) || 0;
+                if (total > 0) {
+                    subtotal += total;
+                    itemCount++;
+                }
+            });
+            
+            // Atualizar subtotal
+            $('#subtotal').val(subtotal.toFixed(2));
+            
+            // Calcular desconto
+            const discountPercent = parseFloat($('#discount_percent').val()) || 0;
+            const discountValue = subtotal * (discountPercent / 100);
+            $('#discount_value').val(discountValue.toFixed(2));
+            
+            // Outros valores
+            const shippingCost = parseFloat($('#shipping_cost').val()) || 0;
+            const insuranceCost = parseFloat($('#insurance_cost').val()) || 0;
+            const otherCosts = parseFloat($('#other_costs').val()) || 0;
+            const taxValue = parseFloat($('#tax_value').val()) || 0;
+            
+            // Calcular total
+            const totalValue = subtotal - discountValue + shippingCost + insuranceCost + otherCosts + taxValue;
+            $('#total_value').val(totalValue.toFixed(2));
+            
+            // Atualizar resumo do pedido
+            const resumoHtml = `
+                <div class="alert alert-info mt-3">
+                    <h5>Resumo do Pedido</h5>
+                    <p><strong>${itemCount}</strong> ${itemCount === 1 ? 'item' : 'itens'} no pedido</p>
+                    <p>Subtotal: R$ ${subtotal.toFixed(2)}</p>
+                    ${discountValue > 0 ? `<p>Desconto (${discountPercent}%): R$ ${discountValue.toFixed(2)}</p>` : ''}
+                    ${shippingCost > 0 ? `<p>Frete: R$ ${shippingCost.toFixed(2)}</p>` : ''}
+                    ${insuranceCost > 0 ? `<p>Seguro: R$ ${insuranceCost.toFixed(2)}</p>` : ''}
+                    ${otherCosts > 0 ? `<p>Outros custos: R$ ${otherCosts.toFixed(2)}</p>` : ''}
+                    ${taxValue > 0 ? `<p>Impostos: R$ ${taxValue.toFixed(2)}</p>` : ''}
+                    <p class="fw-bold">Total: R$ ${totalValue.toFixed(2)}</p>
+                </div>
+            `;
+            
+            // Adicionar ou atualizar o resumo
+            if ($('#order-summary').length === 0) {
+                // Adicionar o resumo na última card-body da seção de totais
+                $('#totalsSection .card-body').append('<div id="order-summary" class="mt-3"></div>');
+            }
+            $('#order-summary').html(resumoHtml);
+        }
+    });
+</script>
+{% endblock %}

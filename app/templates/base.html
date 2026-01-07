@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Gestão de Suprimentos{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Purchase Order Fixes CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/purchase_order_fixes.css') }}">
+    <style>
+        :root {
+            --ik-teal: #08a5b2;
+            --ik-teal-dark: #067d87;
+            --ik-orange: #ff9f1a;
+            --ik-orange-dark: #f08a00;
+            --ik-navy: #0b2447;
+            --ik-sidebar-bg: #071a2e;
+            --ik-sidebar-bg-2: #061426;
+            --ik-sidebar-text: rgba(255, 255, 255, 0.86);
+            --ik-sidebar-muted: rgba(255, 255, 255, 0.68);
+            --ik-sidebar-border: rgba(255, 255, 255, 0.10);
+            --ik-sidebar-btn: rgba(0, 170, 182, 0.28);
+            --ik-sidebar-btn-2: rgba(0, 170, 182, 0.18);
+            --ik-sidebar-hover: rgba(0, 170, 182, 0.40);
+            --ik-sidebar-active: rgba(255, 159, 26, 0.22);
+        }
+
+        .required-field::after {
+            content: " *";
+            color: red;
+            font-weight: bold;
+        }
+        
+        /* Estilos para o menu lateral */
+        .menu-header {
+            padding: 10px 15px;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid var(--ik-sidebar-border);
+            margin-top: 10px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        
+        /* Estilo para item de menu ativo */
+        #sidebar ul li a.active {
+            background: linear-gradient(90deg, var(--ik-orange), var(--ik-orange-dark));
+            color: #111827;
+            font-weight: 600;
+        }
+        
+        #sidebar ul ul li a.active {
+            background: linear-gradient(90deg, rgba(255, 159, 26, 0.85), rgba(240, 138, 0, 0.85));
+            color: #111827;
+            font-weight: 600;
+        }
+        
+        #sidebar ul ul ul li a.active {
+            background: linear-gradient(90deg, rgba(255, 159, 26, 0.75), rgba(240, 138, 0, 0.75));
+            color: #111827;
+            font-weight: 600;
+        }
+        
+        /* Centralizar conteúdo de tabelas (horizontal e vertical) */
+        .table th, .table td {
+            vertical-align: middle !important;
+            text-align: center !important;
+        }
+        .table thead th {
+            text-align: center !important;
+        }
+        /* Centralizar grupos de botões dentro das células */
+        .table td .btn-group {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #sidebar ul li a {
+            padding: 10px 15px;
+            display: block;
+            color: var(--ik-sidebar-text);
+            border-bottom: 1px solid var(--ik-sidebar-border);
+            background: linear-gradient(180deg, var(--ik-sidebar-btn), var(--ik-sidebar-btn-2));
+            margin: 6px 10px;
+            border-radius: 10px;
+            border-bottom: none;
+        }
+        
+        #sidebar ul li a:hover {
+            color: #fff;
+            background: var(--ik-sidebar-hover);
+        }
+        
+        /* Estilos para submenus */
+        #sidebar ul ul a {
+            padding-left: 30px;
+            background: linear-gradient(180deg, rgba(0, 170, 182, 0.22), rgba(0, 170, 182, 0.14));
+            margin: 6px 10px;
+            border-radius: 10px;
+        }
+        
+        /* Estilos para sub-submenus */
+        #sidebar ul ul ul a {
+            padding-left: 45px;
+            background: linear-gradient(180deg, rgba(0, 170, 182, 0.18), rgba(0, 170, 182, 0.12));
+            margin: 6px 10px;
+            border-radius: 10px;
+        }
+        
+        /* Ícones no menu */
+        #sidebar ul li a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        #sidebar ul li a.active i {
+            color: #111827;
+        }
+
+        /* Cores nos ícones (toque de cor sem perder formalidade) */
+        #sidebar i.fa-home { color: #27c7d8; }
+        #sidebar i.fa-shopping-cart { color: #ffb020; }
+        #sidebar i.fa-users { color: #8b7bff; }
+        #sidebar i.fa-boxes, #sidebar i.fa-box { color: #4fb6ff; }
+        #sidebar i.fa-industry { color: #34d399; }
+        #sidebar i.fa-money-bill-wave { color: #a3e635; }
+        #sidebar i.fa-chart-bar, #sidebar i.fa-chart-line { color: #fbbf24; }
+        #sidebar i.fa-wrench, #sidebar i.fa-tools { color: #fb7185; }
+        #sidebar i.fa-cog { color: #cbd5e1; }
+        #sidebar i.fa-book { color: #22c55e; }
+
+        /* No item ativo, ícone fica neutro para combinar com o laranja */
+        #sidebar a.active i { color: #111827 !important; }
+
+        #sidebar {
+            background: linear-gradient(180deg, var(--ik-sidebar-bg), var(--ik-sidebar-bg-2));
+        }
+
+        #sidebar .sidebar-header {
+            background: rgba(255, 255, 255, 0.14);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+            padding: 38px 12px;
+        }
+
+        /* Submenus: manter no mesmo tom (leve variação) */
+        #sidebar ul ul a {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        #sidebar ul ul ul a {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        /* Indicador de submenu */
+        .dropdown-toggle::after {
+            content: "\f105";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            border: none;
+            display: block;
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+        }
+
+        .dropdown-toggle[aria-expanded="true"]::after {
+            transform: translateY(-50%) rotate(90deg);
+        }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        {% if session.get('username') %}
+        <nav id="sidebar" class="bg-dark text-white {% if menu_collapsed %}active{% endif %}">
+            <div class="sidebar-header">
+                <div class="d-flex justify-content-center align-items-center">
+                    <img
+                        src="{{ url_for('static', filename='img/logo_menu.png') }}"
+                        alt="Sistema ERP"
+                        style="height: 40px; max-width: 210px; width: 100%; object-fit: contain;"
+                    >
+                </div>
+            </div>
+
+            <ul class="list-unstyled components">
+                {# Sistema de Permissões: Admin tem acesso total, demais dependem de permissões #}
+                {% set is_admin = session.get('role') == 'admin' %}
+                {% set permissoes = session.get('permissoes', {}) %}
+                {% set tem_alguma_permissao = permissoes|length > 0 %}
+                
+                {# Início - sempre visível para usuários logados #}
+                <!-- Início -->
+                <li>
+                    <a href="{{ url_for('bem_vindo') }}"><i class="fas fa-home"></i> Início</a>
+                </li>
+                
+                {# Verifica se tem alguma permissão no módulo Vendas #}
+                {% set tem_vendas = is_admin or permissoes.get('vendas.orcamentos', {}).get('visualizar') or permissoes.get('vendas.pdv', {}).get('visualizar') or permissoes.get('vendas.lista_preco', {}).get('visualizar') or permissoes.get('vendas.caixa', {}).get('visualizar') or permissoes.get('vendas.rotas', {}).get('visualizar') or permissoes.get('vendas.vendedores', {}).get('visualizar') or permissoes.get('vendas.romaneio', {}).get('visualizar') %}
+                {% if tem_vendas %}
+                <!-- Vendas -->
+                <li>
+                    <a href="#vendasSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-shopping-cart"></i> Vendas
+                    </a>
+                    <ul class="collapse list-unstyled" id="vendasSubmenu">
+                        <li>
+                            {% if app_mode_allows('industrial') %}
+                                {% if blueprint_exists('orcamentos') %}
+                                <a href="{{ url_for('orcamentos.lista') }}"><i class="fas fa-file-invoice-dollar"></i> Orçamentos</a>
+                                {% else %}
+                                <a href="#" class="disabled"><i class="fas fa-file-invoice-dollar"></i> Orçamentos</a>
+                                {% endif %}
+                            {% endif %}
+                        </li>
+                        <li>
+                            <a href="{{ url_for('lista_preco.lista') }}"><i class="fas fa-tags"></i> Listas de Preço</a>
+                        </li>
+                        {% if is_admin or (app_mode_allows('varejo') and blueprint_exists('pdv_prof')) %}
+                        <li>
+                            <a href="{{ url_for('venda.venda_pdv_moderna') }}"><i class="fas fa-cash-register"></i> PDV (Venda)</a>
+                        </li>
+                        <li>
+                            <a href="/caixa/atual"><i class="fas fa-dollar-sign"></i> Caixa Atual</a>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <a href="{{ url_for('rota_vendas.rotas_vendas_list') }}"><i class="fas fa-route"></i> Rotas de Vendas</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('vendedor.vendedores') }}"><i class="fas fa-user-tie"></i> Vendedores</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('romaneio.romaneio_list') }}"><i class="fas fa-clipboard-list"></i> Romaneio</a>
+                        </li>
+                        <li class="menu-header">NF-e</li>
+                        <li>
+                            <a href="{{ url_for('nfe_emissao.vendas_pendentes') }}"><i class="fas fa-clock"></i> Vendas Pendentes NF-e</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfe_emissao.emitir_manual') }}"><i class="fas fa-file-invoice"></i> Emitir NF-e Manual</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfe_emissao.historico') }}"><i class="fas fa-history"></i> Histórico de NF-e</a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Clientes #}
+                {% set tem_clientes = is_admin or permissoes.get('clientes.lista', {}).get('visualizar') or permissoes.get('clientes.potenciais', {}).get('visualizar') or permissoes.get('clientes.segmentos', {}).get('visualizar') %}
+                {% if tem_clientes %}
+                <!-- Clientes -->
+                <li>
+                    <a href="#clientesSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-users"></i> Clientes
+                    </a>
+                    <ul class="collapse list-unstyled" id="clientesSubmenu">
+                        <li>
+                            <a href="{{ url_for('cliente.clientes') }}"><i class="fas fa-user-check"></i> Clientes</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('clientes_potenciais.lista') }}"><i class="fas fa-user-plus"></i> Clientes em Potencial</a>
+                        </li>
+                        <li>
+                            {% if blueprint_exists('segment') %}
+                            <a href="{{ url_for('segment.segmentos') }}"><i class="fas fa-layer-group"></i> Segmentos</a>
+                            {% else %}
+                            <a href="#" class="disabled"><i class="fas fa-layer-group"></i> Segmentos</a>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Produtos #}
+                {% set tem_produtos = is_admin or permissoes.get('produtos.lista', {}).get('visualizar') or permissoes.get('estoque.lista', {}).get('visualizar') or permissoes.get('estoque.kardex', {}).get('visualizar') or permissoes.get('produtos.fichas_tecnicas', {}).get('visualizar') %}
+                {% if tem_produtos %}
+                <!-- Produtos e Estoque -->
+                <li>
+                    <a href="#produtosEstoqueSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-boxes"></i> Produtos e Estoque
+                    </a>
+                    <ul class="collapse list-unstyled" id="produtosEstoqueSubmenu">
+                        <li>
+                            <a href="#produtosSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-box"></i> Produtos
+                            </a>
+                            <ul class="collapse list-unstyled" id="produtosSubmenu">
+                                <li>
+                                    <a href="{{ url_for('produto.produtos') }}"><i class="fas fa-box"></i> Produtos</a>
+                                </li>
+                                <li>
+                                    {% if blueprint_exists('ncm') %}
+                                    <a href="{{ url_for('ncm.ncms') }}"><i class="fas fa-barcode"></i> NCM</a>
+                                    {% else %}
+                                    <a href="#" class="disabled"><i class="fas fa-barcode"></i> NCM</a>
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    {% if blueprint_exists('cfop') %}
+                                    <a href="{{ url_for('cfop.cfops') }}"><i class="fas fa-receipt"></i> CFOP</a>
+                                    {% else %}
+                                    <a href="#" class="disabled"><i class="fas fa-receipt"></i> CFOP</a>
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('product_category.categorias') }}"><i class="fas fa-sitemap"></i> Categorias</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('product_brand.marcas') }}"><i class="fas fa-copyright"></i> Marcas</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('product_model.modelos') }}"><i class="fas fa-cube"></i> Modelos</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('product_group.grupos') }}"><i class="fas fa-object-group"></i> Grupos</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('product_subgroup.subgrupos') }}"><i class="fas fa-layer-group"></i> Subgrupos</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('unit_measure.unidades') }}"><i class="fas fa-balance-scale"></i> Unidades de Medida</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('insumo.insumos') }}"><i class="fas fa-cogs"></i> Insumos</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('inventory.inventory_list') }}"><i class="fas fa-warehouse"></i> Estoque</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('kardex.kardex_index') }}"><i class="fas fa-history"></i> Kardex (Histórico)</a>
+                        </li>
+                        <li>
+                            {% if blueprint_exists('ficha_tecnica') %}
+                            <a href="{{ url_for('ficha_tecnica.listar') }}"><i class="fas fa-clipboard-list"></i> Fichas Técnicas</a>
+                            {% else %}
+                            <a href="/produtos/fichas-tecnicas/"><i class="fas fa-clipboard-list"></i> Fichas Técnicas</a>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Indústria #}
+                {% set tem_industria = is_admin or permissoes.get('industria.ops', {}).get('visualizar') or permissoes.get('industria.gantt', {}).get('visualizar') or permissoes.get('industria.minha_producao', {}).get('visualizar') or permissoes.get('industria.etapas', {}).get('visualizar') or permissoes.get('industria.painel_lider', {}).get('visualizar') %}
+                {% if tem_industria and app_mode_allows('industrial') %}
+                <li>
+                    <a href="#industriaSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-industry"></i> Indústria
+                    </a>
+                    <ul class="collapse list-unstyled" id="industriaSubmenu">
+                        {# Minha Produção - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.minha_producao', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.meu_gantt') }}"><i class="fas fa-hard-hat text-warning"></i> Minha Produção</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Painel do Líder - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.painel_lider', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.lider_painel') }}"><i class="fas fa-user-tie text-primary"></i> Painel do Líder</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('ordem_producao.lider_gerenciar_equipe') }}"><i class="fas fa-users-cog"></i> Gerenciar Equipe</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Ordens de Produção - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.ops', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.listar_ops') }}"><i class="fas fa-tasks"></i> Ordem de Produção</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Produção Gantt - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.gantt', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.producao_gantt') }}"><i class="fas fa-project-diagram"></i> Produção (Gantt)</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Etapas de Produção - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.etapas', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.etapas_lista') }}"><i class="fas fa-stream"></i> Etapas de Produção</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Grupos de Etapas - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.grupos_etapas', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('ordem_producao.etapas_grupos_lista') }}"><i class="fas fa-layer-group"></i> Grupos de Etapas</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Jornada de Trabalho - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.jornada', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('jornada_trabalho.listar_jornadas') }}"><i class="fas fa-clock"></i> Jornada de Trabalho</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Dashboard Gargalos - baseado em permissão #}
+                        {% if is_admin or permissoes.get('industria.dashboard_gargalos', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('config_producao.dashboard_producao') }}"><i class="fas fa-chart-line text-success"></i> Dashboard Gargalos</a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Configurações - só para admin ou com permissões específicas #}
+                        {% if is_admin or permissoes.get('industria.tempos', {}).get('visualizar') or permissoes.get('industria.feriados', {}).get('visualizar') or permissoes.get('industria.capacidade', {}).get('visualizar') %}
+                        <li class="nav-divider"><hr class="my-1 mx-3"></li>
+                        <li class="nav-header px-3 text-muted small">Configurações</li>
+                        
+                        {% if is_admin or permissoes.get('industria.tempos', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('config_producao.tempos_producao') }}"><i class="fas fa-stopwatch text-info"></i> Tempos de Produção</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if is_admin or permissoes.get('industria.feriados', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('config_producao.feriados') }}"><i class="fas fa-calendar-times text-danger"></i> Feriados</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if is_admin or permissoes.get('industria.capacidade', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('config_producao.capacidade_etapas') }}"><i class="fas fa-tachometer-alt text-warning"></i> Capacidade Etapas</a>
+                        </li>
+                        {% endif %}
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Compras #}
+                {% set tem_compras = is_admin or permissoes.get('compras.fornecedores', {}).get('visualizar') or permissoes.get('compras.entrada', {}).get('visualizar') or permissoes.get('compras.pedidos', {}).get('visualizar') or permissoes.get('compras.transportadoras', {}).get('visualizar') %}
+                {% if tem_compras %}
+                <!-- Compras -->
+                <li>
+                    <a href="#comprasSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-shopping-cart"></i> Compras
+                    </a>
+                    <ul class="collapse list-unstyled" id="comprasSubmenu">
+                        <li>
+                            <a href="{{ url_for('fornecedor.fornecedores') }}"><i class="fas fa-truck"></i> Fornecedores</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('invoice.invoice_create') }}"><i class="fas fa-inbox"></i> Entrada de Produtos</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('purchase_order.purchase_orders_list') }}"><i class="fas fa-file-invoice"></i> Pedidos de Compra</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('transportadoras.lista') }}"><i class="fas fa-truck-moving"></i> Transportadoras</a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Financeiro #}
+                {% set tem_financeiro = is_admin or permissoes.get('financeiro.contas_bancarias', {}).get('visualizar') or permissoes.get('financeiro.contas_pagar', {}).get('visualizar') or permissoes.get('financeiro.contas_receber', {}).get('visualizar') or permissoes.get('financeiro.fluxo_caixa', {}).get('visualizar') %}
+                {% if tem_financeiro %}
+                <!-- Financeiro -->
+                <li>
+                    <a href="#financeiroSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-money-bill-wave"></i> Financeiro
+                    </a>
+                    <ul class="collapse list-unstyled" id="financeiroSubmenu">
+                        <li>
+                            <a href="{{ url_for('bank_account.bank_accounts_list') }}"><i class="fas fa-university"></i> Contas Bancárias</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts_payable.accounts_payable_list') }}"><i class="fas fa-file-invoice-dollar"></i> Contas a Pagar</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('accounts_receivable.accounts_receivable_list') }}"><i class="fas fa-hand-holding-usd"></i> Contas a Receber</a>
+                        </li>
+                        {% if blueprint_exists('cash_flow') %}
+                        <li>
+                            <a href="{{ url_for('cash_flow.cash_flow_dashboard') }}"><i class="fas fa-chart-line"></i> Fluxo de Caixa</a>
+                        </li>
+                        {% endif %}
+                        {% if blueprint_exists('chart_of_accounts') %}
+                        <li>
+                            <a href="{{ url_for('chart_of_accounts.chart_of_accounts_list') }}"><i class="fas fa-book"></i> Plano de Contas</a>
+                        </li>
+                        {% endif %}
+                        {% if is_admin or (app_mode_allows('varejo') and blueprint_exists('cash_register')) %}
+                        <li>
+                            <a href="/caixa"><i class="fas fa-cash-register"></i> Histórico de Caixas</a>
+                        </li>
+                        {% endif %}
+                        <li class="menu-header">CONFIGURAÇÕES</li>
+                        <li>
+                            <a href="{{ url_for('payment_config.payment_config_list') }}"><i class="fas fa-credit-card"></i> Formas de Pagamento</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('condicoes_pagamento.lista') }}"><i class="fas fa-calendar-alt"></i> Condições de Pagamento</a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Manutenção #}
+                {% set tem_manutencao = is_admin or permissoes.get('manutencao.equipamentos', {}).get('visualizar') or permissoes.get('manutencao.horimetro', {}).get('visualizar') or permissoes.get('manutencao.planos', {}).get('visualizar') or permissoes.get('manutencao.ordens', {}).get('visualizar') %}
+                {% if tem_manutencao or is_admin %}
+                <!-- Relatórios e Análises -->
+                <li>
+                    <a href="#relatoriosSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-chart-bar"></i> Relatórios e Análises
+                    </a>
+                    <ul class="collapse list-unstyled" id="relatoriosSubmenu">
+                        {# Dashboard - somente se tiver permissão específica #}
+                        {% if is_admin or permissoes.get('dashboard', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <a href="{{ url_for('venda.vendas_relacao') }}"><i class="fas fa-list"></i> Relação de Vendas</a>
+                        </li>
+                        <li>
+                            <a href="#alertsSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-bell"></i> Alertas
+                            </a>
+                            <ul class="collapse list-unstyled" id="alertsSubmenu">
+                                <li>
+                                    <a href="{{ url_for('em_desenvolvimento', funcionalidade='alertas') }}"><i class="fas fa-bell"></i> Alertas</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('em_desenvolvimento', funcionalidade='historico_alertas') }}"><i class="fas fa-history"></i> Histórico</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('em_desenvolvimento', funcionalidade='dashboard_alertas') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="#dashboardsSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-chart-bar"></i> Dashboards & Relatórios
+                            </a>
+                            <ul class="collapse list-unstyled" id="dashboardsSubmenu">
+                                <li>
+                                    <a href="{{ url_for('dashboard.cmms_dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('dashboard.maintenance_report') }}"><i class="fas fa-wrench"></i> Manutenções</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('dashboard.cost_report') }}"><i class="fas fa-coins"></i> Custos</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('dashboard.performance_report') }}"><i class="fas fa-chart-line"></i> Desempenho</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('em_desenvolvimento', funcionalidade='simulador_cenarios') }}"><i class="fas fa-chart-line"></i> Simulador de Cenários</a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Manutenção e Equipamentos -->
+                {% if tem_manutencao %}
+                <li>
+                    <a href="#manutencaoSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-wrench"></i> Manutenção
+                    </a>
+                    <ul class="collapse list-unstyled" id="manutencaoSubmenu">
+                        <li>
+                            <a href="{{ url_for('equipamento.equipamentos') }}"><i class="fas fa-tools"></i> Equipamentos</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('hour_meter.hour_meter_list') }}"><i class="fas fa-clock"></i> Horímetro</a>
+                        </li>
+                        <li>
+                            <a href="#maintenancePlansSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-clipboard-list"></i> Planos de Manutenção
+                            </a>
+                            <ul class="collapse list-unstyled" id="maintenancePlansSubmenu">
+                                <li>
+                                    <a href="{{ url_for('maintenance_plan.maintenance_plan_list') }}"><i class="fas fa-clipboard-list"></i> Planos</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('maintenance_plan.maintenance_plan_calendar') }}"><i class="fas fa-calendar-alt"></i> Calendário</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="#serviceOrdersSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-tools"></i> Ordens de Serviço
+                            </a>
+                            <ul class="collapse list-unstyled" id="serviceOrdersSubmenu">
+                                <li>
+                                    <a href="{{ url_for('service_order.service_order_list') }}"><i class="fas fa-tools"></i> Ordens</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('service_order.service_order_dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('technician.technicians_list') }}"><i class="fas fa-users-cog"></i> Técnicos</a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                {# Verifica se tem alguma permissão no módulo Administração #}
+                {% set tem_admin = is_admin or permissoes.get('admin.empresas', {}).get('visualizar') or permissoes.get('admin.usuarios', {}).get('visualizar') or permissoes.get('admin.permissoes', {}).get('visualizar') or permissoes.get('admin.config_pdv', {}).get('visualizar') or permissoes.get('admin.importar_clientes', {}).get('visualizar') or permissoes.get('admin.importar_nfe', {}).get('visualizar') %}
+                {% if tem_admin %}
+                <!-- Administração -->
+                <li>
+                    <a href="#adminSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-cog"></i> Administração
+                    </a>
+                    <ul class="collapse list-unstyled" id="adminSubmenu">
+                        {% if is_admin or permissoes.get('admin.empresas', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('empresa.empresas') }}"><i class="fas fa-building"></i> Empresas</a>
+                        </li>
+                        {% endif %}
+                        {% if is_admin %}
+                        <li>
+                            <a href="{{ url_for('currency.lista') }}"><i class="fas fa-coins"></i> Moedas e Câmbio</a>
+                        </li>
+                        {% endif %}
+                        {% if is_admin or permissoes.get('admin.usuarios', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('usuario.usuarios') }}"><i class="fas fa-user-cog"></i> Usuários</a>
+                        </li>
+                        {% endif %}
+                        {% if is_admin or permissoes.get('admin.permissoes', {}).get('visualizar') %}
+                        <li>
+                            <a href="{{ url_for('permissoes.lista') }}"><i class="fas fa-key text-warning"></i> Permissões de Usuário</a>
+                        </li>
+                        {% endif %}
+                        {% if is_admin or (app_mode_allows('varejo') and blueprint_exists('pdv_config')) %}
+                        <li>
+                            <a href="{{ url_for('pdv_config.configuracoes') }}"><i class="fas fa-cash-register"></i> Configurações PDV</a>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <a href="{{ url_for('importar_clientes.importar_clientes_form') }}"><i class="fas fa-file-import"></i> Importar Leads</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfe_upload.importar_nfe_upload_page') }}"><i class="fas fa-file-invoice"></i> Importar XML (NFe)</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfe_emissao.config_email_nfe') }}"><i class="fas fa-envelope-open-text"></i> Config. Email NF-e</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfe_emissao.numeracao_config') }}"><i class="fas fa-hashtag"></i> Numeração NF-e</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('nfce.pagina_teste_homologacao') }}"><i class="fas fa-flask"></i> Teste NFC-e</a>
+                        </li>
+                        {# BOTÕES ANTIGOS REMOVIDOS - Agora usa Upload NFe (XML) unificado
+                        <li>
+                            <a href="{{ url_for('importar_nfe.importar_nfe_form') }}"><i class="fas fa-file-invoice"></i> Importar XML NF-e (Saída)</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('importar_nfe_entrada.importar_nfe_entrada_form') }}"><i class="fas fa-shopping-cart text-success"></i> Importar XML NF-e (Entrada)</a>
+                        </li>
+                        #}
+                        <li>
+                            <a href="{{ url_for('em_desenvolvimento', funcionalidade='seguranca_auditoria') }}"><i class="fas fa-shield-alt"></i> Segurança & Auditoria</a>
+                        </li>
+                        {% if blueprint_exists('integration') %}
+                        <li>
+                            <a href="#integrationsSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                                <i class="fas fa-exchange-alt"></i> Integrações
+                            </a>
+                            <ul class="collapse list-unstyled" id="integrationsSubmenu">
+                                <li>
+                                    <a href="{{ url_for('integration.integrations_dashboard') }}">Integrações</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('integration.erp_config') }}">ERP</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('integration.iot_config') }}">IoT</a>
+                                </li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Ajuda -->
+                <li>
+                    <a href="/docs/manual_usuario.md" target="_blank">
+                        <i class="fas fa-book"></i> Manual do Usuário
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- Page Content -->
+        <div id="content" class="{% if not session.get('username') %}w-100{% endif %}">
+            <!-- Navbar -->
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="container-fluid">
+                    {% if session.get('username') %}
+                    <button type="button" id="sidebarCollapse" class="btn btn-info">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    {% endif %}
+                    
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav ms-auto">
+                            {% if session.get('username') %}
+                            <li class="nav-item dropdown">
+                                <button
+                                    class="btn btn-sm text-white d-flex align-items-center"
+                                    style="background: linear-gradient(90deg, var(--ik-orange), var(--ik-orange-dark)); border: none; border-radius: 999px; padding: 6px 12px;"
+                                    id="navbarUserDropdown"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                >
+                                    <i class="fas fa-user me-2"></i>
+                                    <span class="me-1">{{ session.get('username') }}</span>
+                                    <i class="fas fa-chevron-down small"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
+                                    <li><a class="dropdown-item" href="{{ url_for('users.user_profile') }}">Meu Perfil</a></li>
+                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">Alterar Senha</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a></li>
+                                </ul>
+                            </li>
+                            {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('dashboard') }}">Registrar</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Flash Messages -->
+            <div class="{% if full_width %}container-fluid mt-2 px-2{% else %}container mt-3{% endif %}">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Content -->
+            <div class="{% if full_width %}container-fluid mt-2 px-2{% else %}container mt-4{% endif %}">
+                {% if not full_width %}
+                <h2>{% block page_title %}{% endblock %}</h2>
+                <hr>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{{ url_for('users.change_password_modal') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="changePasswordModalLabel">Alterar Senha</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Senha atual</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">Nova senha</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" minlength="8" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirmar nova senha</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" style="background: var(--ik-orange); border-color: var(--ik-orange-dark);">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery (deve ser carregado antes do Bootstrap) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block scripts %}{% endblock %}
+    {% block modals %}{% endblock %}
+
+    <!-- Script para marcar item de menu ativo -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Obter a URL atual
+            const currentUrl = window.location.pathname;
+            
+            // Encontrar todos os links do menu
+            const menuLinks = document.querySelectorAll('#sidebar a');
+            
+            // Para cada link do menu
+            menuLinks.forEach(function(link) {
+                // Se o href do link corresponder à URL atual
+                if (link.getAttribute('href') === currentUrl) {
+                    // Adicionar classe 'active' ao link
+                    link.classList.add('active');
+                    
+                    // Expandir o submenu pai, se houver
+                    const parentUl = link.closest('ul.collapse');
+                    if (parentUl) {
+                        parentUl.classList.add('show');
+                        
+                        // Encontrar o botão de toggle do submenu e remover a classe 'collapsed'
+                        const toggleButton = document.querySelector(`[data-bs-target="#${parentUl.id}"], [href="#${parentUl.id}"]`);
+                        if (toggleButton) {
+                            toggleButton.classList.remove('collapsed');
+                            toggleButton.setAttribute('aria-expanded', 'true');
+                            
+                            // Se o botão de toggle estiver dentro de outro submenu, expandir também
+                            const grandparentUl = toggleButton.closest('ul.collapse');
+                            if (grandparentUl) {
+                                grandparentUl.classList.add('show');
+                                const grandToggleButton = document.querySelector(`[data-bs-target="#${grandparentUl.id}"], [href="#${grandparentUl.id}"]`);
+                                if (grandToggleButton) {
+                                    grandToggleButton.classList.remove('collapsed');
+                                    grandToggleButton.setAttribute('aria-expanded', 'true');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            $('#sidebarCollapse').on('click', function () {
+                $('#sidebar').toggleClass('active');
+            });
+        });
+    </script>
+    
+    <!-- Bloco para JavaScript adicional das páginas -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

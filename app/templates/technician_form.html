@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Novo Técnico' if not technician else 'Editar Técnico' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Novo Técnico' if not technician else 'Editar Técnico' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('technician.technicians_list') }}">Técnicos</a></li>
+        <li class="breadcrumb-item active">{{ 'Novo Técnico' if not technician else 'Editar Técnico' }}</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-10 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-cog me-1"></i>
+                    {{ 'Cadastrar Novo Técnico' if not technician else 'Editar Técnico: ' + technician.name }}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('technician.technician_create') if not technician else url_for('technician.technician_edit', technician_id=technician.id) }}" id="technicianForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ technician.name if technician else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="registration_number" class="form-label">Número de Registro <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="registration_number" name="registration_number" value="{{ technician.registration_number if technician else '' }}" required>
+                                <div class="form-text">Número único de identificação do técnico (ex: TECH-001)</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="specialty" class="form-label">Especialidade</label>
+                                <input type="text" class="form-control" id="specialty" name="specialty" value="{{ technician.specialty if technician else '' }}">
+                                <div class="form-text">Área de especialização do técnico</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="active" {% if technician and technician.status == 'active' %}selected{% endif %}>Ativo</option>
+                                    <option value="inactive" {% if technician and technician.status == 'inactive' %}selected{% endif %}>Inativo</option>
+                                    <option value="on_leave" {% if technician and technician.status == 'on_leave' %}selected{% endif %}>Afastado</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-address-card me-1"></i>
+                                Informações de Contato
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="phone" class="form-label">Telefone</label>
+                                        <input type="text" class="form-control" id="phone" name="phone" value="{{ technician.phone if technician else '' }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label">E-mail</label>
+                                        <input type="email" class="form-control" id="email" name="email" value="{{ technician.email if technician else '' }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="document_number" class="form-label">Documento (CPF)</label>
+                                        <input type="text" class="form-control" id="document_number" name="document_number" value="{{ technician.document_number if technician else '' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                Endereço
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label for="address" class="form-label">Logradouro</label>
+                                        <input type="text" class="form-control" id="address" name="address" value="{{ technician.address if technician else '' }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label for="city" class="form-label">Cidade</label>
+                                        <input type="text" class="form-control" id="city" name="city" value="{{ technician.city if technician else '' }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="state" class="form-label">Estado</label>
+                                        <input type="text" class="form-control" id="state" name="state" value="{{ technician.state if technician else '' }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="zip_code" class="form-label">CEP</label>
+                                        <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ technician.zip_code if technician else '' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3">{{ technician.notes if technician else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('technician.technicians_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Máscara para telefone
+        $("#phone").on("input", function() {
+            var phone = $(this).val().replace(/\D/g, '');
+            if (phone.length > 0) {
+                phone = phone.match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+                phone = !phone[2] ? phone[1] : '(' + phone[1] + ') ' + phone[2] + (phone[3] ? '-' + phone[3] : '');
+                $(this).val(phone);
+            }
+        });
+        
+        // Máscara para CPF
+        $("#document_number").on("input", function() {
+            var cpf = $(this).val().replace(/\D/g, '');
+            if (cpf.length > 0) {
+                cpf = cpf.match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+                cpf = !cpf[2] ? cpf[1] : cpf[1] + '.' + cpf[2] + (cpf[3] ? '.' + cpf[3] : '') + (cpf[4] ? '-' + cpf[4] : '');
+                $(this).val(cpf);
+            }
+        });
+        
+        // Máscara para CEP
+        $("#zip_code").on("input", function() {
+            var cep = $(this).val().replace(/\D/g, '');
+            if (cep.length > 0) {
+                cep = cep.match(/(\d{0,5})(\d{0,3})/);
+                cep = !cep[2] ? cep[1] : cep[1] + '-' + cep[2];
+                $(this).val(cep);
+            }
+        });
+        
+        // Validação do formulário
+        $("#technicianForm").submit(function(event) {
+            var name = $("#name").val().trim();
+            var registration = $("#registration_number").val().trim();
+            
+            if (!name) {
+                alert("Por favor, informe o nome do técnico.");
+                $("#name").focus();
+                event.preventDefault();
+                return false;
+            }
+            
+            if (!registration) {
+                alert("Por favor, informe o número de registro do técnico.");
+                $("#registration_number").focus();
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %}

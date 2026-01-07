@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}{% if fornecedor %}Editar{% else %}Cadastrar{% endif %} Fornecedor - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    {% if show_duplicate_modal %}
+    <!-- Modal para confirmação quando um documento duplicado é encontrado -->
+    <div class="modal fade" id="duplicateDocumentModal" tabindex="-1" aria-labelledby="duplicateDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="duplicateDocumentModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Documento já cadastrado
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <p><strong>Atenção!</strong> O {{ tipo_documento }} informado já está cadastrado para:</p>
+                        <p class="fs-5">{{ entidade.name }}</p>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Informações do cadastro existente
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>{{ tipo_documento }}:</strong> {{ entidade.cnpj }}</p>
+                                    <p><strong>Nome:</strong> {{ entidade.name }}</p>
+                                    <p><strong>Cidade/UF:</strong> {{ entidade.city }}/{{ entidade.state }}</p>
+                                    <p><strong>Telefone:</strong> {{ entidade.phone }}</p>
+                                    <p><strong>Email:</strong> {{ entidade.email }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <i class="fas fa-question-circle me-2"></i>
+                                    O que deseja fazer?
+                                </div>
+                                <div class="card-body">
+                                    <p>Escolha uma das opções abaixo:</p>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for(editar_url, id=entidade.id) }}" class="btn btn-primary">
+                                            <i class="fas fa-edit me-2"></i>
+                                            Editar cadastro existente
+                                        </a>
+                                        <a href="{{ url_for(visualizar_url, id=entidade.id) }}" class="btn btn-info">
+                                            <i class="fas fa-eye me-2"></i>
+                                            Visualizar cadastro existente
+                                        </a>
+                                        <form action="{{ url_for(forcar_url) }}" method="post" id="forceCreateForm">
+                                            <input type="hidden" name="force_create" value="true">
+                                            {% for key, value in form_data.items() %}
+                                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                            {% endfor %}
+                                            <button type="submit" class="btn btn-danger w-100 mt-2">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                Forçar criação de novo cadastro
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-secondary mt-2" data-bs-dismiss="modal">
+                                            <i class="fas fa-times me-2"></i>
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script para abrir o modal automaticamente -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var duplicateModal = new bootstrap.Modal(document.getElementById('duplicateDocumentModal'));
+            duplicateModal.show();
+        });
+    </script>
+    {% endif %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{% if fornecedor %}Editar{% else %}Cadastrar{% endif %} Fornecedor</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('fornecedor.fornecedores') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-truck me-1"></i>
+                    {% if fornecedor %}Editar Fornecedor: {{ fornecedor.name }}{% else %}Novo Fornecedor{% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('fornecedor.fornecedor_cadastrar') if not fornecedor else url_for('fornecedor.fornecedor_editar', id=fornecedor.id) }}">
+                        {% if fornecedor %}
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="id" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="id" name="id" value="{{ fornecedor.id }}" readonly>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="name" class="form-label required-field">Nome Fantasia</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ fornecedor.name }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="razao_social" class="form-label required-field">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social" name="razao_social" value="{{ fornecedor.razao_social if fornecedor and fornecedor.razao_social else '' }}" required>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label required-field">Nome Fantasia</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="razao_social" class="form-label required-field">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social" name="razao_social" value="{{ fornecedor.razao_social if fornecedor and fornecedor.razao_social else '' }}" required>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cnpj" class="form-label required-field">CPF/CNPJ</label>
+                                <input type="text" class="form-control" id="cnpj" name="cnpj" placeholder="CPF ou CNPJ" value="{{ fornecedor.cnpj if fornecedor and fornecedor.cnpj != None else '' }}" required>
+                                <div class="form-text">Informe CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ie" class="form-label">Inscrição Estadual</label>
+                                <input type="text" class="form-control" id="ie" name="ie" placeholder="Inscrição Estadual" value="{{ fornecedor.ie if fornecedor and fornecedor.ie else '' }}">
+                                <div class="form-text">Deixe em branco para ISENTO</div>
+                            </div>
+                        </div>
+                        
+                        
+                        <h5 class="mt-4 mb-3">Endereço</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="cep" class="form-label required-field">CEP</label>
+                                <input type="text" class="form-control" id="cep" name="cep" placeholder="00000-000" value="{{ fornecedor.cep if fornecedor and fornecedor.cep != None else '' }}" required>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="address" class="form-label required-field">Logradouro</label>
+                                <input type="text" class="form-control" id="address" name="address" value="{{ fornecedor.address if fornecedor and fornecedor.address != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label for="number" class="form-label required-field">Número</label>
+                                <input type="text" class="form-control" id="number" name="number" value="{{ fornecedor.number if fornecedor and fornecedor.number != None else '' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="complement" class="form-label">Complemento</label>
+                                <input type="text" class="form-control" id="complement" name="complement" value="{{ fornecedor.complement if fornecedor and fornecedor.complement != None else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="neighborhood" class="form-label required-field">Bairro</label>
+                                <input type="text" class="form-control" id="neighborhood" name="neighborhood" value="{{ fornecedor.neighborhood if fornecedor and fornecedor.neighborhood != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="reference" class="form-label">Ponto de Referência</label>
+                                <input type="text" class="form-control" id="reference" name="reference" value="{{ fornecedor.reference if fornecedor and fornecedor.reference != None else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="city" class="form-label required-field">Cidade</label>
+                                <input type="text" class="form-control" id="city" name="city" value="{{ fornecedor.city if fornecedor and fornecedor.city != None else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="state" class="form-label required-field">Estado</label>
+                                <select class="form-select" id="state" name="state" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="AC" {% if fornecedor and fornecedor.state == 'AC' %}selected{% endif %}>Acre</option>
+                                    <option value="AL" {% if fornecedor and fornecedor.state == 'AL' %}selected{% endif %}>Alagoas</option>
+                                    <option value="AP" {% if fornecedor and fornecedor.state == 'AP' %}selected{% endif %}>Amapá</option>
+                                    <option value="AM" {% if fornecedor and fornecedor.state == 'AM' %}selected{% endif %}>Amazonas</option>
+                                    <option value="BA" {% if fornecedor and fornecedor.state == 'BA' %}selected{% endif %}>Bahia</option>
+                                    <option value="CE" {% if fornecedor and fornecedor.state == 'CE' %}selected{% endif %}>Ceará</option>
+                                    <option value="DF" {% if fornecedor and fornecedor.state == 'DF' %}selected{% endif %}>Distrito Federal</option>
+                                    <option value="ES" {% if fornecedor and fornecedor.state == 'ES' %}selected{% endif %}>Espírito Santo</option>
+                                    <option value="GO" {% if fornecedor and fornecedor.state == 'GO' %}selected{% endif %}>Goiás</option>
+                                    <option value="MA" {% if fornecedor and fornecedor.state == 'MA' %}selected{% endif %}>Maranhão</option>
+                                    <option value="MT" {% if fornecedor and fornecedor.state == 'MT' %}selected{% endif %}>Mato Grosso</option>
+                                    <option value="MS" {% if fornecedor and fornecedor.state == 'MS' %}selected{% endif %}>Mato Grosso do Sul</option>
+                                    <option value="MG" {% if fornecedor and fornecedor.state == 'MG' %}selected{% endif %}>Minas Gerais</option>
+                                    <option value="PA" {% if fornecedor and fornecedor.state == 'PA' %}selected{% endif %}>Pará</option>
+                                    <option value="PB" {% if fornecedor and fornecedor.state == 'PB' %}selected{% endif %}>Paraíba</option>
+                                    <option value="PR" {% if fornecedor and fornecedor.state == 'PR' %}selected{% endif %}>Paraná</option>
+                                    <option value="PE" {% if fornecedor and fornecedor.state == 'PE' %}selected{% endif %}>Pernambuco</option>
+                                    <option value="PI" {% if fornecedor and fornecedor.state == 'PI' %}selected{% endif %}>Piauí</option>
+                                    <option value="RJ" {% if fornecedor and fornecedor.state == 'RJ' %}selected{% endif %}>Rio de Janeiro</option>
+                                    <option value="RN" {% if fornecedor and fornecedor.state == 'RN' %}selected{% endif %}>Rio Grande do Norte</option>
+                                    <option value="RS" {% if fornecedor and fornecedor.state == 'RS' %}selected{% endif %}>Rio Grande do Sul</option>
+                                    <option value="RO" {% if fornecedor and fornecedor.state == 'RO' %}selected{% endif %}>Rondônia</option>
+                                    <option value="RR" {% if fornecedor and fornecedor.state == 'RR' %}selected{% endif %}>Roraima</option>
+                                    <option value="SC" {% if fornecedor and fornecedor.state == 'SC' %}selected{% endif %}>Santa Catarina</option>
+                                    <option value="SP" {% if fornecedor and fornecedor.state == 'SP' %}selected{% endif %}>São Paulo</option>
+                                    <option value="SE" {% if fornecedor and fornecedor.state == 'SE' %}selected{% endif %}>Sergipe</option>
+                                    <option value="TO" {% if fornecedor and fornecedor.state == 'TO' %}selected{% endif %}>Tocantins</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Contato</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label required-field">Telefone</label>
+                                <input type="text" class="form-control" id="phone" name="phone" placeholder="(00) 00000-0000" value="{{ fornecedor.phone if fornecedor and fornecedor.phone != None else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label required-field">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ fornecedor.email if fornecedor and fornecedor.email != None else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="contact_name" class="form-label">Nome do Contato</label>
+                                <input type="text" class="form-control" id="contact_name" name="contact_name" value="{{ fornecedor.contact_name if fornecedor and fornecedor.contact_name != None else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contact_role" class="form-label">Cargo do Contato</label>
+                                <input type="text" class="form-control" id="contact_role" name="contact_role" value="{{ fornecedor.contact_role if fornecedor and fornecedor.contact_role != None else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="website" class="form-label">Website</label>
+                                <input type="url" class="form-control" id="website" name="website" placeholder="https://www.exemplo.com" value="{{ fornecedor.website if fornecedor and fornecedor.website != None else '' }}">
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Georreferenciamento</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="latitude" class="form-label">Latitude</label>
+                                <input type="text" class="form-control" id="latitude" name="latitude" placeholder="Ex: -23.5505" value="{{ fornecedor.latitude if fornecedor and fornecedor.latitude else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="longitude" class="form-label">Longitude</label>
+                                <input type="text" class="form-control" id="longitude" name="longitude" placeholder="Ex: -46.6333" value="{{ fornecedor.longitude if fornecedor and fornecedor.longitude else '' }}">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="form-text">Coordenadas geográficas para mapeamento. Serão preenchidas automaticamente ao informar o CEP e número.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3">{{ fornecedor.notes if fornecedor and fornecedor.notes else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('fornecedor.fornecedores') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                {% if fornecedor %}
+                                <a href="{{ url_for('fornecedor.fornecedor_excluir', id=fornecedor.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir este fornecedor?');">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <p>Preencha todos os campos obrigatórios marcados com <span class="text-danger">*</span></p>
+                    <p>O CPF/CNPJ deve ser informado no formato: 000.000.000-00 ou 00.000.000/0000-00</p>
+                    <p>O telefone deve ser informado no formato: (00) 00000-0000</p>
+                    <p>O CEP preencherá automaticamente o endereço quando digitado.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Incluir jQuery se ainda não estiver incluído -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Incluir script de verificação de documentos -->
+<script src="{{ url_for('static', filename='js/document_check.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Formatação de CPF/CNPJ
+        document.getElementById('cnpj').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 14) value = value.slice(0, 14);
+            
+            // Formata como CPF (11 dígitos)
+            if (value.length <= 11) {
+                if (value.length > 9) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+                } else if (value.length > 6) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d*).*/, '$1.$2.$3');
+                } else if (value.length > 3) {
+                    value = value.replace(/^(\d{3})(\d*).*/, '$1.$2');
+                }
+            }
+            // Formata como CNPJ (mais de 11 dígitos)
+            else {
+                if (value.length > 12) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+                } else if (value.length > 8) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d*).*/, '$1.$2.$3/$4');
+                } else if (value.length > 5) {
+                    value = value.replace(/^(\d{2})(\d{3})(\d*).*/, '$1.$2.$3');
+                } else if (value.length > 2) {
+                    value = value.replace(/^(\d{2})(\d*).*/, '$1.$2');
+                }
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Formatação de telefone
+        document.getElementById('phone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            
+            if (value.length > 10) {
+                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{2})(\d{4})(\d*).*/, '($1) $2-$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d*).*/, '($1) $2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Formatação automática de URL no campo website
+        document.getElementById('website').addEventListener('blur', function() {
+            let value = this.value.trim();
+            if (value && !value.match(/^https?:\/\//i)) {
+                this.value = 'http://' + value;
+            }
+        });
+        
+        // Formatação de CEP
+        document.getElementById('cep').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.slice(0, 8);
+            
+            if (value.length > 5) {
+                value = value.replace(/^(\d{5})(\d{3}).*/, '$1-$2');
+            }
+            
+            e.target.value = value;
+            
+            // Se o CEP estiver completo, busca o endereço
+            if (value.length === 8) { // 00000000 (8 caracteres sem hífen)
+                buscarEnderecoPorCEP(value);
+            }
+        });
+        
+        // Evento para buscar endereço quando o CEP perde o foco
+        document.getElementById('cep').addEventListener('blur', function() {
+            buscarEnderecoPorCEP(this.value);
+        });
+        
+        // Função para buscar endereço pelo CEP usando a API ViaCEP
+        function buscarEnderecoPorCEP(cep) {
+            // Remove caracteres não numéricos
+            cep = cep.replace(/\D/g, '');
+            
+            if (cep.length !== 8) return;
+            
+            // Mostra indicador de carregamento
+            document.getElementById('address').value = 'Buscando...';
+            document.getElementById('city').value = 'Buscando...';
+            document.getElementById('state').value = '';
+            document.getElementById('neighborhood').value = 'Buscando...';
+            document.getElementById('latitude').value = '';
+            document.getElementById('longitude').value = '';
+            
+            // Faz a requisição para a API ViaCEP
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.erro) {
+                        document.getElementById('address').value = data.logradouro;
+                        document.getElementById('city').value = data.localidade;
+                        document.getElementById('state').value = data.uf;
+                        document.getElementById('neighborhood').value = data.bairro;
+                        
+                        // Foca no campo de número após preencher o endereço
+                        document.getElementById('number').focus();
+                    } else {
+                        alert('CEP não encontrado.');
+                        document.getElementById('address').value = '';
+                        document.getElementById('city').value = '';
+                        document.getElementById('state').value = '';
+                        document.getElementById('neighborhood').value = '';
+                        document.getElementById('latitude').value = '';
+                        document.getElementById('longitude').value = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar CEP:', error);
+                    alert('Erro ao buscar CEP. Tente novamente.');
+                    document.getElementById('address').value = '';
+                    document.getElementById('city').value = '';
+                    document.getElementById('state').value = '';
+                    document.getElementById('neighborhood').value = '';
+                    document.getElementById('latitude').value = '';
+                    document.getElementById('longitude').value = '';
+                });
+        }
+        
+        // Adicionar evento para buscar coordenadas quando o número for preenchido
+        document.getElementById('number').addEventListener('blur', function() {
+            const numero = this.value;
+            if (numero) {
+                const cep = document.getElementById('cep').value;
+                const logradouro = document.getElementById('address').value;
+                const bairro = document.getElementById('neighborhood').value;
+                const cidade = document.getElementById('city').value;
+                const estado = document.getElementById('state').value;
+                
+                // Verificar se todos os campos necessários estão preenchidos
+                if (cep && logradouro && cidade && estado) {
+                    // Montar o endereço completo com o número
+                    const enderecoCompleto = `${logradouro}, ${numero}, ${bairro}, ${cidade}, ${estado}, Brasil, ${cep}`;
+                    document.getElementById('latitude').value = 'Buscando...';
+                    document.getElementById('longitude').value = 'Buscando...';
+                    buscarCoordenadas(enderecoCompleto);
+                }
+            }
+        });
+        
+        // Função para buscar coordenadas geográficas usando o OpenStreetMap Nominatim
+        function buscarCoordenadas(endereco) {
+            // Codifica o endereço para URL
+            const enderecoEncoded = encodeURIComponent(endereco);
+            console.log('Buscando coordenadas para:', endereco);
+            
+            // Configuração da requisição com User-Agent (recomendado pela API Nominatim)
+            const options = {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'SupplyChainSystem/1.0',
+                    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+                }
+            };
+            
+            // Faz a requisição para a API Nominatim do OpenStreetMap
+            fetch(`https://nominatim.openstreetmap.org/search?q=${enderecoEncoded}&format=json&limit=1&addressdetails=1`, options)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro na resposta da API: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Resposta da API Nominatim:', data);
+                    if (data && data.length > 0) {
+                        const latitude = data[0].lat;
+                        const longitude = data[0].lon;
+                        console.log('Coordenadas encontradas:', latitude, longitude);
+                        
+                        document.getElementById('latitude').value = latitude;
+                        document.getElementById('longitude').value = longitude;
+                    } else {
+                        console.log('Coordenadas não encontradas para o endereço.');
+                        document.getElementById('latitude').value = '';
+                        document.getElementById('longitude').value = '';
+                        alert('Não foi possível encontrar as coordenadas para este endereço. Por favor, verifique se o endereço está correto ou insira as coordenadas manualmente.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar coordenadas:', error);
+                    document.getElementById('latitude').value = '';
+                    document.getElementById('longitude').value = '';
+                    alert('Erro ao buscar coordenadas: ' + error.message);
+                });
+        }
+    });
+</script>
+{% endblock %}

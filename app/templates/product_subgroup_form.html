@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{% if subgrupo %}Editar{% else %}Cadastrar{% endif %} Subgrupo - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{% if subgrupo %}Editar{% else %}Cadastrar{% endif %} Subgrupo</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('product_subgroup.subgrupos') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-sitemap me-1"></i>
+                    {% if subgrupo %}Editar Subgrupo: {{ subgrupo.name }}{% else %}Novo Subgrupo{% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('product_subgroup.subgrupo_cadastrar') if not subgrupo else url_for('product_subgroup.subgrupo_editar', id=subgrupo.id) }}">
+                        {% if subgrupo %}
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="id" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="id" name="id" value="{{ subgrupo.id }}" readonly>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="name" class="form-label required-field">Nome</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ subgrupo.name }}" required>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label required-field">Nome</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="group_id" class="form-label required-field">Grupo</label>
+                                <select class="form-select" id="group_id" name="group_id" required>
+                                    <option value="">Selecione um grupo...</option>
+                                    {% for grupo in grupos %}
+                                    <option value="{{ grupo.id }}" {% if subgrupo and subgrupo.group_id == grupo.id %}selected{% elif request.args.get('group_id')|int == grupo.id %}selected{% endif %}>{{ grupo.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ subgrupo.description if subgrupo and subgrupo.description else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('product_subgroup.subgrupos') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                {% if subgrupo %}
+                                <a href="{{ url_for('product_subgroup.subgrupo_excluir', id=subgrupo.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir este subgrupo?');">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <p>Preencha todos os campos obrigatórios marcados com <span class="text-danger">*</span></p>
+                    <p>O nome do subgrupo deve ser único dentro do grupo selecionado.</p>
+                    <p>A descrição é opcional e pode conter informações adicionais sobre o subgrupo.</p>
+                    <p>O subgrupo deve estar associado a um grupo existente.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Adicionar classe para indicar campos obrigatórios
+        document.querySelectorAll('.required-field').forEach(function(label) {
+            label.innerHTML += ' <span class="text-danger">*</span>';
+        });
+    });
+</script>
+{% endblock %}

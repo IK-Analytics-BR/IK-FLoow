@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+
+{% block title %}Finalizar Venda - PDV{% endblock %}
+
+{% block styles %}
+<style>
+    /* TELA DE FINALIZAÇÃO MODERNA */
+    .finalizacao-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .finalizacao-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        max-width: 900px;
+        margin: 0 auto;
+        overflow: hidden;
+    }
+    
+    .finalizacao-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .finalizacao-header h2 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 700;
+    }
+    
+    .finalizacao-body {
+        padding: 40px;
+    }
+    
+    /* VALORES */
+    .valores-container {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .valor-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .valor-item:last-child {
+        border-bottom: none;
+    }
+    
+    .valor-label {
+        font-size: 16px;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .valor-amount {
+        font-size: 24px;
+        font-weight: 700;
+        color: #333;
+    }
+    
+    .valor-total {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 42px !important;
+    }
+    
+    /* FORMAS DE PAGAMENTO */
+    .payment-methods {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .payment-btn {
+        background: white;
+        border: 3px solid #e0e0e0;
+        border-radius: 15px;
+        padding: 25px 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        position: relative;
+    }
+    
+    .payment-btn:hover {
+        border-color: #667eea;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .payment-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+    }
+    
+    .payment-btn i {
+        font-size: 40px;
+        margin-bottom: 10px;
+        display: block;
+    }
+    
+    .payment-btn .payment-name {
+        font-size: 18px;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .payment-btn .payment-shortcut {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+    
+    /* PAGAMENTOS ADICIONADOS */
+    .payments-added {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        display: none;
+    }
+    
+    .payments-added.show {
+        display: block;
+    }
+    
+    .payment-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .payment-item-name {
+        font-weight: 600;
+        color: #667eea;
+    }
+    
+    .payment-item-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #333;
+    }
+    
+    .payment-item-remove {
+        background: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        margin-left: 15px;
+    }
+    
+    /* INFORMAR VALOR */
+    .payment-input-container {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        display: none;
+    }
+    
+    .payment-input-container.show {
+        display: block;
+    }
+    
+    .payment-input-label {
+        font-size: 18px;
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .payment-input {
+        width: 100%;
+        font-size: 36px;
+        font-weight: 700;
+        text-align: center;
+        border: 3px solid #667eea;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .payment-input:focus {
+        outline: none;
+        box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* TROCO */
+    .troco-display {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 30px;
+        display: none;
+    }
+    
+    .troco-display.show {
+        display: block;
+    }
+    
+    .troco-label {
+        font-size: 20px;
+        opacity: 0.9;
+        margin-bottom: 10px;
+    }
+    
+    .troco-value {
+        font-size: 48px;
+        font-weight: 700;
+    }
+    
+    /* SALDO RESTANTE */
+    .saldo-restante {
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    
+    /* BOTÕES DE AÇÃO */
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .btn-action {
+        padding: 20px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 15px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-cancelar {
+        background: #ff4444;
+        color: white;
+    }
+    
+    .btn-confirmar {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    
+    .btn-adicionar {
+        background: #667eea;
+        color: white;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .btn-action:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="finalizacao-container">
+    <div class="finalizacao-card">
+        <!-- HEADER -->
+        <div class="finalizacao-header">
+            <h2><i class="fas fa-cash-register"></i> Finalizar Venda</h2>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Venda #{{ sale_id }}</p>
+        </div>
+        
+        <!-- BODY -->
+        <div class="finalizacao-body">
+            <!-- VALORES -->
+            <div class="valores-container">
+                <div class="valor-item">
+                    <span class="valor-label">Subtotal:</span>
+                    <span class="valor-amount">R$ {{ "%.2f"|format(subtotal) }}</span>
+                </div>
+                <div class="valor-item">
+                    <span class="valor-label">Desconto:</span>
+                    <span class="valor-amount" style="color: #11998e;">- R$ {{ "%.2f"|format(discount) }}</span>
+                </div>
+                <div class="valor-item">
+                    <span class="valor-label">Acréscimo:</span>
+                    <span class="valor-amount" style="color: #ff4444;">+ R$ {{ "%.2f"|format(addition) }}</span>
+                </div>
+                <div class="valor-item">
+                    <span class="valor-label"><strong>TOTAL A PAGAR:</strong></span>
+                    <span class="valor-amount valor-total">R$ {{ "%.2f"|format(total) }}</span>
+                </div>
+            </div>
+            
+            <!-- SALDO RESTANTE -->
+            <div class="saldo-restante" id="saldoRestante">
+                Saldo restante: <strong>R$ <span id="saldoValue">{{ "%.2f"|format(total) }}</span></strong>
+            </div>
+            
+            <!-- PAGAMENTOS ADICIONADOS -->
+            <div class="payments-added" id="paymentsAdded">
+                <h4 style="margin-bottom: 15px; color: #667eea;">
+                    <i class="fas fa-check-circle"></i> Pagamentos Adicionados
+                </h4>
+                <div id="paymentsList"></div>
+            </div>
+            
+            <!-- FORMAS DE PAGAMENTO -->
+            <h4 style="margin-bottom: 20px; color: #667eea;">
+                <i class="fas fa-credit-card"></i> Selecione a Forma de Pagamento
+            </h4>
+            <div class="payment-methods" id="paymentMethods">
+                {% for method in payment_methods %}
+                <div class="payment-btn" data-method-id="{{ method.id }}" data-method-name="{{ method.name }}" data-method-code="{{ method.code }}">
+                    <i class="fas fa-{{ 'money-bill-wave' if 'cash' in method.code or 'money' in method.code else 'credit-card' if 'card' in method.code else 'file-invoice' }}"></i>
+                    <span class="payment-name">{{ method.name }}</span>
+                    <span class="payment-shortcut">SHIFT+{{ loop.index }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- INFORMAR VALOR -->
+            <div class="payment-input-container" id="paymentInputContainer">
+                <label class="payment-input-label" id="paymentInputLabel">Valor em Dinheiro:</label>
+                <input type="text" class="payment-input" id="paymentInputValue" placeholder="0,00">
+                <div class="action-buttons">
+                    <button class="btn-action btn-cancelar" onclick="cancelarPagamento()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="btn-action btn-adicionar" onclick="adicionarPagamento()">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
+                </div>
+            </div>
+            
+            <!-- TROCO -->
+            <div class="troco-display" id="trocoDisplay">
+                <div class="troco-label">TROCO</div>
+                <div class="troco-value">R$ <span id="trocoValue">0,00</span></div>
+            </div>
+            
+            <!-- BOTÕES FINAIS -->
+            <div class="action-buttons">
+                <button class="btn-action btn-cancelar" onclick="voltarVenda()">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn-action btn-confirmar" id="btnConfirmar" onclick="confirmarVenda()" disabled>
+                    <i class="fas fa-check"></i> Confirmar Venda
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// VARIÁVEIS GLOBAIS
+let totalVenda = {{ total }};
+let saldoRestante = {{ total }};
+let pagamentos = [];
+let trocoTotal = 0;
+let metodoPagamentoSelecionado = null;
+
+// INICIALIZAÇÃO
+document.addEventListener('DOMContentLoaded', function() {
+    // Event listeners para formas de pagamento
+    document.querySelectorAll('.payment-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            selecionarMetodoPagamento(this);
+        });
+    });
+    
+    // Atalhos de teclado
+    document.addEventListener('keydown', function(e) {
+        // SHIFT + número para selecionar forma de pagamento
+        if (e.shiftKey && e.key >= '1' && e.key <= '9') {
+            const index = parseInt(e.key) - 1;
+            const btns = document.querySelectorAll('.payment-btn');
+            if (btns[index]) {
+                btns[index].click();
+            }
+        }
+        
+        // ENTER para confirmar
+        if (e.key === 'Enter' && !e.shiftKey) {
+            const inputContainer = document.getElementById('paymentInputContainer');
+            if (inputContainer.classList.contains('show')) {
+                adicionarPagamento();
+            } else if (!document.getElementById('btnConfirmar').disabled) {
+                confirmarVenda();
+            }
+        }
+        
+        // ESC para cancelar
+        if (e.key === 'Escape') {
+            const inputContainer = document.getElementById('paymentInputContainer');
+            if (inputContainer.classList.contains('show')) {
+                cancelarPagamento();
+            }
+        }
+    });
+    
+    // Formatar input de valor
+    const input = document.getElementById('paymentInputValue');
+    input.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9,]/g, '');
+    });
+    
+    atualizarInterface();
+});
+
+// SELECIONAR MÉTODO DE PAGAMENTO
+function selecionarMetodoPagamento(btn) {
+    metodoPagamentoSelecionado = {
+        id: btn.dataset.methodId,
+        name: btn.dataset.methodName,
+        code: btn.dataset.methodCode
+    };
+    
+    // Highlight
+    document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Mostrar input
+    document.getElementById('paymentInputContainer').classList.add('show');
+    document.getElementById('paymentInputLabel').textContent = `Valor em ${metodoPagamentoSelecionado.name}:`;
+    document.getElementById('paymentInputValue').value = saldoRestante.toFixed(2).replace('.', ',');
+    document.getElementById('paymentInputValue').focus();
+    document.getElementById('paymentInputValue').select();
+}
+
+// ADICIONAR PAGAMENTO
+function adicionarPagamento() {
+    const inputValue = document.getElementById('paymentInputValue').value;
+    const valor = parseFloat(inputValue.replace(',', '.'));
+    
+    if (isNaN(valor) || valor <= 0) {
+        alert('Informe um valor válido!');
+        return;
+    }
+    
+    // Adicionar pagamento
+    pagamentos.push({
+        method_id: metodoPagamentoSelecionado.id,
+        method_name: metodoPagamentoSelecionado.name,
+        method_code: metodoPagamentoSelecionado.code,
+        valor: valor
+    });
+    
+    // Calcular saldo e troco
+    calcularSaldoETroco();
+    
+    // Atualizar interface
+    atualizarInterface();
+    
+    // Limpar seleção
+    cancelarPagamento();
+}
+
+// CALCULAR SALDO E TROCO
+function calcularSaldoETroco() {
+    let totalPago = 0;
+    let trocoCalculado = 0;
+    
+    pagamentos.forEach(pag => {
+        totalPago += pag.valor;
+    });
+    
+    saldoRestante = totalVenda - totalPago;
+    
+    // Calcular troco (apenas se pago a mais em dinheiro/cash)
+    if (saldoRestante < 0) {
+        trocoCalculado = Math.abs(saldoRestante);
+    }
+    
+    trocoTotal = trocoCalculado;
+}
+
+// ATUALIZAR INTERFACE
+function atualizarInterface() {
+    // Atualizar lista de pagamentos
+    const paymentsList = document.getElementById('paymentsList');
+    paymentsList.innerHTML = '';
+    
+    pagamentos.forEach((pag, index) => {
+        paymentsList.innerHTML += `
+            <div class="payment-item">
+                <span class="payment-item-name">${pag.method_name}</span>
+                <span class="payment-item-value">R$ ${pag.valor.toFixed(2).replace('.', ',')}</span>
+                <button class="payment-item-remove" onclick="removerPagamento(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    // Mostrar/ocultar lista
+    if (pagamentos.length > 0) {
+        document.getElementById('paymentsAdded').classList.add('show');
+    } else {
+        document.getElementById('paymentsAdded').classList.remove('show');
+    }
+    
+    // Atualizar saldo restante
+    document.getElementById('saldoValue').textContent = Math.max(0, saldoRestante).toFixed(2).replace('.', ',');
+    
+    // Atualizar troco
+    if (trocoTotal > 0) {
+        document.getElementById('trocoValue').textContent = trocoTotal.toFixed(2).replace('.', ',');
+        document.getElementById('trocoDisplay').classList.add('show');
+    } else {
+        document.getElementById('trocoDisplay').classList.remove('show');
+    }
+    
+    // Habilitar/desabilitar botão confirmar
+    if (saldoRestante <= 0 && pagamentos.length > 0) {
+        document.getElementById('btnConfirmar').disabled = false;
+    } else {
+        document.getElementById('btnConfirmar').disabled = true;
+    }
+}
+
+// REMOVER PAGAMENTO
+function removerPagamento(index) {
+    pagamentos.splice(index, 1);
+    calcularSaldoETroco();
+    atualizarInterface();
+}
+
+// CANCELAR PAGAMENTO
+function cancelarPagamento() {
+    document.getElementById('paymentInputContainer').classList.remove('show');
+    document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+    metodoPagamentoSelecionado = null;
+}
+
+// VOLTAR PARA VENDA
+function voltarVenda() {
+    if (confirm('Deseja voltar? Os pagamentos informados serão perdidos.')) {
+        window.location.href = "{{ url_for('venda.venda_nova') }}";
+    }
+}
+
+// CONFIRMAR VENDA
+function confirmarVenda() {
+    if (pagamentos.length === 0) {
+        alert('Adicione pelo menos uma forma de pagamento!');
+        return;
+    }
+    
+    if (saldoRestante > 0) {
+        alert(`Ainda falta pagar R$ ${saldoRestante.toFixed(2).replace('.', ',')}!`);
+        return;
+    }
+    
+    // Enviar para o servidor
+    const dados = {
+        sale_id: {{ sale_id }},
+        payments: pagamentos,
+        change: trocoTotal
+    };
+    
+    // TODO: Implementar envio via AJAX
+    console.log('Confirmar venda:', dados);
+    
+    alert('Venda confirmada com sucesso!\\nTroco: R$ ' + trocoTotal.toFixed(2).replace('.', ','));
+    window.location.href = "{{ url_for('venda.venda_nova') }}";
+}
+</script>
+{% endblock %}

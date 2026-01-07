@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}Ajuste de Estoque - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Ajuste de Estoque</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.inventory_list') }}">Estoque</a></li>
+        <li class="breadcrumb-item active">Ajuste de Estoque</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-plus-minus me-1"></i>
+                    Formulário de Ajuste de Estoque
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('inventory.inventory_adjustment') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="product_id" class="form-label">Produto <span class="text-danger">*</span></label>
+                                <select class="form-select select2-products" id="product_id" name="product_id" required>
+                                    <option value="">Selecione um produto</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" data-stock="{{ product.current_stock or 0 }}" data-unit="{{ product.unit }}" data-code="{{ product.code }}" data-sku="{{ product.sku }}">
+                                        {% if product.code %}[{{ product.code }}] {% endif %}{{ product.name }} {% if product.sku %}(SKU: {{ product.sku }}){% endif %} - Estoque: {{ product.current_stock or 0 }} {{ product.unit }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="location_id" class="form-label">Local <span class="text-danger">*</span></label>
+                                <select class="form-select" id="location_id" name="location_id" required>
+                                    {% for location in locations %}
+                                    <option value="{{ location.id }}">{{ location.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="current_stock" class="form-label">Estoque Atual</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="current_stock" readonly>
+                                    <span class="input-group-text" id="current_unit">UN</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="adjustment_type" class="form-label">Tipo de Ajuste <span class="text-danger">*</span></label>
+                                <select class="form-select" id="adjustment_type" name="adjustment_type" required>
+                                    <option value="add">Adicionar</option>
+                                    <option value="subtract">Subtrair</option>
+                                    <option value="replace">Substituir</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="quantity" class="form-label">Quantidade <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="reason" class="form-label">Motivo do Ajuste <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+                                <div class="form-text">Descreva o motivo do ajuste de estoque. Esta informação será registrada no histórico de movimentações.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Estoque Após Ajuste</h5>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="new_stock" readonly>
+                                            <span class="input-group-text" id="new_unit">UN</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar Ajuste
+                                </button>
+                                <a href="{{ url_for('inventory.inventory_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações Sobre Ajustes de Estoque
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="accordionAdjustmentInfo">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                    Quando realizar um ajuste de estoque?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionAdjustmentInfo">
+                                <div class="accordion-body">
+                                    <p>Os ajustes de estoque devem ser realizados nas seguintes situações:</p>
+                                    <ul>
+                                        <li><strong>Inventário físico:</strong> Quando é realizada uma contagem física e há divergência com o sistema.</li>
+                                        <li><strong>Avarias ou perdas:</strong> Quando produtos são danificados ou perdidos.</li>
+                                        <li><strong>Doações:</strong> Quando produtos são doados ou cedidos sem venda.</li>
+                                        <li><strong>Uso interno:</strong> Quando produtos são utilizados internamente pela empresa.</li>
+                                        <li><strong>Correção de erros:</strong> Para corrigir erros de lançamento anteriores.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Boas práticas para ajustes de estoque
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionAdjustmentInfo">
+                                <div class="accordion-body">
+                                    <ul>
+                                        <li>Sempre informe um motivo claro e detalhado para o ajuste.</li>
+                                        <li>Realize ajustes com base em contagens físicas periódicas.</li>
+                                        <li>Documente evidências que justifiquem o ajuste (fotos, relatórios, etc.).</li>
+                                        <li>Evite ajustes frequentes no mesmo produto, pois isso pode indicar problemas no processo.</li>
+                                        <li>Monitore os ajustes para identificar padrões e resolver problemas recorrentes.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    Impactos dos ajustes de estoque
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionAdjustmentInfo">
+                                <div class="accordion-body">
+                                    <p>Os ajustes de estoque podem ter os seguintes impactos:</p>
+                                    <ul>
+                                        <li><strong>Financeiros:</strong> Afetam o valor do estoque e, consequentemente, os ativos da empresa.</li>
+                                        <li><strong>Fiscais:</strong> Podem gerar obrigações fiscais dependendo da natureza do ajuste.</li>
+                                        <li><strong>Operacionais:</strong> Afetam a disponibilidade de produtos para venda ou produção.</li>
+                                        <li><strong>Indicadores:</strong> Impactam KPIs de gestão de estoque, como acuracidade e giro.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Inicializar Select2 para produtos com busca AJAX
+        $('.select2-products').select2({
+            placeholder: 'Buscar produto por nome, código ou SKU',
+            allowClear: true,
+            width: '100%',
+            minimumInputLength: 2,
+            ajax: {
+                url: '/estoque/buscar-produtos',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term,
+                        location_id: $('#location_id').val() || '1'
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function() {
+                    return "Nenhum produto encontrado";
+                },
+                searching: function() {
+                    return "Buscando...";
+                },
+                inputTooShort: function() {
+                    return "Digite pelo menos 2 caracteres para buscar";
+                }
+            }
+        });
+        // Atualizar estoque atual ao selecionar produto
+        $('#product_id').on('change', function() {
+            var productId = $(this).val();
+            var locationId = $('#location_id').val() || '1';
+            
+            if (productId) {
+                // Buscar estoque do produto via AJAX
+                $.ajax({
+                    url: '/estoque/produto-estoque',
+                    type: 'GET',
+                    data: { product_id: productId, location_id: locationId },
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log('Dados do produto:', data);
+                        $('#current_stock').val(data.current_stock);
+                        $('#current_unit').text(data.unit || 'UN');
+                        $('#new_unit').text(data.unit || 'UN');
+                        calculateNewStock();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Erro ao buscar estoque:', error);
+                        $('#current_stock').val('0');
+                        $('#current_unit').text('UN');
+                        $('#new_unit').text('UN');
+                        calculateNewStock();
+                    }
+                });
+            } else {
+                $('#current_stock').val('0');
+                $('#current_unit').text('UN');
+                $('#new_unit').text('UN');
+                calculateNewStock();
+            }
+            
+            // Recalcular estoque após ajuste
+            calculateNewStock();
+        });
+        
+        // Recalcular estoque após ajuste quando quantidade ou tipo de ajuste mudar
+        $('#quantity, #adjustment_type').change(function() {
+            calculateNewStock();
+        });
+        
+        // Função para calcular o novo estoque
+        function calculateNewStock() {
+            var currentStock = parseFloat($('#current_stock').val()) || 0;
+            var quantity = parseFloat($('#quantity').val()) || 0;
+            var adjustmentType = $('#adjustment_type').val();
+            
+            var newStock = currentStock;
+            
+            if (adjustmentType === 'add') {
+                newStock = currentStock + quantity;
+            } else if (adjustmentType === 'subtract') {
+                newStock = Math.max(0, currentStock - quantity);
+            } else if (adjustmentType === 'replace') {
+                newStock = quantity;
+            }
+            
+            $('#new_stock').val(newStock.toFixed(2));
+        }
+        
+        // Atualizar estoque ao mudar o local ou produto
+        function updateProductStock() {
+            var productId = $('#product_id').val();
+            var locationId = $('#location_id').val();
+            
+            if (productId) {
+                // Limpar campos primeiro
+                $('#current_stock').val('0');
+                $('#current_unit').text('UN');
+                $('#new_unit').text('UN');
+                
+                // Buscar estoque do produto no local selecionado
+                $.ajax({
+                    url: '/estoque/produto-estoque',
+                    type: 'GET',
+                    data: { product_id: productId, location_id: locationId },
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log('Dados recebidos:', data); // Debug
+                        $('#current_stock').val(data.current_stock);
+                        $('#current_unit').text(data.unit || 'UN');
+                        $('#new_unit').text(data.unit || 'UN');
+                        
+                        // Recalcular estoque após ajuste
+                        calculateNewStock();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Erro ao buscar estoque:', error);
+                        console.error('Status:', status);
+                        console.error('Resposta:', xhr.responseText);
+                        $('#current_stock').val('0');
+                        calculateNewStock();
+                    }
+                });
+            } else {
+                $('#current_stock').val('0');
+                calculateNewStock();
+            }
+        }
+        
+        // Atualizar estoque ao mudar o local
+        $('#location_id').change(updateProductStock);
+        
+        // Atualizar estoque ao selecionar produto
+        $('#product_id').change(updateProductStock);
+    });
+</script>
+{% endblock %}

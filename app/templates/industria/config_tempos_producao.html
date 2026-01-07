@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Tempos de Produção{% endblock %}
+
+{% block styles %}
+<style>
+    .tempo-cell {
+        min-width: 80px;
+    }
+    .tempo-input {
+        width: 70px;
+        text-align: center;
+    }
+    .badge-historico {
+        font-size: 0.7rem;
+    }
+    .etapa-header {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        padding: 5px;
+        font-size: 0.75rem;
+    }
+    .produto-row:hover {
+        background-color: #f8f9fa;
+    }
+    .ajuste-manual {
+        background-color: #fff3cd !important;
+    }
+    .tempo-historico {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+    .btn-recalcular {
+        position: relative;
+    }
+    .spinner-recalcular {
+        display: none;
+    }
+    .btn-recalcular.loading .spinner-recalcular {
+        display: inline-block;
+    }
+    .btn-recalcular.loading .text-recalcular {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-clock text-primary me-2"></i>
+                Tempos de Produção
+            </h1>
+            <p class="text-muted mb-0">Configure o tempo padrão de cada produto em cada etapa</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-primary me-2 btn-recalcular" onclick="recalcularHistorico()">
+                <span class="spinner-border spinner-border-sm spinner-recalcular" role="status"></span>
+                <span class="text-recalcular"><i class="fas fa-sync-alt me-1"></i>Recalcular do Histórico</span>
+            </button>
+            <a href="{{ url_for('jornada_trabalho.listar_jornadas') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-calendar-alt me-1"></i>Jornada
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small">Buscar Produto</label>
+                    <input type="text" name="produto" class="form-control" 
+                           value="{{ filtro_produto }}" placeholder="Nome ou código...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Etapa</label>
+                    <select name="etapa" class="form-select">
+                        <option value="">Todas as etapas</option>
+                        {% for e in etapas %}
+                        <option value="{{ e.id }}" {{ 'selected' if filtro_etapa|string == e.id|string }}>{{ e.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Legenda -->
+    <div class="mb-3">
+        <small class="text-muted me-4">
+            <span class="badge bg-warning text-dark">Amarelo</span> = Ajustado manualmente
+        </small>
+        <small class="text-muted me-4">
+            <i class="fas fa-history text-secondary"></i> = Tempo médio histórico
+        </small>
+        <small class="text-muted">
+            <i class="fas fa-question-circle text-info"></i> = Sem histórico (usando padrão 30min)
+        </small>
+    </div>
+
+    <!-- Tabela de Tempos -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if produtos_tempos %}
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 250px;">Produto</th>
+                            {% for e in etapas %}
+                            <th class="text-center tempo-cell">
+                                <div class="etapa-header">{{ e.nome }}</div>
+                            </th>
+                            {% endfor %}
+                            <th class="text-center" style="min-width: 80px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prod in produtos_tempos %}
+                        <tr class="produto-row">
+                            <td>
+                                <div class="fw-semibold">{{ prod.produto_nome[:40] }}{% if prod.produto_nome|length > 40 %}...{% endif %}</div>
+                                <small class="text-muted">{{ prod.produto_codigo }}</small>
+                            </td>
+                            {% for etapa in prod.etapas %}
+                            <td class="text-center tempo-cell {{ 'ajuste-manual' if etapa.ajuste_manual }}">
+                                <input type="number" class="form-control form-control-sm tempo-input mx-auto"
+                                       data-produto-id="{{ prod.produto_id }}"
+                                       data-etapa-id="{{ etapa.etapa_id }}"
+                                       value="{{ etapa.tempo_padrao if etapa.tempo_padrao > 0 else (etapa.tempo_historico if etapa.tempo_historico > 0 else 30) }}"
+                                       min="0" max="9999"
+                                       onchange="salvarTempo(this)">
+                                {% if etapa.tempo_historico > 0 %}
+                                <div class="tempo-historico">
+                                    <i class="fas fa-history"></i> {{ etapa.tempo_historico }}min
+                                    <span class="text-muted">({{ etapa.qtd_amostras }})</span>
+                                </div>
+                                {% else %}
+                                <div class="tempo-historico">
+                                    <i class="fas fa-question-circle text-info"></i> s/hist
+                                </div>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td class="text-center fw-bold tempo-total" data-produto-id="{{ prod.produto_id }}">
+                                {% set total = 0 %}
+                                {% for etapa in prod.etapas %}
+                                    {% set tempo = etapa.tempo_padrao if etapa.tempo_padrao > 0 else (etapa.tempo_historico if etapa.tempo_historico > 0 else 30) %}
+                                    {% set total = total + tempo %}
+                                {% endfor %}
+                                {{ total }}min
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Nenhum produto encontrado. Ajuste os filtros.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Observação -->
+<div class="modal fade" id="modalObservacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Observação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="obs-produto-id">
+                <input type="hidden" id="obs-etapa-id">
+                <textarea class="form-control" id="obs-texto" rows="3" placeholder="Observação sobre este tempo..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarObservacao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function salvarTempo(input) {
+    const produtoId = input.dataset.produtoId;
+    const etapaId = input.dataset.etapaId;
+    const tempo = input.value;
+    
+    // Feedback visual
+    input.classList.add('border-warning');
+    
+    fetch('{{ url_for("config_producao.salvar_tempo_producao") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `produto_id=${produtoId}&etapa_id=${etapaId}&tempo_padrao=${tempo}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            input.classList.remove('border-warning');
+            input.classList.add('border-success');
+            input.closest('td').classList.add('ajuste-manual');
+            
+            // Recalcular total da linha
+            recalcularTotalLinha(produtoId);
+            
+            setTimeout(() => {
+                input.classList.remove('border-success');
+            }, 2000);
+        } else {
+            input.classList.add('border-danger');
+            alert('Erro ao salvar: ' + data.error);
+        }
+    })
+    .catch(error => {
+        input.classList.add('border-danger');
+        alert('Erro ao salvar tempo');
+    });
+}
+
+function recalcularTotalLinha(produtoId) {
+    const inputs = document.querySelectorAll(`input[data-produto-id="${produtoId}"]`);
+    let total = 0;
+    inputs.forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
+    const totalCell = document.querySelector(`.tempo-total[data-produto-id="${produtoId}"]`);
+    if (totalCell) {
+        totalCell.textContent = total + 'min';
+    }
+}
+
+function recalcularHistorico() {
+    const btn = document.querySelector('.btn-recalcular');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    
+    fetch('{{ url_for("config_producao.calcular_historico") }}', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    })
+    .catch(error => {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        alert('Erro ao recalcular histórico');
+    });
+}
+</script>
+{% endblock %}

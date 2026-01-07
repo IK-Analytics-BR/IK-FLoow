@@ -1,0 +1,42 @@
+[Unit]
+Description=Supply Chain System - Gunicorn Application
+After=network.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=notify
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/SupplyChainSystem
+
+# Ambiente
+Environment="PATH=/home/ubuntu/SupplyChainSystem/venv/bin"
+Environment="FLASK_ENV=production"
+EnvironmentFile=/home/ubuntu/SupplyChainSystem/.env
+
+# Comando Gunicorn
+ExecStart=/home/ubuntu/SupplyChainSystem/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind unix:/home/ubuntu/SupplyChainSystem/supplychain.sock \
+    --timeout 300 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    --access-logfile /home/ubuntu/SupplyChainSystem/logs/access.log \
+    --error-logfile /home/ubuntu/SupplyChainSystem/logs/error.log \
+    --log-level info \
+    app.main_mysql:app
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Limites
+LimitNOFILE=65535
+
+# Segurança
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

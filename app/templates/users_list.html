@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Usuários - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Usuários</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Usuários</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users me-1"></i>
+            Lista de Usuários
+            <div class="float-end">
+                <a href="{{ url_for('users.user_create') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Novo Usuário
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar usuário...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" id="filterAll">Todos</button>
+                        <button type="button" class="btn btn-outline-primary" id="filterAdmin">Administradores</button>
+                        <button type="button" class="btn btn-outline-primary" id="filterUser">Usuários</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Usuário</th>
+                            <th>E-mail</th>
+                            <th>Perfil</th>
+                            <th>Permissões</th>
+                            <th>Último Acesso</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr data-role="{{ user.role }}">
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.role == 'admin' %}
+                                    <span class="badge bg-danger">Administrador</span>
+                                {% else %}
+                                    <span class="badge bg-primary">Usuário</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ user.permissions or 'Nenhuma permissão específica' }}</small>
+                            </td>
+                            <td>{{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Nunca' }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('users.user_edit', user_id=user.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-danger btn-sm" title="Excluir" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal{{ user.id }}"
+                                            {% if user.id == session.user_id %}disabled{% endif %}>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ user.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ user.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Tem certeza que deseja excluir o usuário <strong>{{ user.name }}</strong>?</p>
+                                                <p class="text-danger">Esta ação não pode ser desfeita.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('users.user_delete', user_id=user.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not users %}
+            <div class="alert alert-info">
+                Nenhum usuário cadastrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Distribuição de Perfis
+                </div>
+                <div class="card-body">
+                    <canvas id="roleDistribution" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Usuários por Permissão
+                </div>
+                <div class="card-body">
+                    <canvas id="permissionDistribution" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#usersTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Filtros por perfil
+        $("#filterAll").click(function() {
+            $("#usersTable tbody tr").show();
+            $(".btn-outline-primary").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        $("#filterAdmin").click(function() {
+            $("#usersTable tbody tr").hide();
+            $("#usersTable tbody tr[data-role='admin']").show();
+            $(".btn-outline-primary").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        $("#filterUser").click(function() {
+            $("#usersTable tbody tr").hide();
+            $("#usersTable tbody tr[data-role='user']").show();
+            $(".btn-outline-primary").removeClass("active");
+            $(this).addClass("active");
+        });
+        
+        // Gráfico de distribuição de perfis
+        var ctxRoles = document.getElementById("roleDistribution");
+        if (ctxRoles) {
+            // Contar usuários por perfil
+            var adminCount = $("#usersTable tbody tr[data-role='admin']").length;
+            var userCount = $("#usersTable tbody tr[data-role='user']").length;
+            
+            new Chart(ctxRoles, {
+                type: "pie",
+                data: {
+                    labels: ["Administradores", "Usuários"],
+                    datasets: [{
+                        backgroundColor: [
+                            "rgba(220, 53, 69, 0.8)",
+                            "rgba(13, 110, 253, 0.8)"
+                        ],
+                        data: [adminCount, userCount]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.label || '';
+                                    var value = context.raw || 0;
+                                    var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    var percentage = Math.round((value / total) * 100);
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de usuários por permissão
+        var ctxPermissions = document.getElementById("permissionDistribution");
+        if (ctxPermissions) {
+            // Dados de exemplo para o gráfico
+            // Em uma implementação real, esses dados viriam do servidor
+            var permissionLabels = [];
+            var permissionData = [];
+            var permissionColors = [];
+            
+            // Extrair permissões únicas
+            var permissionsMap = {};
+            $("#usersTable tbody tr").each(function() {
+                var permissions = $(this).find("td:eq(4)").text().split(", ");
+                permissions.forEach(function(permission) {
+                    if (permission && permission !== 'Nenhuma permissão específica') {
+                        if (permissionsMap[permission]) {
+                            permissionsMap[permission]++;
+                        } else {
+                            permissionsMap[permission] = 1;
+                        }
+                    }
+                });
+            });
+            
+            // Converter para arrays para o gráfico
+            for (var permission in permissionsMap) {
+                permissionLabels.push(permission);
+                permissionData.push(permissionsMap[permission]);
+                
+                // Gerar cor aleatória
+                var r = Math.floor(Math.random() * 200) + 55;
+                var g = Math.floor(Math.random() * 200) + 55;
+                var b = Math.floor(Math.random() * 200) + 55;
+                permissionColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+            }
+            
+            new Chart(ctxPermissions, {
+                type: "bar",
+                data: {
+                    labels: permissionLabels,
+                    datasets: [{
+                        label: "Usuários",
+                        backgroundColor: permissionColors,
+                        borderColor: permissionColors.map(color => color.replace("0.8", "1")),
+                        borderWidth: 1,
+                        data: permissionData
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

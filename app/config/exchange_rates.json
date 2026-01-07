@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "base_url": "http://api.exchangeratesapi.io/v1",
+  "api_key": "a6faed30209ef2c54500c60223141767",
+  "base_currency": "BRL",
+  "default_symbols": ["PYG", "ARS", "USD", "CNY"]
+}

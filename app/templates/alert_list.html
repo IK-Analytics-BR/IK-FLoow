@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Alertas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Alertas</li>
+    </ol>
+    
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-filter me-1"></i>
+                    Filtros
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ url_for('alert.alert_list') }}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="equipment_id" class="form-label">Equipamento</label>
+                            <select class="form-select" id="equipment_id" name="equipment_id">
+                                <option value="">Todos os equipamentos</option>
+                                {% for equipment in equipments %}
+                                <option value="{{ equipment.id }}" {% if request.args.get('equipment_id')|int == equipment.id %}selected{% endif %}>
+                                    {{ equipment.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="supply_id" class="form-label">Componente</label>
+                            <select class="form-select" id="supply_id" name="supply_id">
+                                <option value="">Todos os componentes</option>
+                                {% for supply in supplies %}
+                                <option value="{{ supply.id }}" {% if request.args.get('supply_id')|int == supply.id %}selected{% endif %}>
+                                    {{ supply.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="alert_type" class="form-label">Tipo de Alerta</label>
+                            <select class="form-select" id="alert_type" name="alert_type">
+                                <option value="">Todos os tipos</option>
+                                {% for key, value in alert_types.items() %}
+                                <option value="{{ key }}" {% if request.args.get('alert_type') == key %}selected{% endif %}>
+                                    {{ value }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i> Filtrar
+                            </button>
+                            <a href="{{ url_for('alert.alert_list') }}" class="btn btn-secondary">
+                                <i class="fas fa-undo me-1"></i> Limpar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-bell me-1"></i>
+                    Alertas Ativos
+                </div>
+                <div>
+                    <a href="{{ url_for('alert.alert_dashboard') }}" class="btn btn-info btn-sm me-2">
+                        <i class="fas fa-chart-bar"></i> Dashboard
+                    </a>
+                    <a href="{{ url_for('alert.alert_history') }}" class="btn btn-secondary btn-sm me-2">
+                        <i class="fas fa-history"></i> Histórico
+                    </a>
+                    <a href="{{ url_for('alert.alert_create') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Novo Alerta
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if alerts %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tipo</th>
+                            <th>Equipamento</th>
+                            <th>Componente</th>
+                            <th>Prioridade</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr class="{% if alert.priority == 'critical' %}table-danger{% elif alert.priority == 'high' %}table-warning{% endif %}">
+                            <td>{{ alert.id }}</td>
+                            <td>{{ alert_types.get(alert.alert_type, 'Desconhecido') }}</td>
+                            <td>{{ alert.equipment_name }}</td>
+                            <td>{{ alert.supply_name or 'N/A' }}</td>
+                            <td>
+                                {% if alert.priority == 'critical' %}
+                                <span class="badge bg-danger">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                {% elif alert.priority == 'high' %}
+                                <span class="badge bg-warning text-dark">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                {% elif alert.priority == 'medium' %}
+                                <span class="badge bg-primary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if alert.status == 'active' %}
+                                <span class="badge bg-danger">Ativo</span>
+                                {% elif alert.status == 'acknowledged' %}
+                                <span class="badge bg-warning text-dark">Reconhecido</span>
+                                {% elif alert.status == 'resolved' %}
+                                <span class="badge bg-success">Resolvido</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ alert.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <a href="{{ url_for('alert.alert_view', alert_id=alert.id) }}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if alert.status == 'active' %}
+                                <form action="{{ url_for('alert.alert_acknowledge', alert_id=alert.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-warning btn-sm" title="Reconhecer">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if alert.status != 'resolved' %}
+                                <form action="{{ url_for('alert.alert_resolve', alert_id=alert.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-success btn-sm" title="Resolver">
+                                        <i class="fas fa-check-double"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhum alerta ativo encontrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[6, 'desc']]
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{% if categoria %}Editar{% else %}Cadastrar{% endif %} Categoria - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{% if categoria %}Editar{% else %}Cadastrar{% endif %} Categoria</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('product_category.categorias') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-folder me-1"></i>
+                    {% if categoria %}Editar Categoria: {{ categoria.name }}{% else %}Nova Categoria{% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('product_category.categoria_cadastrar') if not categoria else url_for('product_category.categoria_editar', id=categoria.id) }}">
+                        {% if categoria %}
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="id" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="id" name="id" value="{{ categoria.id }}" readonly>
+                            </div>
+                            <div class="col-md-9">
+                                <label for="name" class="form-label required-field">Nome</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ categoria.name }}" required>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label required-field">Nome</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ categoria.description if categoria and categoria.description else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="categoria_fiscal" class="form-label required-field">Categoria Fiscal</label>
+                                <select class="form-select" id="categoria_fiscal" name="categoria_fiscal" required>
+                                    <option value="produto_producao" {% if categoria and categoria.categoria_fiscal == 'produto_producao' %}selected{% endif %}>Produto para Produção</option>
+                                    <option value="produto_revenda" {% if categoria and categoria.categoria_fiscal == 'produto_revenda' %}selected{% endif %}>Produto para Revenda</option>
+                                    <option value="produto" {% if not categoria or categoria.categoria_fiscal == 'produto' %}selected{% endif %}>Produto (legado)</option>
+                                    <option value="servico" {% if categoria and categoria.categoria_fiscal == 'servico' %}selected{% endif %}>Serviço</option>
+                                    <option value="materia_prima" {% if categoria and categoria.categoria_fiscal == 'materia_prima' %}selected{% endif %}>Matéria Prima</option>
+                                    <option value="consumo_interno" {% if categoria and categoria.categoria_fiscal == 'consumo_interno' %}selected{% endif %}>Consumo Interno</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Esta classificação será herdada por todos os produtos desta categoria
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('product_category.categorias') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                                {% if categoria %}
+                                <a href="{{ url_for('product_category.categoria_excluir', id=categoria.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir esta categoria?');">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações
+                </div>
+                <div class="card-body">
+                    <p>Preencha todos os campos obrigatórios marcados com <span class="text-danger">*</span></p>
+                    <p>O nome da categoria deve ser único no sistema.</p>
+                    <p>A descrição é opcional e pode conter informações adicionais sobre a categoria.</p>
+                    <p>As categorias são usadas para classificar os produtos no sistema.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Adicionar classe para indicar campos obrigatórios
+        document.querySelectorAll('.required-field').forEach(function(label) {
+            label.innerHTML += ' <span class="text-danger">*</span>';
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Aprovar Orçamento - {{ orcamento.numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Aprovar Orçamento: {{ orcamento.numero }}
+                            </h4>
+                            <p class="mb-0 opacity-8">
+                                Cliente: <strong>{{ orcamento.cliente_nome or 'N/A' }}</strong> |
+                                Empresa: <strong>{{ orcamento.empresa_nome or 'N/A' }}</strong>
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('orcamentos.visualizar', id=orcamento.id) }}" class="btn btn-light">
+                                <i class="fas fa-arrow-left me-1"></i> Voltar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário de Aprovação -->
+    <form method="POST" action="{{ url_for('orcamentos.aprovar', id=orcamento.id) }}" id="formAprovar">
+        
+        <!-- Itens para Produção -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-industry me-2"></i>
+                    Itens para Produção / Separação
+                </h5>
+                <small class="text-muted">Selecione a etapa inicial para cada OP que será gerada</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 30px;">
+                                    <input type="checkbox" id="checkAll" checked title="Selecionar todos">
+                                </th>
+                                <th>Produto</th>
+                                <th class="text-center" style="width: 100px;">Quantidade</th>
+                                <th class="text-center" style="width: 120px;">Estoque</th>
+                                <th class="text-center" style="width: 120px;">Abater</th>
+                                <th class="text-center" style="width: 120px;">Tipo OP</th>
+                                <th style="width: 200px;">Etapa Inicial</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens %}
+                            <tr class="{% if not item.gera_op %}table-secondary{% elif item.tipo_sugerido == 'separacao' %}table-success{% elif item.tipo_sugerido == 'mista' %}table-warning{% else %}table-info{% endif %}">
+                                <td>
+                                    {% if item.gera_op %}
+                                    <input type="checkbox" 
+                                           name="item_selecionado[]" 
+                                           value="{{ item.item_id }}"
+                                           class="item-check"
+                                           checked
+                                           data-item-id="{{ item.item_id }}">
+                                    {% else %}
+                                    <span class="text-muted" title="Não gera OP (categoria não é de produção)">
+                                        <i class="fas fa-minus-circle"></i>
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ item.produto_nome[:60] }}{% if item.produto_nome|length > 60 %}...{% endif %}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Categoria: {{ item.categoria_nome or 'N/A' }}
+                                        {% if item.categoria_fiscal %}
+                                        <span class="badge bg-secondary ms-1">{{ item.categoria_fiscal }}</span>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ "%.2f"|format(item.quantidade) }}</strong>
+                                    <br><small class="text-muted">{{ item.unidade or 'UN' }}</small>
+                                </td>
+                                <td class="text-center">
+                                    {% if item.estoque_disponivel > 0 %}
+                                    <span class="badge bg-success fs-6">{{ "%.2f"|format(item.estoque_disponivel) }}</span>
+                                    {% else %}
+                                    <span class="badge bg-danger fs-6">0</span>
+                                    {% endif %}
+                                    {% if item.estoque_reservado > 0 %}
+                                    <br><small class="text-warning">({{ "%.0f"|format(item.estoque_reservado) }} reserv.)</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if item.quantidade_abater > 0 %}
+                                    <span class="badge bg-primary fs-6">-{{ "%.2f"|format(item.quantidade_abater) }}</span>
+                                    <input type="hidden" name="abater_{{ item.item_id }}" value="{{ item.quantidade_abater }}">
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if item.gera_op %}
+                                        {% if item.tipo_sugerido == 'separacao' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-box me-1"></i>Separação
+                                        </span>
+                                        {% elif item.tipo_sugerido == 'mista' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-random me-1"></i>Mista
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-industry me-1"></i>Produção
+                                        </span>
+                                        {% endif %}
+                                        <input type="hidden" name="tipo_{{ item.item_id }}" value="{{ item.tipo_sugerido }}">
+                                    {% else %}
+                                    <span class="text-muted">
+                                        <i class="fas fa-ban"></i> N/A
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.gera_op %}
+                                    <select name="etapa_{{ item.item_id }}" class="form-select form-select-sm etapa-select">
+                                        {% for etapa in etapas %}
+                                        <option value="{{ etapa.id }}"
+                                            {% if item.tipo_sugerido == 'separacao' and etapa.tipo_etapa == 'separacao' %}selected
+                                            {% elif item.tipo_sugerido != 'separacao' and etapa.tipo_etapa == 'producao' %}selected
+                                            {% elif loop.first and item.tipo_sugerido != 'separacao' %}selected{% endif %}>
+                                            {{ etapa.nome }}
+                                            {% if etapa.tipo_etapa %}({{ etapa.tipo_etapa }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Resumo</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center bg-info bg-opacity-10">
+                            <h3 class="mb-0 text-info" id="totalItens">{{ itens|selectattr('gera_op')|list|length }}</h3>
+                            <small class="text-muted">OPs a Gerar</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center bg-success bg-opacity-10">
+                            <h3 class="mb-0 text-success" id="totalSeparacao">
+                                {{ itens|selectattr('tipo_sugerido', 'equalto', 'separacao')|list|length }}
+                            </h3>
+                            <small class="text-muted">Separação (Estoque)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center bg-primary bg-opacity-10">
+                            <h3 class="mb-0 text-primary" id="totalProducao">
+                                {{ itens|selectattr('tipo_sugerido', 'equalto', 'producao')|list|length }}
+                            </h3>
+                            <small class="text-muted">Produção</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 text-center bg-warning bg-opacity-10">
+                            <h3 class="mb-0 text-warning" id="totalMista">
+                                {{ itens|selectattr('tipo_sugerido', 'equalto', 'mista')|list|length }}
+                            </h3>
+                            <small class="text-muted">Mista</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('orcamentos.visualizar', id=orcamento.id) }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-success btn-lg" id="btnAprovar">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Aprovar e Gerar OPs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+.table td, .table th {
+    vertical-align: middle;
+}
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+}
+.etapa-select {
+    min-width: 180px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Selecionar/Desmarcar todos
+    document.getElementById('checkAll').addEventListener('change', function() {
+        document.querySelectorAll('.item-check').forEach(function(cb) {
+            cb.checked = this.checked;
+        }.bind(this));
+        atualizarResumo();
+    });
+    
+    // Atualizar resumo ao mudar seleção
+    document.querySelectorAll('.item-check').forEach(function(cb) {
+        cb.addEventListener('change', atualizarResumo);
+    });
+    
+    function atualizarResumo() {
+        var selecionados = document.querySelectorAll('.item-check:checked').length;
+        document.getElementById('totalItens').textContent = selecionados;
+    }
+    
+    // Confirmar antes de aprovar
+    document.getElementById('formAprovar').addEventListener('submit', function(e) {
+        var selecionados = document.querySelectorAll('.item-check:checked').length;
+        if (selecionados === 0) {
+            e.preventDefault();
+            alert('Selecione pelo menos um item para gerar OP.');
+            return false;
+        }
+        
+        if (!confirm('Confirma a aprovação do orçamento e geração de ' + selecionados + ' OP(s)?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

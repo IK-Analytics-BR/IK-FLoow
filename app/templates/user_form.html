@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Novo Usuário' if not user else 'Editar Usuário' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Novo Usuário' if not user else 'Editar Usuário' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('users.users_list') }}">Usuários</a></li>
+        <li class="breadcrumb-item active">{{ 'Novo Usuário' if not user else 'Editar Usuário' }}</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-edit me-1"></i>
+                    {{ 'Cadastrar Novo Usuário' if not user else 'Editar Usuário: ' + user.name }}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('users.user_create') if not user else url_for('users.user_edit', user_id=user.id) }}" id="userForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ user.name if user else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">E-mail <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ user.email if user else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">Nome de Usuário <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="username" name="username" value="{{ user.username if user else '' }}" {{ 'readonly' if user else '' }} required>
+                                <div class="form-text">Apenas letras, números e underscores (_).</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="role" class="form-label">Perfil <span class="text-danger">*</span></label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Selecione um perfil</option>
+                                    <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                                    <option value="user" {% if user and user.role == 'user' %}selected{% endif %}>Usuário</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">{{ 'Senha' if not user else 'Nova Senha' }} {{ '' if user else '<span class="text-danger">*</span>' }}</label>
+                                <input type="password" class="form-control" id="password" name="password" {{ '' if user else 'required' }}>
+                                <div class="form-text">{{ 'Mínimo de 8 caracteres.' if not user else 'Deixe em branco para manter a senha atual.' }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label">{{ 'Confirmar Senha' if not user else 'Confirmar Nova Senha' }} {{ '' if user else '<span class="text-danger">*</span>' }}</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" {{ '' if user else 'required' }}>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Funções</label>
+                                <div class="card">
+                                    <div class="card-body py-2">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="eh_vendedor" id="eh_vendedor" value="1"
+                                                {% if user and user.eh_vendedor %}checked{% endif %}>
+                                            <label class="form-check-label" for="eh_vendedor">
+                                                <i class="fas fa-user-tie me-1"></i> É Vendedor
+                                            </label>
+                                            <small class="form-text text-muted d-block">Aparece na seleção de vendedores e comissões</small>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="eh_operador" id="eh_operador" value="1"
+                                                {% if user and user.eh_operador %}checked{% endif %}>
+                                            <label class="form-check-label" for="eh_operador">
+                                                <i class="fas fa-hard-hat me-1"></i> Também é Operador
+                                            </label>
+                                            <small class="form-text text-muted d-block">Operador de chão de fábrica - aparece no Gantt e OPs</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="comissaoContainer" style="display: none;">
+                                <label for="comissao_padrao" class="form-label">Comissão Padrão (%)</label>
+                                <input type="number" class="form-control" id="comissao_padrao" name="comissao_padrao" 
+                                       step="0.01" min="0" max="100" 
+                                       value="{{ user.comissao_padrao if user and user.comissao_padrao else '0.00' }}">
+                                <small class="form-text text-muted">Percentual de comissão padrão do vendedor</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Permissões</label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            {% for permission in all_permissions %}
+                                            <div class="col-md-4 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="permissions" value="{{ permission.id }}" id="permission{{ permission.id }}"
+                                                        {% if user and permission.id in user_permission_ids %}checked{% endif %}>
+                                                    <label class="form-check-label" for="permission{{ permission.id }}" title="{{ permission.description }}">
+                                                        {{ permission.name }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        {% if not all_permissions %}
+                                        <div class="alert alert-info mb-0">
+                                            Nenhuma permissão cadastrada.
+                                            <a href="{{ url_for('users.permission_create') }}">Cadastrar permissões</a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('users.users_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações sobre Perfis e Permissões
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="accordionUserInfo">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                    Perfis de Usuário
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionUserInfo">
+                                <div class="accordion-body">
+                                    <p>O sistema possui dois perfis de usuário:</p>
+                                    <ul>
+                                        <li><strong>Administrador:</strong> Acesso completo ao sistema, incluindo gerenciamento de usuários e permissões.</li>
+                                        <li><strong>Usuário:</strong> Acesso limitado às funcionalidades do sistema, de acordo com as permissões atribuídas.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Permissões
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionUserInfo">
+                                <div class="accordion-body">
+                                    <p>As permissões controlam o acesso a funcionalidades específicas do sistema:</p>
+                                    <ul>
+                                        <li>Usuários com perfil <strong>Administrador</strong> têm acesso a todas as funcionalidades, independentemente das permissões atribuídas.</li>
+                                        <li>Usuários com perfil <strong>Usuário</strong> só têm acesso às funcionalidades correspondentes às permissões atribuídas.</li>
+                                    </ul>
+                                    <p>Para gerenciar permissões, acesse <a href="{{ url_for('users.permissions_list') }}">Permissões</a>.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    Segurança
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionUserInfo">
+                                <div class="accordion-body">
+                                    <p>Recomendações de segurança:</p>
+                                    <ul>
+                                        <li>Use senhas fortes com pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas, números e símbolos.</li>
+                                        <li>Não compartilhe credenciais de acesso com outros usuários.</li>
+                                        <li>Limite o número de usuários com perfil Administrador.</li>
+                                        <li>Atribua apenas as permissões necessárias para cada usuário.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Validação do formulário
+        $("#userForm").submit(function(event) {
+            var password = $("#password").val();
+            var confirmPassword = $("#confirm_password").val();
+            
+            // Verificar se as senhas conferem
+            if (password && password !== confirmPassword) {
+                event.preventDefault();
+                alert("As senhas não conferem.");
+                return false;
+            }
+            
+            {% if not user %}
+            // Verificar se a senha tem pelo menos 8 caracteres (apenas para novos usuários)
+            if (password.length < 8) {
+                event.preventDefault();
+                alert("A senha deve ter pelo menos 8 caracteres.");
+                return false;
+            }
+            {% endif %}
+            
+            return true;
+        });
+        
+        // Validação do nome de usuário (apenas letras, números e underscores)
+        $("#username").on("input", function() {
+            var value = $(this).val();
+            var regex = /^[a-zA-Z0-9_]*$/;
+            
+            if (!regex.test(value)) {
+                $(this).addClass("is-invalid");
+                $(this).next(".form-text").addClass("text-danger").text("Apenas letras, números e underscores (_) são permitidos.");
+            } else {
+                $(this).removeClass("is-invalid");
+                $(this).next(".form-text").removeClass("text-danger").text("Apenas letras, números e underscores (_).");
+            }
+        });
+        
+        // Mostrar/ocultar campo de comissão quando vendedor é marcado
+        function toggleComissaoField() {
+            if ($("#eh_vendedor").is(":checked")) {
+                $("#comissaoContainer").show();
+            } else {
+                $("#comissaoContainer").hide();
+            }
+        }
+        
+        // Executar ao carregar a página
+        toggleComissaoField();
+        
+        // Executar ao mudar o checkbox
+        $("#eh_vendedor").on("change", toggleComissaoField);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+{
+  "status": "concluido",
+  "etapa": "Geocodificação concluída! 1013 sucesso, 653 falhas",
+  "total_registros": 2629,
+  "registros_processados": 1666,
+  "registros_geocodificados": 1013,
+  "registros_falha": 653,
+  "percentual": 100,
+  "requisicoes_api": 1652,
+  "requisicoes_economizadas": 0,
+  "cache_hits": 14,
+  "limite_maximo": 200000,
+  "inicio": "2026-01-05T08:41:09.758137",
+  "fim": "2026-01-05T09:03:40.966136"
+}

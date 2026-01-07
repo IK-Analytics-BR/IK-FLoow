@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}{% if produto %}Editar{% else %}Cadastrar{% endif %} Produto - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{% if produto %}Editar{% else %}Cadastrar{% endif %} Produto</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('produto.produtos') }}">Produtos</a></li>
+        <li class="breadcrumb-item active">{% if produto %}Editar{% else %}Cadastrar{% endif %} Produto</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-box-open me-1"></i>
+            {% if produto %}Editar{% else %}Novo{% endif %} Produto
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <ul class="nav nav-tabs" id="productTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Identificação Básica</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="fiscal-tab" data-bs-toggle="tab" data-bs-target="#fiscal" type="button" role="tab" aria-controls="fiscal" aria-selected="false">Dados Fiscais</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="purchase-tab" data-bs-toggle="tab" data-bs-target="#purchase" type="button" role="tab" aria-controls="purchase" aria-selected="false">Compras</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab" aria-controls="stock" aria-selected="false">Estoque e Logística</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other" type="button" role="tab" aria-controls="other" aria-selected="false">Outras Informações</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="productTabsContent">
+                    <!-- Aba de Identificação Básica -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <i class="fas fa-info-circle me-1"></i> Identificação Básica
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="name" name="name" placeholder="Nome" value="{{ produto.name if produto and produto.name else '' }}" required>
+                                                    <label for="name" class="required-field">Nome do Produto</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="barcode" name="barcode" placeholder="Código de Barras / SKU" value="{{ produto.barcode if produto and produto.barcode else '' }}">
+                                                    <label for="barcode">Código de Barras / SKU</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="form-floating mb-3">
+                                                    <textarea class="form-control" id="description" name="description" placeholder="Descrição" style="height: 100px">{{ produto.description if produto and produto.description else '' }}</textarea>
+                                                    <label for="description">Descrição Detalhada</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="unit_measure" name="unit_measure">
+                                                        <option value="" {% if not produto or not produto.unit_measure %}selected{% endif %}>Selecione uma unidade</option>
+                                                        {% for unit in unit_measures %}
+                                                        <option value="{{ unit.code }}" {% if produto and produto.unit_measure == unit.code %}selected{% endif %}>{{ unit.code }} - {{ unit.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="unit_measure">Unidade de Medida</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="category_id" name="category_id">
+                                                        <option value="" {% if not produto or not produto.category_id %}selected{% endif %}>Selecione uma categoria</option>
+                                                        {% for categoria in categorias %}
+                                                        <option value="{{ categoria.id }}" {% if produto and produto.category_id == categoria.id %}selected{% endif %}>{{ categoria.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="category_id">Categoria</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="brand_id" name="brand_id">
+                                                        <option value="" {% if not produto or not produto.brand_id %}selected{% endif %}>Selecione uma marca</option>
+                                                        {% for marca in marcas %}
+                                                        <option value="{{ marca.id }}" {% if produto and produto.brand_id == marca.id %}selected{% endif %}>{{ marca.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="brand_id">Marca</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="group_id" name="group_id" onchange="loadSubgroups(this.value)">
+                                                        <option value="" {% if not produto or not produto.group_id %}selected{% endif %}>Selecione um grupo</option>
+                                                        {% for grupo in grupos %}
+                                                        <option value="{{ grupo.id }}" {% if produto and produto.group_id == grupo.id %}selected{% endif %}>{{ grupo.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="group_id">Grupo</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="subgroup_id" name="subgroup_id">
+                                                        <option value="" selected>Selecione um subgrupo</option>
+                                                        {% for subgrupo in subgrupos %}
+                                                        <option value="{{ subgrupo.id }}" {% if produto and produto.subgroup_id == subgrupo.id %}selected{% endif %}>{{ subgrupo.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="subgroup_id">Subgrupo</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch mt-3">
+                                                    <input class="form-check-input" type="checkbox" id="active" name="active" {% if not produto or produto.active %}checked{% endif %}>
+                                                    <label class="form-check-label" for="active">Produto Ativo</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="cost_price" name="cost_price" placeholder="Preço de Custo" value="{{ produto.cost_price if produto and produto.cost_price else '' }}" step="0.01" min="0" onchange="calculateSalePrice()">
+                                                    <label for="cost_price">Preço de Custo (R$)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="margin" name="margin" placeholder="Margem" value="{{ produto.margin if produto and produto.margin else '' }}" step="0.1" min="0" onchange="calculateSalePrice()">
+                                                    <label for="margin">Margem de Lucro (%)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="price" name="price" placeholder="Preço de Venda" value="{{ produto.price if produto and produto.price else '' }}" step="0.01" min="0" required>
+                                                    <label for="price" class="required-field">Preço de Venda (R$)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="max_discount" name="max_discount" placeholder="Desconto Máximo" value="{{ produto.max_discount if produto and produto.max_discount else '' }}" step="0.1" min="0" max="100">
+                                                    <label for="max_discount">Desconto Máximo Permitido (%)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-4 info-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-info-circle me-1"></i> Informações
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Preencha os dados básicos do produto.</p>
+                                        <p>Os campos marcados com <span class="text-danger">*</span> são obrigatórios.</p>
+                                        <p>O código interno pode ser gerado automaticamente se deixado em branco.</p>
+                                        <p><strong>Preço de Custo:</strong> Valor que você paga pelo produto.</p>
+                                        <p><strong>Margem:</strong> Percentual de lucro desejado.</p>
+                                        <p><strong>Preço de Venda:</strong> Valor que será cobrado do cliente.</p>
+                                        <p><strong>Desconto Máximo:</strong> Limite de desconto que pode ser concedido.</p>
+                                        <p>O sistema calcula automaticamente o preço de venda com base no custo e na margem.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Aba de Dados Fiscais -->
+                    <div class="tab-pane fade" id="fiscal" role="tabpanel" aria-labelledby="fiscal-tab">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <i class="fas fa-file-invoice-dollar me-1"></i> Dados Fiscais
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="input-group mb-3">
+                                                    <div class="form-floating flex-grow-1">
+                                                        <input type="text" class="form-control" id="ncm" name="ncm" placeholder="NCM" value="{{ produto.ncm if produto and produto.ncm else '' }}">
+                                                        <label for="ncm">NCM (Nomenclatura Comum do Mercosul)</label>
+                                                    </div>
+                                                    <button class="btn btn-outline-secondary" type="button" id="searchNcmBtn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="ncm_description" name="ncm_description" placeholder="Descrição do NCM" readonly>
+                                                    <label for="ncm_description">Descrição do NCM</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="cest" name="cest" placeholder="CEST" value="{{ produto.cest if produto and produto.cest else '' }}">
+                                                    <label for="cest">CEST (Código Especificador da ST)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="input-group mb-3">
+                                                    <div class="form-floating flex-grow-1">
+                                                        <input type="text" class="form-control" id="cfop_in" name="cfop_in" placeholder="CFOP Entrada" value="{{ produto.cfop_in if produto and produto.cfop_in else '' }}">
+                                                        <label for="cfop_in">CFOP Padrão de Entrada</label>
+                                                    </div>
+                                                    <button class="btn btn-outline-secondary" type="button" id="searchCfopInBtn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="cfop_in_description" name="cfop_in_description" placeholder="Descrição do CFOP de Entrada" readonly>
+                                                    <label for="cfop_in_description">Descrição do CFOP de Entrada</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="input-group mb-3">
+                                                    <div class="form-floating flex-grow-1">
+                                                        <input type="text" class="form-control" id="cfop_out" name="cfop_out" placeholder="CFOP Saída" value="{{ produto.cfop_out if produto and produto.cfop_out else '' }}">
+                                                        <label for="cfop_out">CFOP Padrão de Saída</label>
+                                                    </div>
+                                                    <button class="btn btn-outline-secondary" type="button" id="searchCfopOutBtn">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="cfop_out_description" name="cfop_out_description" placeholder="Descrição do CFOP de Saída" readonly>
+                                                    <label for="cfop_out_description">Descrição do CFOP de Saída</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input type="text" class="form-control" id="cst_csosn" name="cst_csosn" placeholder="CST/CSOSN" value="{{ produto.cst_csosn if produto and produto.cst_csosn else '' }}">
+                                                    <label for="cst_csosn">CST/CSOSN (Situação Tributária)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <select class="form-select" id="origin" name="origin">
+                                                        <option value="" {% if not produto or produto.origin is none %}selected{% endif %}>Selecione a origem</option>
+                                                        <option value="0" {% if produto and produto.origin == 0 %}selected{% endif %}>0 - Nacional</option>
+                                                        <option value="1" {% if produto and produto.origin == 1 %}selected{% endif %}>1 - Estrangeira (Importação direta)</option>
+                                                        <option value="2" {% if produto and produto.origin == 2 %}selected{% endif %}>2 - Estrangeira (Adquirida no mercado interno)</option>
+                                                        <option value="3" {% if produto and produto.origin == 3 %}selected{% endif %}>3 - Nacional (Mercadoria com Conteúdo de Importação superior a 40%)</option>
+                                                        <option value="4" {% if produto and produto.origin == 4 %}selected{% endif %}>4 - Nacional (Produção conforme processos produtivos)</option>
+                                                        <option value="5" {% if produto and produto.origin == 5 %}selected{% endif %}>5 - Nacional (Mercadoria com Conteúdo de Importação inferior ou igual a 40%)</option>
+                                                        <option value="6" {% if produto and produto.origin == 6 %}selected{% endif %}>6 - Estrangeira (Importação direta, sem similar nacional)</option>
+                                                        <option value="7" {% if produto and produto.origin == 7 %}selected{% endif %}>7 - Estrangeira (Adquirida no mercado interno, sem similar nacional)</option>
+                                                        <option value="8" {% if produto and produto.origin == 8 %}selected{% endif %}>8 - Nacional (Mercadoria com Conteúdo de Importação superior a 70%)</option>
+                                                    </select>
+                                                    <label for="origin">Origem do Produto</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-3">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="icms_rate" name="icms_rate" placeholder="Alíquota ICMS" value="{{ produto.icms_rate if produto and produto.icms_rate else '0' }}" step="0.01" min="0" max="100">
+                                                    <label for="icms_rate">Alíquota ICMS (%)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="pis_rate" name="pis_rate" placeholder="Alíquota PIS" value="{{ produto.pis_rate if produto and produto.pis_rate else '0' }}" step="0.01" min="0" max="100">
+                                                    <label for="pis_rate">Alíquota PIS (%)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="cofins_rate" name="cofins_rate" placeholder="Alíquota COFINS" value="{{ produto.cofins_rate if produto and produto.cofins_rate else '0' }}" step="0.01" min="0" max="100">
+                                                    <label for="cofins_rate">Alíquota COFINS (%)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" class="form-control" id="ipi_rate" name="ipi_rate" placeholder="Alíquota IPI" value="{{ produto.ipi_rate if produto and produto.ipi_rate else '0' }}" step="0.01" min="0" max="100">
+                                                    <label for="ipi_rate">Alíquota IPI (%)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="form-floating mb-3">
+                                                    <textarea class="form-control" id="tax_benefits" name="tax_benefits" placeholder="Benefícios Fiscais" style="height: 100px">{{ produto.tax_benefits if produto and produto.tax_benefits else '' }}</textarea>
+                                                    <label for="tax_benefits">Benefícios Fiscais</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-4 info-card">
+                                    <div class="card-header">
+                                        <i class="fas fa-info-circle me-1"></i> Informações Fiscais
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Os dados fiscais são fundamentais para a emissão correta de notas fiscais.</p>
+                                        <p><strong>NCM:</strong> Código de 8 dígitos obrigatório na NF-e.</p>
+                                        <p><strong>CEST:</strong> Código Especificador da Substituição Tributária.</p>
+                                        <p><strong>CST/CSOSN:</strong> Código de Situação Tributária do ICMS.</p>
+                                        <p><strong>Origem:</strong> Indica se o produto é nacional ou importado.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Outras abas omitidas para brevidade -->
+                    
+                </div>
+                
+                <div class="mt-4 mb-0">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{{ url_for('produto.produtos') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Voltar
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar Produto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<!-- Incluir os modais de busca -->
+{% include 'modals/ncm_modal.html' %}
+{% include 'modals/cfop_modal.html' %}
+
+<!-- Incluir script de busca de NCM e CFOP -->
+<script src="{{ url_for('static', filename='js/ncm_cfop_search.js') }}"></script>
+
+<script>
+    // Função para calcular o preço de venda com base no custo e na margem
+    function calculateSalePrice() {
+        const costPrice = parseFloat($('#cost_price').val()) || 0;
+        const margin = parseFloat($('#margin').val()) || 0;
+        
+        if (costPrice > 0 && margin > 0) {
+            // Calcular o preço de venda
+            const salePrice = costPrice * (1 + margin / 100);
+            
+            // Arredondar para duas casas decimais
+            const roundedSalePrice = Math.round(salePrice * 100) / 100;
+            
+            // Atualizar o campo de preço de venda
+            $('#price').val(roundedSalePrice.toFixed(2));
+        }
+    }
+    
+    // Função para calcular o volume com base nas dimensões
+    function calculateVolume() {
+        const length = parseFloat($('#length_cm').val()) || 0;
+        const width = parseFloat($('#width_cm').val()) || 0;
+        const height = parseFloat($('#height_cm').val()) || 0;
+        
+        if (length > 0 && width > 0 && height > 0) {
+            // Calcular o volume em m³ (converter de cm³ para m³)
+            const volume = (length * width * height) / 1000000;
+            
+            // Arredondar para três casas decimais
+            const roundedVolume = Math.round(volume * 1000) / 1000;
+            
+            // Atualizar o campo de volume
+            $('#volume_m3').val(roundedVolume.toFixed(3));
+        }
+    }
+    
+    // Função para carregar subgrupos com base no grupo selecionado
+    function loadSubgroups(groupId) {
+        if (!groupId) {
+            // Limpar o select de subgrupos
+            $('#subgroup_id').empty();
+            $('#subgroup_id').append('<option value="" selected>Selecione um subgrupo</option>');
+            return;
+        }
+        
+        // Fazer uma requisição AJAX para buscar os subgrupos do grupo selecionado
+        $.ajax({
+            url: '/api/subgroups-by-group/' + groupId,
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                // Limpar o select de subgrupos
+                $('#subgroup_id').empty();
+                $('#subgroup_id').append('<option value="" selected>Selecione um subgrupo</option>');
+                
+                // Adicionar os subgrupos retornados
+                if (data.subgroups && data.subgroups.length > 0) {
+                    $.each(data.subgroups, function(index, subgroup) {
+                        $('#subgroup_id').append('<option value="' + subgroup.id + '">' + subgroup.name + '</option>');
+                    });
+                }
+            },
+            error: function(error) {
+                console.error('Erro ao carregar subgrupos:', error);
+            }
+        });
+    }
+</script>
+{% endblock %}

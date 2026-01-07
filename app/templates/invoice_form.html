@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Nota Fiscal' if not invoice else 'Editar Nota Fiscal' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Nova Nota Fiscal' if not invoice else 'Editar Nota Fiscal' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('invoice.invoice_list') }}">Notas Fiscais</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Nota Fiscal' if not invoice else 'Editar Nota Fiscal' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-invoice me-1"></i>
+            {{ 'Nova Nota Fiscal' if not invoice else 'Editar Nota Fiscal: ' + invoice.invoice_number }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('invoice.invoice_create') if not invoice else url_for('invoice.invoice_edit', invoice_id=invoice.id) }}" id="invoiceForm">
+                {% if not invoice %}
+                <input type="hidden" name="import_po_id" id="import_po_id" value="">
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="supplier_id" class="form-label">Fornecedor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                            <option value="">Selecione um fornecedor</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if invoice and invoice.supplier_id == supplier.id %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="invoice_number" class="form-label">Número da NF <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ invoice.invoice_number if invoice else '' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="invoice_series" class="form-label">Série</label>
+                        <input type="text" class="form-control" id="invoice_series" name="invoice_series" value="{{ invoice.invoice_series if invoice else '' }}">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="issue_date" class="form-label">Data de Emissão <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="issue_date" name="issue_date" value="{{ invoice.issue_date.strftime('%Y-%m-%d') if invoice and invoice.issue_date else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="total_amount" class="form-label">Valor Total <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control money" id="total_amount" name="total_amount" value="{{ "%.2f"|format(invoice.total_amount)|replace('.', ',') if invoice else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="tax_amount" class="form-label">Valor de Impostos</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control money" id="tax_amount" name="tax_amount" value="{{ "%.2f"|format(invoice.tax_amount)|replace('.', ',') if invoice else '' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="purchase_order_id" class="form-label">Pedido de Compra Relacionado</label>
+                        <select class="form-select" id="purchase_order_id" name="purchase_order_id">
+                            <option value="">Nenhum</option>
+                            {% for po in purchase_orders %}
+                            <option value="{{ po.id }}" {% if invoice and invoice.purchase_order_id == po.id %}selected{% endif %}>
+                                {{ po.order_number }} - {{ po.supplier_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if not invoice %}
+                        <div class="form-text">Você também pode importar um pedido aprovado e preencher automaticamente fornecedor e itens.</div>
+                        {% endif %}
+                    </div>
+                    {% if invoice %}
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="pending" {% if invoice.status == 'pending' %}selected{% endif %}>Pendente</option>
+                            <option value="verified" {% if invoice.status == 'verified' %}selected{% endif %}>Verificada</option>
+                            {% if invoice.status in ['processed', 'canceled'] %}
+                            <option value="{{ invoice.status }}" selected>
+                                {% if invoice.status == 'processed' %}Processada{% endif %}
+                                {% if invoice.status == 'canceled' %}Cancelada{% endif %}
+                            </option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="notes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ invoice.notes if invoice else '' }}</textarea>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        {% if not invoice %}
+                        <button type="button" class="btn btn-outline-secondary" id="btnImportPO" data-bs-toggle="modal" data-bs-target="#importPOListModal">
+                            <i class="fas fa-file-import me-1"></i> Importar Pedido de Compra
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('invoice.invoice_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if invoice %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-list me-1"></i>
+            Itens da Nota Fiscal
+            <button type="button" class="btn btn-primary btn-sm float-end" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                <i class="fas fa-plus"></i> Adicionar Item
+            </button>
+        </div>
+        <div class="card-body">
+            {% if items %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Quantidade</th>
+                            <th>Unidade</th>
+                            <th>Preço Unitário</th>
+                            <th>Imposto (%)</th>
+                            <th>Valor Imposto</th>
+                            <th>Total</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.product_unit }}</td>
+                            <td>R$ {{ "%.2f"|format(item.unit_price) }}</td>
+                            <td>{{ "%.2f"|format(item.tax_percentage) }}%</td>
+                            <td>R$ {{ "%.2f"|format(item.tax_amount) }}</td>
+                            <td>R$ {{ "%.2f"|format(item.total_price) }}</td>
+                            <td>
+                                <form action="{{ url_for('invoice.invoice_delete_item', item_id=item.id) }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Remover Item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="6" class="text-end">Total:</th>
+                            <th>R$ {{ "%.2f"|format(items|sum(attribute='total_price')) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhum item adicionado à nota fiscal.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Modal para adicionar item -->
+    <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addItemModalLabel">Adicionar Item à Nota Fiscal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('invoice.invoice_add_item') }}" method="post">
+                    <div class="modal-body">
+                        <input type="hidden" name="invoice_id" value="{{ invoice.id }}">
+                        
+                        <div class="mb-3">
+                            <label for="product_id" class="form-label">Produto <span class="text-danger">*</span></label>
+                            <select class="form-select" id="product_id" name="product_id" required>
+                                <option value="">Selecione um produto</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}" data-price="{{ product.purchase_price }}">
+                                    {{ product.name }} ({{ product.unit }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="quantity" class="form-label">Quantidade <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="unit_price" class="form-label">Preço Unitário <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control money" id="unit_price" name="unit_price" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tax_percentage" class="form-label">Percentual de Imposto (%)</label>
+                            <input type="number" class="form-control" id="tax_percentage" name="tax_percentage" min="0" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Modal para importar itens do pedido de compra (carregado via seleção do select antigo) -->
+    <div class="modal fade" id="importItemsModal" tabindex="-1" aria-labelledby="importItemsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importItemsModalLabel">Importar Itens do Pedido de Compra</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="poItemsContainer">
+                        <p>Selecione um pedido de compra para visualizar os itens.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="importSelectedItems">Importar Selecionados</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Lista de Pedidos Aprovados para Importação -->
+    <div class="modal fade" id="importPOListModal" tabindex="-1" aria-labelledby="importPOListModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importPOListModalLabel">Importar Pedido de Compra Aprovado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if purchase_orders and purchase_orders|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Número</th>
+                                    <th>Fornecedor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in purchase_orders %}
+                                <tr>
+                                    <td><input type="radio" name="selected_po" value="{{ po.id }}" data-supplier-id="{{ po.supplier_id }}" data-supplier-name="{{ po.supplier_name }}"></td>
+                                    <td>{{ po.order_number }}</td>
+                                    <td>{{ po.supplier_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">Não há pedidos aprovados para importar.</div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="confirmImportPO">Importar Selecionado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-maskmoney/3.0.2/jquery.maskMoney.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Inicializar máscara para valores monetários
+        $('.money').maskMoney({
+            prefix: '',
+            allowNegative: false,
+            thousands: '.',
+            decimal: ',',
+            affixesStay: false
+        });
+        
+        // Preencher data de emissão com a data atual se for uma nova nota fiscal
+        const isNewInvoice = $('#import_po_id').length > 0;
+        if (isNewInvoice && !$('#issue_date').val()) {
+            var today = new Date().toISOString().split('T')[0];
+            $('#issue_date').val(today);
+        }
+        
+        // Preencher preço do produto automaticamente
+        $('#product_id').change(function() {
+            var price = $(this).find(':selected').data('price') || '';
+            if (price) {
+                $('#unit_price').val(price.toFixed(2).replace('.', ','));
+            } else {
+                $('#unit_price').val('');
+            }
+        });
+        
+        // Carregar itens do pedido de compra quando selecionado
+        $('#purchase_order_id').change(function() {
+            var poId = $(this).val();
+            if (poId) {
+                $.ajax({
+                    url: '/api/pedido-compra/' + poId + '/itens',
+                    type: 'GET',
+                    success: function(data) {
+                        var html = '<table class="table table-bordered table-striped">';
+                        html += '<thead><tr><th><input type="checkbox" id="selectAll"></th><th>Produto</th><th>Quantidade</th><th>Preço Unit.</th><th>Total</th></tr></thead>';
+                        html += '<tbody>';
+                        
+                        $.each(data, function(index, item) {
+                            html += '<tr>';
+                            html += '<td><input type="checkbox" class="item-checkbox" data-product-id="' + item.product_id + '" data-quantity="' + item.quantity + '" data-price="' + item.unit_price + '"></td>';
+                            html += '<td>' + item.product_name + '</td>';
+                            html += '<td>' + item.quantity + ' ' + item.product_unit + '</td>';
+                            html += '<td>R$ ' + item.unit_price.toFixed(2) + '</td>';
+                            html += '<td>R$ ' + item.total_price.toFixed(2) + '</td>';
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table>';
+                        
+                        $('#poItemsContainer').html(html);
+                        
+                        // Mostrar modal com os itens
+                        $('#importItemsModal').modal('show');
+                        
+                        // Selecionar/deselecionar todos
+                        $('#selectAll').click(function() {
+                            $('.item-checkbox').prop('checked', $(this).prop('checked'));
+                        });
+                    },
+                    error: function() {
+                        alert('Erro ao buscar itens do pedido de compra');
+                    }
+                });
+            }
+        });
+        
+        // Importar itens selecionados
+        $('#importSelectedItems').click(function() {
+            $('.item-checkbox:checked').each(function() {
+                var productId = $(this).data('product-id');
+                var quantity = $(this).data('quantity');
+                var price = $(this).data('price');
+                
+                // Adicionar item à nota fiscal
+                $.ajax({
+                    url: '{{ url_for("invoice.invoice_add_item") }}',
+                    type: 'POST',
+                    data: {
+                        invoice_id: '{{ invoice.id if invoice else "" }}',
+                        product_id: productId,
+                        quantity: quantity,
+                        unit_price: price,
+                        tax_percentage: 0
+                    },
+                    success: function() {
+                        // Recarregar a página após adicionar todos os itens
+                        location.reload();
+                    }
+                });
+            });
+            
+            $('#importItemsModal').modal('hide');
+        });
+
+        // Importar Pedido Aprovado: definir fornecedor e import_po_id
+        $('#confirmImportPO').on('click', function(){
+            var sel = $('input[name="selected_po"]:checked');
+            if (!sel.length) { alert('Selecione um pedido para importar.'); return; }
+            var poId = sel.val();
+            var supId = sel.data('supplier-id');
+            var $hidden = $('#import_po_id');
+            if ($hidden.length) { $hidden.val(poId); }
+            if (supId) { $('#supplier_id').val(String(supId)); }
+            $('#purchase_order_id').val(String(poId));
+            $('#importPOListModal').modal('hide');
+        });
+    });
+</script>
+{% endblock %}

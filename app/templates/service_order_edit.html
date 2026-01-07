@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Editar OS: {{ order.order_number }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Editar Ordem de Serviço: {{ order.order_number }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('service_order.service_order_list') }}">Ordens de Serviço</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('service_order.service_order_view', order_id=order.id) }}">{{ order.order_number }}</a></li>
+        <li class="breadcrumb-item active">Editar</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i>
+            Editar Ordem de Serviço
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('service_order.service_order_edit', order_id=order.id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="customer_id" class="form-label">Cliente</label>
+                        <input type="text" class="form-control" value="{{ order.customer_name }}" disabled>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="equipment_id" class="form-label">Equipamento</label>
+                        <input type="text" class="form-control" value="{{ order.equipment_name }}" disabled>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="type" class="form-label">Tipo de Manutenção</label>
+                        <input type="text" class="form-control" value="{% if order.type == 'preventive' %}Preventiva{% elif order.type == 'corrective' %}Corretiva{% elif order.type == 'predictive' %}Preditiva{% endif %}" disabled>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="technician_id" class="form-label">Técnico Responsável</label>
+                        <select class="form-select" id="technician_id" name="technician_id">
+                            <option value="">Selecione um técnico</option>
+                            {% for technician in technicians %}
+                            <option value="{{ technician.id }}" {% if order.technician_id == technician.id %}selected{% endif %}>
+                                {{ technician.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="open" {% if order.status == 'open' %}selected{% endif %}>Aberta</option>
+                            <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>Em Andamento</option>
+                            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Concluída</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="downtime_minutes" class="form-label">Tempo de Parada (minutos)</label>
+                        <input type="number" class="form-control" id="downtime_minutes" name="downtime_minutes" min="0" value="{{ order.downtime_minutes }}">
+                        <div class="form-text">Tempo total de parada do equipamento durante a manutenção.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="observations" class="form-label">Observações</label>
+                        <textarea class="form-control" id="observations" name="observations" rows="5">{{ order.observations }}</textarea>
+                        <div class="form-text">Descreva o problema, as ações realizadas ou outras observações relevantes.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Atenção:</strong> Ao marcar uma ordem de serviço como concluída:
+                            <ul>
+                                <li>A data de conclusão será registrada automaticamente</li>
+                                <li>Não será mais possível adicionar peças ou horas trabalhadas</li>
+                                <li>Não será mais possível alterar o status da ordem de serviço</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('service_order.service_order_view', order_id=order.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Verificar se a OS está sendo concluída
+        $('#status').change(function() {
+            if ($(this).val() === 'completed') {
+                $('#completionWarning').removeClass('d-none');
+            } else {
+                $('#completionWarning').addClass('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}

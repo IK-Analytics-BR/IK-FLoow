@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedidos de Compra{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Pedidos de Compra</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('purchase_orders.purchase_order_create') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Novo Pedido
+            </a>
+        </div>
+    </div>
+
+    {% if purchase_orders %}
+    <div class="table-responsive">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Nº</th>
+                    <th>Fornecedor</th>
+                    <th>Data</th>
+                    <th>Entrega</th>
+                    <th>Status</th>
+                    <th>Valor</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                <tr>
+                    <td>{{ po.id }}</td>
+                    <td>{{ po.supplier_name }}</td>
+                    <td>{{ po.order_date.strftime('%d/%m/%Y') if po.order_date else '' }}</td>
+                    <td>{{ po.delivery_date.strftime('%d/%m/%Y') if po.delivery_date else 'Não definida' }}</td>
+                    <td>
+                        {% if po.status == 'draft' %}
+                            <span class="badge bg-secondary">Rascunho</span>
+                        {% elif po.status == 'sent' %}
+                            <span class="badge bg-primary">Enviado</span>
+                        {% elif po.status == 'received' %}
+                            <span class="badge bg-success">Recebido</span>
+                        {% elif po.status == 'canceled' %}
+                            <span class="badge bg-danger">Cancelado</span>
+                        {% else %}
+                            <span class="badge bg-info">{{ po.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>R$ {{ "%.2f"|format(po.total_value|float) }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{{ url_for('purchase_orders.purchase_order_edit', id=po.id) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if po.status == 'draft' %}
+                            <form action="{{ url_for('purchase_orders.purchase_order_confirm', id=po.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-primary" onclick="return confirm('Confirmar envio do pedido?')">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </form>
+                            {% elif po.status == 'sent' %}
+                            <form action="{{ url_for('purchase_orders.purchase_order_receive', id=po.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Marcar pedido como recebido?')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if po.status == 'draft' %}
+                            <form action="{{ url_for('purchase_orders.purchase_order_delete', id=po.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Excluir este pedido?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <p>Nenhum orçamento de compra cadastrado.</p>
+        <a href="{{ url_for('purchase_orders.purchase_order_create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Criar Orçamento
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

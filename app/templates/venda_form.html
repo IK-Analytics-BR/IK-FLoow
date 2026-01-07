@@ -1,0 +1,825 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Venda{% endblock %}
+
+{% block styles %}
+<style>
+  :root{ --bg:#f5f7fb; --card:#ffffff; --accent:#0f4c81; --muted:#6b7280; --radius:8px; --gap:16px; }
+  .proto-grid{ display:grid; grid-template-columns: 1fr 360px; gap: var(--gap); }
+  @media(max-width:1000px){ .proto-grid{ grid-template-columns:1fr; } .summary{ position:relative; top:auto; } }
+  .summary{ position:sticky; top:24px; }
+  .summary .row{ display:flex; justify-content:space-between; margin-bottom:6px }
+  .summary .total{ font-weight:700; font-size:18px }
+  .btns{ display:flex; flex-direction:column; gap:10px; margin-top:12px }
+  .primary{ background:#15803d; color:#fff; border:0; padding:10px; border-radius:8px; cursor:pointer }
+  .ghost{ background:#fff; border:1px solid #dbe6f2; padding:10px; border-radius:8px; cursor:pointer }
+  .chip{ display:inline-block; padding:6px 8px; border-radius:999px; background:#f1f5f9; color:#6b7280; font-size:13px }
+  
+  /* Estilo Tela Cheia */
+  .fullscreen-mode { 
+    position: fixed !important; 
+    top: 0 !important; 
+    left: 0 !important; 
+    width: 100vw !important; 
+    height: 100vh !important; 
+    z-index: 9999 !important; 
+    background: white !important; 
+    overflow-y: auto !important; 
+    padding: 20px !important;
+  }
+  
+  /* Atalhos de teclado - indicador visual */
+  .keyboard-hint {
+    background: #e0e7ff;
+    color: #4338ca;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+  
+  /* Feedback visual para código de barras */
+  .barcode-active {
+    border: 2px solid #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Nova Venda</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item">Vendas</li>
+    <li class="breadcrumb-item active">Nova Venda</li>
+  </ol>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleFullscreen()" title="Tela cheia (F11)">
+        <i class="fas fa-expand"></i> Tela Cheia <span class="keyboard-hint">F11</span>
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-info" onclick="showKeyboardHelp()" title="Ver atalhos (F1)">
+        <i class="fas fa-keyboard"></i> Atalhos <span class="keyboard-hint">F1</span>
+      </button>
+    </div>
+    <div class="text-muted">
+      Operador: <strong class="ms-1">{{ session.get('username','') }}</strong>
+      <span class="ms-2">•</span>
+      <span id="now" class="ms-2"></span>
+    </div>
+  </div>
+
+  <div class="proto-grid" id="mainContent">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div><i class="fas fa-cash-register me-1"></i> Dados da Venda</div>
+        <small class="text-muted">Após confirmar, vínculos de produto pai serão criados. Baixa de estoque e financeiro: TODO.</small>
+      </div>
+      <div class="card-body">
+        <form id="vendaForm" method="post" action="{{ url_for('venda.venda_criar') }}">
+        <input type="hidden" name="status" id="status" value="" />
+        {% if sale %}
+        <input type="hidden" name="sale_id" id="sale_id" value="{{ sale.id }}" />
+        {% endif %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="customer_id" class="form-label">Cliente <span class="keyboard-hint">F2</span></label>
+            <select id="customer_id" name="customer_id" class="form-select" required>
+              <option value="">Selecione...</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}" {% if sale and sale.customer_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="seller_id" class="form-label">Vendedor</label>
+            <select id="seller_id" name="seller_id" class="form-select">
+              <option value="">Selecione...</option>
+              {% if sellers %}
+                {% for s in sellers %}
+                <option value="{{ s.id }}" {% if sale and sale.seller_id==s.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="payment_method" class="form-label">Forma de Pagamento</label>
+            <select id="payment_method" name="payment_method" class="form-select" required 
+                    data-payment-methods='{{ payment_methods|tojson }}' 
+                    onchange="updatePaymentInfo()">
+              {% for p in payment_methods %}
+              <option value="{{ p.code }}" 
+                      data-installments="{{ p.allow_installments|default(False)|tojson }}"
+                      data-max-installments="{{ p.max_installments|default(1) }}"
+                      data-fee="{{ p.operator_fee_percent|default(0) }}"
+                      data-days="{{ p.days_to_receive|default(0) }}"
+                      data-behavior="{{ p.financial_behavior|default('both') }}"
+                      {% if sale and sale.payment_method==p.code %}selected{% endif %}>
+                {{ p.label }}
+              </option>
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted" id="paymentInfo"></small>
+          </div>
+          <div class="col-md-2" id="installmentsField" style="display:none;">
+            <label for="installments" class="form-label">Parcelas</label>
+            <select id="installments" name="installments" class="form-select">
+              <option value="1">1x (à vista)</option>
+            </select>
+          </div>
+          <!-- Botão superior removido: confirmação ficará apenas na barra lateral -->
+        </div>
+
+        <!-- Resumo do Cliente -->
+        <div class="row mt-3" id="clienteResumo" style="display:none;">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header"><i class="fas fa-id-card me-1"></i> Resumo do Cliente</div>
+              <div class="card-body">
+                <div class="row g-2 small">
+                  <div class="col-md-4"><strong>Nome:</strong> <span data-cliente="name"></span></div>
+                  <div class="col-md-4"><strong>CNPJ:</strong> <span data-cliente="cnpj"></span></div>
+                  <div class="col-md-4"><strong>IE:</strong> <span data-cliente="ie"></span></div>
+                  <div class="col-md-4"><strong>E-mail:</strong> <span data-cliente="email"></span></div>
+                  <div class="col-md-4"><strong>Telefone:</strong> <span data-cliente="phone"></span></div>
+                  <div class="col-md-12"><strong>Endereço:</strong> <span data-cliente="endereco"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ===== PDV MODERNO: CAMPO DE CÓDIGO/BARRAS ===== -->
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <label for="codigoProduto" class="form-label">
+              <i class="fas fa-barcode"></i> Código / Código de Barras
+              <span class="keyboard-hint">F3</span>
+              <small class="text-muted ms-2">*3 + código = 3 unidades</small>
+            </label>
+            <div class="input-group">
+              <input type="text" 
+                     id="codigoProduto" 
+                     class="form-control form-control-lg" 
+                     placeholder="Digite código, código de barras ou pressione F3..."
+                     autocomplete="off"
+                     onkeypress="handleCodigoProduto(event)">
+              <button class="btn btn-success" type="button" onclick="abrirModalProduto()">
+                <i class="fas fa-search"></i> Buscar <kbd>F3</kbd>
+              </button>
+            </div>
+          </div>
+          <div class="col-md-6 d-flex align-items-end">
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-primary" onclick="abrirModalCliente()">
+                <i class="fas fa-user"></i> Buscar Cliente <kbd>F2</kbd>
+              </button>
+              <button type="button" class="btn btn-outline-success" onclick="finalizarVenda()">
+                <i class="fas fa-check-circle"></i> Finalizar Venda <kbd>F9</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <!-- Abas -->
+        <ul class="nav nav-tabs" id="salesTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-itens" data-bs-toggle="tab" data-bs-target="#pane-itens" type="button" role="tab">Itens</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-fin" data-bs-toggle="tab" data-bs-target="#pane-fin" type="button" role="tab">Financeiro</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-log" data-bs-toggle="tab" data-bs-target="#pane-log" type="button" role="tab">Logística</button>
+          </li>
+        </ul>
+
+        <div class="tab-content mt-3" id="salesTabsContent">
+          <!-- Itens -->
+          <div class="tab-pane fade show active" id="pane-itens" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h5 class="mb-0">Itens</h5>
+              <button type="button" class="btn btn-success btn-sm" id="addItem"><i class="fas fa-plus"></i> Adicionar</button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle" id="itensTable">
+                <thead>
+                  <tr>
+                    <th style="width:30%">Produto</th>
+                    <th style="width:10%">Unidade</th>
+                    <th style="width:12%">Qtde</th>
+                    <th style="width:15%">Preço Unit.</th>
+                    <th style="width:15%">Desc. (%)</th>
+                    <th style="width:15%">Subtotal</th>
+                    <th style="width:5%">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="empty"><td colspan="7" class="text-center text-muted">Sem itens.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="row mt-3">
+              <div class="col-md-6"></div>
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header"><i class="fas fa-calculator me-1"></i> Totais</div>
+                  <div class="card-body">
+                    <div class="row g-2">
+                      <div class="col-6 text-end">Subtotal produtos:</div>
+                      <div class="col-6"><strong id="totSubtotal">0,00</strong></div>
+                      <div class="col-6 text-end">Descontos:</div>
+                      <div class="col-6"><strong id="totDiscount">0,00</strong></div>
+                      <div class="col-6 text-end">Total:</div>
+                      <div class="col-6"><strong id="totNet">0,00</strong></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financeiro -->
+          <div class="tab-pane fade" id="pane-fin" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="payment_terms">Condição/Termos</label>
+                <input type="text" class="form-control" id="payment_terms" name="payment_terms" placeholder="Ex: 30/60/90" value="{{ sale.payment_terms if sale else '' }}" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="freight_total">Frete</label>
+                <input type="number" step="0.01" class="form-control" id="freight_total" name="freight_total" value="{{ '%.2f'|format(sale.freight_total) if sale and sale.freight_total is not none else '0.00' }}" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="tax_total">Impostos</label>
+                <input type="number" step="0.01" class="form-control" id="tax_total" name="tax_total" value="{{ '%.2f'|format(sale.tax_total) if sale and sale.tax_total is not none else '0.00' }}" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Logística -->
+          <div class="tab-pane fade" id="pane-log" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="delivery_type">Tipo de Entrega</label>
+                <select id="delivery_type" name="delivery_type" class="form-select">
+                  <option value="pickup" {% if sale and sale.delivery_type=='pickup' %}selected{% endif %}>Retira</option>
+                  <option value="carrier" {% if sale and sale.delivery_type=='carrier' %}selected{% endif %}>Transportadora</option>
+                  <option value="delivery" {% if sale and sale.delivery_type=='delivery' %}selected{% endif %}>Entrega</option>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="delivery_address">Endereço de Entrega</label>
+                <textarea id="delivery_address" name="delivery_address" class="form-control" rows="2">{% if sale %}{{ sale.delivery_address or '' }}{% endif %}</textarea>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="delivery_eta">Previsão de Entrega</label>
+                <input type="date" id="delivery_eta" name="delivery_eta" class="form-control" value="{% if sale and sale.delivery_eta %}{{ sale.delivery_eta|string }}{% endif %}" />
+              </div>
+            </div>
+          </div>
+        </div>
+        </form>
+      </div>
+    </div>
+
+    <aside class="summary">
+      <div class="card">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted">Resumo</div>
+            <div style="font-weight:700">Pedido <span class="chip">Rascunho</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="row"><div>Subtotal</div><div id="subtotal">R$ 0,00</div></div>
+          <div class="row"><div>Descontos</div><div id="descontos">R$ 0,00</div></div>
+          <hr style="border:none;border-top:1px solid #eef2f6;margin:12px 0">
+          <div class="row total"><div>Total</div><div id="total">R$ 0,00</div></div>
+        </div>
+        <div class="btns">
+          <button type="button" class="primary" id="btnSaveDraft">Salvar (Rascunho)</button>
+          <button type="button" class="primary" id="btnConfirm">Finalizar Compra</button>
+          <button type="button" class="ghost" id="btnPrint">Imprimir / PDF</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  $(function(){
+    const PRODUCTS_DATA = {{ products|tojson|safe }};
+    const SALE = {{ sale|default(None)|tojson|safe }};
+    const SALE_ITEMS = {{ sale_items|default([])|tojson|safe }};
+    const PROD_BY_ID = (function(){
+      const map = {};
+      PRODUCTS_DATA.forEach(p => { map[p.id] = p; });
+      return map;
+    })();
+
+    function renderProductOptions(){
+      return PRODUCTS_DATA.map(function(p){
+        const tag = p.product_type === 'parent' ? ' (Pai)' : (p.product_type === 'child' ? ' (Filho)' : '');
+        return '<option value="'+p.id+'">'+ p.name + tag +'</option>';
+      }).join('');
+    }
+
+    function fmt(v){
+      try { return Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); } catch(e){ return '0,00'; }
+    }
+
+    function recalc(){
+      let gross = 0, disc = 0, net = 0;
+      $('#itensTable tbody tr.data-row').each(function(){
+        const qty = parseFloat($(this).find('[data-field="qty"]').val() || '0');
+        const up = parseFloat($(this).find('[data-field="unit_price"]').val() || '0');
+        const d = parseFloat($(this).find('[data-field="discount"]').val() || '0');
+        const lineGross = qty * up;
+        const lineDisc = lineGross * (isNaN(d)?0:(d/100));
+        const lineNet = lineGross - lineDisc;
+        $(this).find('[data-field="subtotal"]').text(fmt(lineNet));
+        gross += lineGross; disc += lineDisc; net += lineNet;
+      });
+      $('#totSubtotal').text(fmt(gross));
+      $('#totDiscount').text(fmt(disc));
+      $('#totNet').text(fmt(net));
+    }
+
+    function addRow(){
+      const idx = $('#itensTable tbody tr.data-row').length;
+      const row = '<tr class="data-row">'
+        + '<td>'
+          + '<select class="form-select" name="items['+idx+'][product_id]">'
+            + '<option value="">Selecione...</option>'
+            + renderProductOptions()
+          + '</select>'
+        + '</td>'
+        + '<td><span data-field="unit_measure" class="badge bg-light text-dark">-</span></td>'
+        + '<td><input type="number" min="1" step="1" class="form-control" name="items['+idx+'][qty]" data-field="qty" value="1"/></td>'
+        + '<td><input type="number" min="0" step="0.01" class="form-control" name="items['+idx+'][unit_price]" data-field="unit_price" value="0.00"/></td>'
+        + '<td><input type="number" min="0" step="0.01" class="form-control" name="items['+idx+'][discount]" data-field="discount" value="0"/></td>'
+        + '<td><span data-field="subtotal">0,00</span></td>'
+        + '<td>'
+          + '<button type="button" class="btn btn-danger btn-sm" data-action="del"><i class="fas fa-trash"></i></button>'
+        + '</td>'
+      + '</tr>';
+      const $tb = $('#itensTable tbody');
+      $tb.find('tr.empty').remove();
+      $tb.append(row);
+      recalc();
+    }
+
+    function addRowFromItem(item){
+      addRow();
+      const $tr = $('#itensTable tbody tr.data-row').last();
+      // Set produto
+      if(item.product_id){
+        $tr.find('select[name$="[product_id]"]').val(String(item.product_id)).trigger('change');
+      }
+      // Quantidade
+      if(item.quantity != null){ $tr.find('[data-field="qty"]').val(item.quantity); }
+      // Preço unitário
+      if(item.unit_price != null){ $tr.find('[data-field="unit_price"]').val(Number(item.unit_price).toFixed(2)); }
+      // Desconto (%) vem como discount_percent
+      if(item.discount_percent != null){ $tr.find('[data-field="discount"]').val(Number(item.discount_percent)); }
+      recalc();
+    }
+
+    $('#addItem').on('click', addRow);
+
+    // Se vier rascunho, popular itens
+    if (Array.isArray(SALE_ITEMS) && SALE_ITEMS.length > 0){
+      const $tb = $('#itensTable tbody');
+      $tb.html('<tr class="empty"><td colspan="7" class="text-center text-muted">Sem itens.</td></tr>');
+      $tb.empty();
+      SALE_ITEMS.forEach(addRowFromItem);
+    }
+
+    // Se veio sale, disparar carregamento do resumo do cliente
+    if (SALE && SALE.customer_id){
+      $('#customer_id').trigger('change');
+    }
+
+    $('#itensTable').on('click', '[data-action="del"]', function(){
+      $(this).closest('tr').remove();
+      const $rows = $('#itensTable tbody tr.data-row');
+      if ($rows.length === 0){
+        $('#itensTable tbody').html('<tr class="empty"><td colspan="7" class="text-center text-muted">Sem itens.</td></tr>');
+        recalc();
+      } else {
+        // Reindex nomes para manter sequencial
+        $rows.each(function(i){
+          $(this).find('select, input').each(function(){
+            const name = $(this).attr('name');
+            const newName = name.replace(/items\[\d+\]/, 'items['+i+']');
+            $(this).attr('name', newName);
+          });
+        });
+        recalc();
+      }
+    });
+
+    // Recalcular ao digitar
+    $('#itensTable').on('input', '[data-field="qty"],[data-field="unit_price"],[data-field="discount"]', recalc);
+
+    // Auto-preencher preço e unidade ao escolher produto
+    $('#itensTable').on('change', 'select[name^="items["]', function(){
+      const $tr = $(this).closest('tr');
+      const pid = parseInt($(this).val()||'0');
+      const p = PROD_BY_ID[pid];
+      if(p){
+        $tr.find('[data-field="unit_price"]').val((p.sale_price||0).toFixed(2));
+        $tr.find('[data-field="unit_measure"]').text(p.unit_measure || '-');
+        recalc();
+      }
+    });
+
+    // Buscar dados do cliente e preencher resumo
+    $('#customer_id').on('change', function(){
+      const id = $(this).val();
+      if(!id){ $('#clienteResumo').hide(); return; }
+      $.getJSON('/api/clientes/'+id+'/json', function(c){
+        $('#clienteResumo [data-cliente="name"]').text(c.name||'');
+        $('#clienteResumo [data-cliente="cnpj"]').text(c.cnpj||'');
+        $('#clienteResumo [data-cliente="ie"]').text(c.ie||'');
+        $('#clienteResumo [data-cliente="email"]').text(c.email||'');
+        $('#clienteResumo [data-cliente="phone"]').text(c.phone||'');
+        const end = [c.address, c.number, c.complement, c.neighborhood, c.city, c.state, c.cep]
+                     .filter(Boolean).join(', ');
+        $('#clienteResumo [data-cliente="endereco"]').text(end);
+        $('#clienteResumo').show();
+      }).fail(function(){ $('#clienteResumo').hide(); });
+    });
+
+    // Modal de geração de parcelas (simples, cálculo proporcional ao total)
+    $('#genParcelasBtn').on('click', function(){
+      $('#parcelasModal').modal('show');
+    });
+
+    // Ações: Salvar/Confirmar
+    function submitWithStatus(st){
+      $('#status').val(st);
+      $('#vendaForm').trigger('submit');
+    }
+    $('#btnSaveDraft').on('click', function(){ submitWithStatus('draft'); });
+    $('#btnConfirm').on('click', function(){ submitWithStatus('confirmed'); });
+    $('#btnConfirmTop').on('click', function(){ submitWithStatus('confirmed'); });
+  });
+</script>
+
+<!-- Modal: Gerar Parcelas -->
+<div class="modal fade" id="parcelasModal" tabindex="-1" aria-labelledby="parcelasModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="parcelasModalLabel">Gerar Parcelas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="parcelas_qtd">Nº parcelas</label>
+            <input type="number" id="parcelas_qtd" class="form-control" min="1" value="1" />
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="parcelas_intervalo">Intervalo (dias)</label>
+            <input type="number" id="parcelas_intervalo" class="form-control" min="0" value="30" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-primary" id="gerarParcelasConf">Gerar</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      function fmtBR(n){ try { return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2}); } catch(e){ return '0,00'; } }
+      function parseBR(s){ return Number(String(s).replace(/\./g,'').replace(',','.')) || 0; }
+      $('#gerarParcelasConf').on('click', function(){
+        const qtd = parseInt($('#parcelas_qtd').val()||'1');
+        const intervalo = parseInt($('#parcelas_intervalo').val()||'30');
+        if(!qtd || qtd<=0){ return; }
+        // base no total líquido atual
+        const totTxt = $('#totNet').text();
+        let total = 0;
+        try{ total = parseBR(totTxt); }catch(e){ total = 0; }
+        const valor = (qtd ? (total / qtd) : total);
+        const hoje = new Date();
+        const $tb = $('#parcelasTable tbody');
+        const rows = [];
+        for(let i=1;i<=qtd;i++){
+          const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + (intervalo*(i-1)));
+          const y = d.getFullYear();
+          const m = String(d.getMonth()+1).padStart(2,'0');
+          const day = String(d.getDate()).padStart(2,'0');
+          rows.push('<tr>'
+            +'<td>'+i+'</td>'
+            +'<td>'+day+'/'+m+'/'+y+'</td>'
+            +'<td>'+fmtBR(valor)+'</td>'
+          +'</tr>');
+        }
+        $tb.html(rows.join(''));
+        $('#parcelasModal').modal('hide');
+      });
+    })();
+
+    // ===== FUNÇÕES PARA FORMAS DE PAGAMENTO DINÂMICAS =====
+    function updatePaymentInfo() {
+      const select = document.getElementById('payment_method');
+      const option = select.options[select.selectedIndex];
+      const installmentsField = document.getElementById('installmentsField');
+      const installmentsSelect = document.getElementById('installments');
+      const paymentInfo = document.getElementById('paymentInfo');
+      
+      // Obter dados da opção selecionada
+      const allowInstallments = option.dataset.installments === 'true';
+      const maxInstallments = parseInt(option.dataset.maxInstallments) || 1;
+      const fee = parseFloat(option.dataset.fee) || 0;
+      const days = parseInt(option.dataset.days) || 0;
+      const behavior = option.dataset.behavior || 'both';
+      
+      // Mostrar/ocultar campo de parcelas
+      if (allowInstallments && maxInstallments > 1) {
+        installmentsField.style.display = 'block';
+        
+        // Preencher opções de parcelas
+        let optionsHtml = '';
+        for (let i = 1; i <= maxInstallments; i++) {
+          optionsHtml += `<option value="${i}">${i}x</option>`;
+        }
+        installmentsSelect.innerHTML = optionsHtml;
+      } else {
+        installmentsField.style.display = 'none';
+        installmentsSelect.innerHTML = '<option value="1">1x (à vista)</option>';
+      }
+      
+      // Mostrar informações
+      let info = [];
+      if (days > 0) {
+        info.push(`Prazo: D+${days} dias`);
+      } else {
+        info.push('Recebimento imediato');
+      }
+      if (fee > 0) {
+        info.push(`Taxa: ${fee.toFixed(2)}%`);
+      }
+      
+      // Comportamento
+      if (behavior === 'cash_flow') {
+        info.push('💰 Fluxo de Caixa');
+      } else if (behavior === 'receivable') {
+        info.push('📄 Contas a Receber');
+      } else {
+        info.push('🔄 Ambos');
+      }
+      
+      paymentInfo.innerHTML = info.join(' | ');
+    }
+    
+    // Atualizar ao carregar a página
+    document.addEventListener('DOMContentLoaded', function() {
+      updatePaymentInfo();
+    });
+
+    // ===== ATALHOS DE TECLADO =====
+    let barcodeBuffer = '';
+    let barcodeTimeout = null;
+    
+    document.addEventListener('keydown', function(e) {
+      // F1 - Ajuda de atalhos
+      if (e.key === 'F1') {
+        e.preventDefault();
+        showKeyboardHelp();
+        return;
+      }
+      
+      // F2 - Focar no cliente
+      if (e.key === 'F2') {
+        e.preventDefault();
+        document.getElementById('customer_id').focus();
+        return;
+      }
+      
+      // F3 - Adicionar produto
+      if (e.key === 'F3') {
+        e.preventDefault();
+        document.getElementById('product_id').focus();
+        return;
+      }
+      
+      // F4 - Forma de pagamento
+      if (e.key === 'F4') {
+        e.preventDefault();
+        document.getElementById('payment_method').focus();
+        return;
+      }
+      
+      // F9 - Salvar rascunho
+      if (e.key === 'F9') {
+        e.preventDefault();
+        salvarRascunho();
+        return;
+      }
+      
+      // F10 - Finalizar venda
+      if (e.key === 'F10') {
+        e.preventDefault();
+        finalizarCompra();
+        return;
+      }
+      
+      // F11 - Tela cheia
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+      
+      // ESC - Sair da tela cheia
+      if (e.key === 'Escape') {
+        const mainContent = document.getElementById('mainContent');
+        if (mainContent.classList.contains('fullscreen-mode')) {
+          toggleFullscreen();
+        }
+        return;
+      }
+      
+      // CÓDIGO DE BARRAS - captura rápida de números
+      // Código de barras geralmente envia 13 dígitos muito rápido + Enter
+      const productSelect = document.getElementById('product_id');
+      if (document.activeElement === productSelect || document.activeElement === document.body) {
+        if (e.key >= '0' && e.key <= '9') {
+          barcodeBuffer += e.key;
+          productSelect.classList.add('barcode-active');
+          
+          // Limpar timeout anterior
+          if (barcodeTimeout) clearTimeout(barcodeTimeout);
+          
+          // Se acumular muitos números rápido, é código de barras
+          barcodeTimeout = setTimeout(() => {
+            if (barcodeBuffer.length >= 8) {
+              // Buscar produto por código de barras
+              searchProductByBarcode(barcodeBuffer);
+            }
+            barcodeBuffer = '';
+            productSelect.classList.remove('barcode-active');
+          }, 100); // 100ms de tolerância
+        } else if (e.key === 'Enter' && barcodeBuffer.length > 0) {
+          e.preventDefault();
+          searchProductByBarcode(barcodeBuffer);
+          barcodeBuffer = '';
+          productSelect.classList.remove('barcode-active');
+        }
+      }
+    });
+    
+    // Buscar produto por código de barras
+    function searchProductByBarcode(barcode) {
+      console.log('[BARCODE] Buscando:', barcode);
+      const productSelect = document.getElementById('product_id');
+      
+      // Procurar no select por valor que contenha o código
+      for (let i = 0; i < productSelect.options.length; i++) {
+        const option = productSelect.options[i];
+        const text = option.text.toLowerCase();
+        const value = option.value;
+        
+        // Comparar com código de barras
+        if (text.includes(barcode) || value === barcode) {
+          productSelect.value = value;
+          productSelect.dispatchEvent(new Event('change'));
+          
+          // Feedback visual
+          productSelect.classList.add('barcode-active');
+          setTimeout(() => {
+            productSelect.classList.remove('barcode-active');
+          }, 500);
+          
+          // Focar no campo de quantidade
+          setTimeout(() => {
+            const qtyField = document.querySelector('input[name="qty"]');
+            if (qtyField) qtyField.focus();
+          }, 100);
+          
+          console.log('[BARCODE] Produto encontrado:', option.text);
+          return;
+        }
+      }
+      
+      alert('Produto com código de barras "' + barcode + '" não encontrado!');
+      console.log('[BARCODE] Produto não encontrado');
+    }
+    
+    // Toggle tela cheia
+    function toggleFullscreen() {
+      const mainContent = document.getElementById('mainContent');
+      mainContent.classList.toggle('fullscreen-mode');
+      
+      const btn = event.target.closest('button');
+      const icon = btn.querySelector('i');
+      
+      if (mainContent.classList.contains('fullscreen-mode')) {
+        icon.className = 'fas fa-compress';
+        btn.querySelector('.keyboard-hint').textContent = 'ESC';
+        btn.title = 'Sair da tela cheia (ESC)';
+      } else {
+        icon.className = 'fas fa-expand';
+        btn.querySelector('.keyboard-hint').textContent = 'F11';
+        btn.title = 'Tela cheia (F11)';
+      }
+    }
+    
+    // Mostrar ajuda de atalhos
+    function showKeyboardHelp() {
+      const helpHtml = `
+        <div class="modal fade" id="keyboardHelpModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-keyboard"></i> Atalhos de Teclado</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th width="30%">Tecla</th>
+                      <th>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="keyboard-hint">F1</span></td>
+                      <td>Mostrar esta ajuda</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F2</span></td>
+                      <td>Focar no campo Cliente</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F3</span></td>
+                      <td>Focar no campo Produto</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F4</span></td>
+                      <td>Focar na Forma de Pagamento</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F9</span></td>
+                      <td>Salvar como Rascunho</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F10</span></td>
+                      <td>Finalizar Venda (Confirmar)</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">F11</span></td>
+                      <td>Ativar/Desativar Tela Cheia</td>
+                    </tr>
+                    <tr>
+                      <td><span class="keyboard-hint">ESC</span></td>
+                      <td>Sair da Tela Cheia</td>
+                    </tr>
+                    <tr class="table-success">
+                      <td><span class="keyboard-hint">Código de Barras</span></td>
+                      <td><strong>Leia o código de barras</strong> com o leitor para adicionar produto automaticamente</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Remover modal antigo se existir
+      const oldModal = document.getElementById('keyboardHelpModal');
+      if (oldModal) oldModal.remove();
+      
+      // Adicionar e mostrar
+      document.body.insertAdjacentHTML('beforeend', helpHtml);
+      const modal = new bootstrap.Modal(document.getElementById('keyboardHelpModal'));
+      modal.show();
+    }
+  </script>
+  
+  <!-- ===== PDV MODERNO: MODAIS ===== -->
+  {% include 'modals/pdv_modals.html' %}
+  
+  <!-- ===== PDV MODERNO: JAVASCRIPT ===== -->
+  <script src="{{ url_for('static', filename='js/pdv.js') }}"></script>
+  
+</div>
+{% endblock %}

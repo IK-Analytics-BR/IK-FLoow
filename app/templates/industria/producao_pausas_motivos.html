@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Motivos de Pausa - Indústria{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-pause-circle me-2"></i>Motivos de Pausa/Paralização</h2>
+            <p class="text-muted mb-0">Cadastre os motivos de pausa para controle de tempo produtivo</p>
+        </div>
+        <a href="{{ url_for('producao_pausas.novo_motivo') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Novo Motivo
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <!-- Produtivos -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-check-circle me-2"></i>Produtivos
+                    <span class="badge bg-white text-success ms-2">
+                        {{ motivos|selectattr('tipo', 'equalto', 'produtivo')|list|length }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for m in motivos if m.tipo == 'produtivo' %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center {{ 'opacity-50' if not m.ativo }}">
+                            <div class="d-flex align-items-center">
+                                <span class="me-3" style="color: {{ m.cor_hex }}; font-size: 1.5rem;">
+                                    <i class="bi {{ m.icone }}"></i>
+                                </span>
+                                <div>
+                                    <strong>{{ m.nome }}</strong>
+                                    {% if not m.ativo %}<span class="badge bg-secondary ms-1">Inativo</span>{% endif %}
+                                    {% if m.descricao %}
+                                    <br><small class="text-muted">{{ m.descricao }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-dark">{{ m.total_uso or 0 }} usos</span>
+                                <a href="{{ url_for('producao_pausas.editar_motivo', id=m.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form action="{{ url_for('producao_pausas.excluir_motivo', id=m.id) }}" 
+                                      method="POST" class="d-inline" 
+                                      onsubmit="return confirm('Excluir este motivo?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
+                                            {{ 'disabled' if m.total_uso and m.total_uso > 0 }}>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-muted text-center py-4">
+                            Nenhum motivo produtivo cadastrado
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Improdutivos -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-x-circle me-2"></i>Improdutivos
+                    <span class="badge bg-white text-danger ms-2">
+                        {{ motivos|selectattr('tipo', 'equalto', 'improdutivo')|list|length }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for m in motivos if m.tipo == 'improdutivo' %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center {{ 'opacity-50' if not m.ativo }}">
+                            <div class="d-flex align-items-center">
+                                <span class="me-3" style="color: {{ m.cor_hex }}; font-size: 1.5rem;">
+                                    <i class="bi {{ m.icone }}"></i>
+                                </span>
+                                <div>
+                                    <strong>{{ m.nome }}</strong>
+                                    {% if not m.ativo %}<span class="badge bg-secondary ms-1">Inativo</span>{% endif %}
+                                    {% if m.descricao %}
+                                    <br><small class="text-muted">{{ m.descricao }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-dark">{{ m.total_uso or 0 }} usos</span>
+                                <a href="{{ url_for('producao_pausas.editar_motivo', id=m.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form action="{{ url_for('producao_pausas.excluir_motivo', id=m.id) }}" 
+                                      method="POST" class="d-inline" 
+                                      onsubmit="return confirm('Excluir este motivo?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"
+                                            {{ 'disabled' if m.total_uso and m.total_uso > 0 }}>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-muted text-center py-4">
+                            Nenhum motivo improdutivo cadastrado
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-light">
+        <div class="card-body">
+            <h6 class="card-title"><i class="bi bi-info-circle me-2"></i>Como funciona</h6>
+            <ul class="mb-0 small">
+                <li><strong>Pausas Produtivas:</strong> Setup de máquina, manutenção, troca de ferramenta - contam como tempo de produção</li>
+                <li><strong>Pausas Improdutivas:</strong> Almoço, banheiro, fim de jornada - descontados do tempo produtivo</li>
+                <li>O operador seleciona o motivo ao pausar/retomar a produção de cada lote</li>
+                <li>Os cálculos de tempo médio de produção desconsideram as pausas improdutivas</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

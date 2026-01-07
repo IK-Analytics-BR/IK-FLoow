@@ -1,0 +1,11 @@
+{
+  "status": "concluido",
+  "etapa": "OK: Importação concluída! 22544 estabelecimentos importados",
+  "arquivos_total": 10,
+  "arquivo_atual": 10,
+  "registros_inseridos": 22544,
+  "percentual": 100,
+  "inicio": "2025-12-29T11:24:53.933808",
+  "registros_lidos": 4753435,
+  "fim": "2025-12-29T11:30:53.497013"
+}

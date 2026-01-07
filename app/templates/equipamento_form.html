@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{% if equipamento %}Editar{% else %}Cadastrar{% endif %} Equipamento - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{% if equipamento %}Editar{% else %}Cadastrar{% endif %} Equipamento</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('equipamento.equipamentos') }}">Equipamentos</a></li>
+        <li class="breadcrumb-item active">{% if equipamento %}Editar{% else %}Cadastrar{% endif %} Equipamento</li>
+    </ol>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-cogs me-1"></i>
+            {% if equipamento %}Editar Equipamento: {{ equipamento.name }}{% else %}Novo Equipamento{% endif %}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('equipamento.equipamento_editar', id=equipamento.id) if equipamento else url_for('equipamento.equipamento_cadastrar') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="name" name="name" placeholder="Nome" value="{{ equipamento.name if equipamento else '' }}" required>
+                            <label for="name">Nome</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="customer_id" name="customer_id" required>
+                                <option value="">Selecione um cliente</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if equipamento and equipamento.customer_id == cliente.id %}selected{% endif %}>{{ cliente.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="customer_id">Cliente</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="installation_date" name="installation_date" placeholder="Data de Instalação" value="{{ equipamento.installation_date if equipamento else '' }}" required>
+                            <label for="installation_date">Data de Instalação</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <input type="date" class="form-control" id="next_maintenance" name="next_maintenance" placeholder="Próxima Manutenção" value="{{ equipamento.next_maintenance if equipamento else '' }}">
+                            <label for="next_maintenance">Próxima Manutenção</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="notes" name="notes" placeholder="Observações" style="height: 100px">{{ equipamento.notes if equipamento else '' }}</textarea>
+                            <label for="notes">Observações</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 mb-0">
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializa o datepicker para campos de data
+        $('#installation_date, #next_maintenance').datepicker({
+            format: 'yyyy-mm-dd',
+            autoclose: true,
+            todayHighlight: true,
+            language: 'pt-BR'
+        });
+    });
+</script>
+{% endblock %}

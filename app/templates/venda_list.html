@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% block title %}Relação de Vendas{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Relação de Vendas</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item">Vendas</li>
+    <li class="breadcrumb-item active">Relação de Vendas</li>
+  </ol>
+
+  <form class="row g-2 mb-3" method="get" action="{{ url_for('venda.vendas_relacao') }}">
+    <div class="col-md-3">
+      <input type="text" class="form-control" name="q" placeholder="Cliente ou Nº da venda" value="{{ q or '' }}" />
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" name="status">
+        <option value="">Status</option>
+        <option value="draft" {% if status=='draft' %}selected{% endif %}>Rascunho</option>
+        <option value="confirmed" {% if status=='confirmed' %}selected{% endif %}>Confirmada</option>
+        <option value="invoiced" {% if status=='invoiced' %}selected{% endif %}>Faturada</option>
+        <option value="cancelled" {% if status=='cancelled' %}selected{% endif %}>Cancelada</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select class="form-select" name="seller_id">
+        <option value="">Vendedor</option>
+        {% for s in sellers %}
+          <option value="{{ s.id }}" {% if seller_id|int==s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Período inicial</label>
+      <input type="date" class="form-control" name="date_from" value="{{ date_from or '' }}" />
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Período final</label>
+      <input type="date" class="form-control" name="date_to" value="{{ date_to or '' }}" />
+    </div>
+    <div class="col-12 col-md-2">
+      <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search"></i> Filtrar</button>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-header"><i class="fas fa-list me-1"></i> Vendas</div>
+    <div class="card-body table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Documento</th>
+            <th>Status</th>
+            <th>Vendedor</th>
+            <th>Total</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vendas %}
+          <tr>
+            <td>{{ v.id }}</td>
+            <td>{{ v.sale_date }}</td>
+            <td>{{ v.customer_name }}</td>
+            <td>
+              {% if v.chave_acesso_nfce and v.status_nfce == 'autorizada' %}
+                <span class="badge bg-success"><i class="fas fa-receipt"></i> NFC-e {{ v.numero_nfce }}</span>
+              {% elif v.chave_acesso_nfce and v.status_nfce == 'cancelada' %}
+                <span class="badge bg-danger"><i class="fas fa-receipt"></i> NFC-e Cancelada</span>
+              {% elif v.chave_acesso_nfe and v.status_nfe == 'autorizada' %}
+                <span class="badge bg-info"><i class="fas fa-file-invoice"></i> NF-e {{ v.numero_nfe }}</span>
+              {% elif v.chave_acesso_nfe and v.status_nfe == 'cancelada' %}
+                <span class="badge bg-danger"><i class="fas fa-file-invoice"></i> NF-e Cancelada</span>
+              {% else %}
+                <span class="badge bg-secondary"><i class="fas fa-shopping-cart"></i> Venda</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set cor = 'bg-secondary' %}
+              {% if v.status == 'confirmed' %}{% set cor = 'bg-success' %}{% endif %}
+              {% if v.status == 'draft' %}{% set cor = 'bg-warning text-dark' %}{% endif %}
+              {% if v.status == 'invoiced' %}{% set cor = 'bg-info text-dark' %}{% endif %}
+              {% if v.status == 'cancelled' %}{% set cor = 'bg-danger' %}{% endif %}
+              {% set rot = {
+                'draft':'Rascunho',
+                'confirmed':'Confirmada',
+                'invoiced':'Faturada',
+                'cancelled':'Cancelada'
+              } %}
+              <span class="badge {{ cor }}">{{ rot.get(v.status, v.status) }}</span>
+            </td>
+            <td>{{ v.seller_name or '-' }}</td>
+            <td>R$ {{ '%.2f'|format(v.net_total or 0) }}</td>
+            <td>
+              <div class="btn-group">
+                {% if v.status == 'draft' %}
+                  <a class="btn btn-sm btn-warning" href="{{ url_for('venda.venda_nova', sale_id=v.id) }}"><i class="fas fa-edit"></i></a>
+                {% else %}
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('venda.venda_detalhe', sale_id=v.id) }}" title="Ver detalhes"><i class="fas fa-eye"></i></a>
+                {% endif %}
+                
+                {% if v.chave_acesso_nfce and v.status_nfce == 'autorizada' %}
+                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('nfce.imprimir_danfce', venda_id=v.id) }}" target="_blank" title="Imprimir DANFCE"><i class="fas fa-print"></i></a>
+                {% elif v.chave_acesso_nfe %}
+                  <button class="btn btn-sm btn-outline-info btn-ver-nfe" data-sale-id="{{ v.id }}" title="Ver NF-e"><i class="fas fa-file-invoice"></i></button>
+                {% else %}
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('venda.venda_detalhe', sale_id=v.id) }}" target="_blank" title="Imprimir"><i class="fas fa-print"></i></a>
+                {% endif %}
+                
+                {% if v.status != 'cancelled' %}
+                  <button class="btn btn-sm btn-outline-danger btn-cancelar-venda" 
+                          data-venda-id="{{ v.id }}" 
+                          title="Cancelar Venda">
+                    <i class="fas fa-ban"></i>
+                  </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted">Nenhuma venda encontrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <nav aria-label="Paginação" class="mt-3">
+    <ul class="pagination">
+      {% set prev_page = page-1 %}
+      {% set next_page = page+1 %}
+      <li class="page-item {% if page<=1 %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('venda.vendas_relacao', q=q, status=status, seller_id=seller_id, date_from=date_from, date_to=date_to, page=prev_page) }}">Anterior</a>
+      </li>
+      <li class="page-item active"><a class="page-link" href="#">{{ page }}</a></li>
+      <li class="page-item {% if not has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('venda.vendas_relacao', q=q, status=status, seller_id=seller_id, date_from=date_from, date_to=date_to, page=next_page) }}">Próxima</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+
+<!-- Modal NF-e -->
+<div class="modal fade" id="modalNFe" tabindex="-1" aria-labelledby="modalNFeLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="modalNFeLabel"><i class="fas fa-file-invoice"></i> Dados da NF-e</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="nfeContent">
+        <div class="text-center p-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+          <p class="mt-2">Carregando dados da NF-e...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Event listener para botões Ver NF-e
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.btn-ver-nfe').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const saleId = this.getAttribute('data-sale-id');
+      verNFe(saleId);
+    });
+  });
+});
+
+function verNFe(saleId) {
+  // Abrir modal
+  const modal = new bootstrap.Modal(document.getElementById('modalNFe'));
+  modal.show();
+  
+  // Limpar conteúdo anterior
+  document.getElementById('nfeContent').innerHTML = `
+    <div class="text-center p-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+      <p class="mt-2">Carregando dados da NF-e...</p>
+    </div>
+  `;
+  
+  // Buscar dados da NF-e
+  fetch(`/vendas/${saleId}/nfe`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('NF-e não encontrada');
+      }
+      return response.json();
+    })
+    .then(data => {
+      mostrarNFe(data);
+    })
+    .catch(error => {
+      document.getElementById('nfeContent').innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-triangle"></i> ${error.message}
+        </div>
+      `;
+    });
+}
+
+function mostrarNFe(data) {
+  const nfe = data.nfe;
+  const itens = data.itens;
+  
+  const formatMoney = (val) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+  };
+  
+  const formatDate = (val) => {
+    if (!val) return '-';
+    try {
+      return new Date(val).toLocaleDateString('pt-BR');
+    } catch {
+      return val;
+    }
+  };
+  
+  let html = `
+    <!-- Chave de Acesso -->
+    <div class="card mb-3 border-info">
+      <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-key"></i> Chave de Acesso</h6>
+      </div>
+      <div class="card-body">
+        <div class="input-group">
+          <input type="text" class="form-control font-monospace" value="${nfe.chave_acesso || ''}" readonly id="chaveAcesso">
+          <button class="btn btn-outline-secondary" onclick="copiarChave()" type="button">
+            <i class="fas fa-copy"></i> Copiar
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Dados Gerais -->
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Dados da Nota</h6>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>Número:</th><td>${nfe.numero_nota || '-'}</td></tr>
+              <tr><th>Série:</th><td>${nfe.serie || '-'}</td></tr>
+              <tr><th>Data Emissão:</th><td>${formatDate(nfe.data_emissao)}</td></tr>
+              <tr><th>Data Saída:</th><td>${formatDate(nfe.data_saida)}</td></tr>
+              <tr><th>Tipo Operação:</th><td>${nfe.tipo_operacao == 1 ? 'Saída' : 'Entrada'}</td></tr>
+              <tr><th>Natureza:</th><td>${nfe.natureza_operacao || '-'}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="fas fa-building"></i> Emitente</h6>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>Razão Social:</th><td>${nfe.emit_razao_social || '-'}</td></tr>
+              <tr><th>Nome Fantasia:</th><td>${nfe.emit_nome_fantasia || '-'}</td></tr>
+              <tr><th>CNPJ:</th><td>${nfe.emit_cnpj || '-'}</td></tr>
+              <tr><th>IE:</th><td>${nfe.emit_ie || '-'}</td></tr>
+              <tr><th>Endereço:</th><td>${nfe.emit_logradouro || ''}, ${nfe.emit_numero || ''}</td></tr>
+              <tr><th>Cidade/UF:</th><td>${nfe.emit_municipio || ''} / ${nfe.emit_uf || ''}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0"><i class="fas fa-user"></i> Destinatário</h6>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>Razão Social:</th><td>${nfe.dest_razao_social || '-'}</td></tr>
+              <tr><th>CNPJ/CPF:</th><td>${nfe.dest_cnpj_cpf || '-'}</td></tr>
+              <tr><th>IE:</th><td>${nfe.dest_ie || '-'}</td></tr>
+              <tr><th>Email:</th><td>${nfe.dest_email || '-'}</td></tr>
+              <tr><th>Endereço:</th><td>${nfe.dest_logradouro || ''}, ${nfe.dest_numero || ''}</td></tr>
+              <tr><th>Cidade/UF:</th><td>${nfe.dest_municipio || ''} / ${nfe.dest_uf || ''}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-info text-white">
+            <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Totais</h6>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>Total Produtos:</th><td class="text-end">${formatMoney(nfe.total_produtos)}</td></tr>
+              <tr><th>Total Desconto:</th><td class="text-end">${formatMoney(nfe.total_desconto)}</td></tr>
+              <tr><th>Total Frete:</th><td class="text-end">${formatMoney(nfe.total_frete)}</td></tr>
+              <tr><th>Total Seguro:</th><td class="text-end">${formatMoney(nfe.total_seguro)}</td></tr>
+              <tr><th>Total ICMS:</th><td class="text-end">${formatMoney(nfe.total_icms)}</td></tr>
+              <tr><th>Total IPI:</th><td class="text-end">${formatMoney(nfe.total_ipi)}</td></tr>
+              <tr class="table-success fw-bold"><th>Total NF-e:</th><td class="text-end">${formatMoney(nfe.total_nota)}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Itens da NF-e -->
+    <div class="card mb-3">
+      <div class="card-header bg-dark text-white">
+        <h6 class="mb-0"><i class="fas fa-list"></i> Itens da NF-e (${itens.length})</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th>NCM</th>
+                <th class="text-center">Qtd</th>
+                <th class="text-center">Un</th>
+                <th class="text-end">Vlr Unit</th>
+                <th class="text-end">Vlr Total</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
+  
+  itens.forEach((item, idx) => {
+    html += `
+      <tr>
+        <td>${item.numero_item || (idx + 1)}</td>
+        <td><small>${item.codigo_produto || '-'}</small></td>
+        <td><small>${item.descricao || '-'}</small></td>
+        <td><small>${item.ncm || '-'}</small></td>
+        <td class="text-center">${item.quantidade_comercial || 0}</td>
+        <td class="text-center">${item.unidade_comercial || '-'}</td>
+        <td class="text-end">${formatMoney(item.valor_unitario_comercial)}</td>
+        <td class="text-end">${formatMoney(item.valor_total_bruto)}</td>
+      </tr>
+    `;
+  });
+  
+  html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Informações Adicionais -->
+  `;
+  
+  if (nfe.informacoes_complementares) {
+    html += `
+      <div class="card mb-3">
+        <div class="card-header bg-secondary text-white">
+          <h6 class="mb-0"><i class="fas fa-comment"></i> Informações Complementares</h6>
+        </div>
+        <div class="card-body">
+          <pre class="mb-0" style="white-space: pre-wrap;">${nfe.informacoes_complementares}</pre>
+        </div>
+      </div>
+    `;
+  }
+  
+  document.getElementById('nfeContent').innerHTML = html;
+}
+
+function copiarChave() {
+  const input = document.getElementById('chaveAcesso');
+  input.select();
+  document.execCommand('copy');
+  
+  // Feedback visual
+  const btn = event.target.closest('button');
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+  btn.classList.add('btn-success');
+  btn.classList.remove('btn-outline-secondary');
+  
+  setTimeout(() => {
+    btn.innerHTML = originalHTML;
+    btn.classList.remove('btn-success');
+    btn.classList.add('btn-outline-secondary');
+  }, 2000);
+}
+
+// ============================================================================
+// CANCELAMENTO DE VENDAS
+// ============================================================================
+
+// Variável global para armazenar ID da venda a cancelar
+let vendaParaCancelar = null;
+
+// Event listener para botões de cancelar
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.btn-cancelar-venda').forEach(btn => {
+    btn.addEventListener('click', function() {
+      vendaParaCancelar = this.dataset.vendaId;
+      abrirModalCancelamento(vendaParaCancelar);
+    });
+  });
+});
+
+function abrirModalCancelamento(vendaId) {
+  // Buscar informações da venda
+  fetch(`/nfce/venda/info-cancelamento/${vendaId}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('cancelar-venda-id').textContent = data.venda_id;
+        document.getElementById('cancelar-tipo-doc').textContent = data.numero_documento;
+        document.getElementById('cancelar-cliente').textContent = data.cliente;
+        document.getElementById('cancelar-valor').textContent = 'R$ ' + data.valor.toFixed(2);
+        
+        // Mostrar aviso se for documento fiscal
+        const avisoEl = document.getElementById('cancelar-aviso');
+        if (data.aviso) {
+          avisoEl.textContent = data.aviso;
+          avisoEl.style.display = 'block';
+        } else {
+          avisoEl.style.display = 'none';
+        }
+        
+        // Mostrar tipo com badge
+        const tipoBadge = document.getElementById('cancelar-tipo-badge');
+        if (data.tipo === 'nfce') {
+          tipoBadge.innerHTML = '<span class="badge bg-success">NFC-e</span>';
+        } else if (data.tipo === 'nfe') {
+          tipoBadge.innerHTML = '<span class="badge bg-info">NF-e</span>';
+        } else {
+          tipoBadge.innerHTML = '<span class="badge bg-secondary">Venda</span>';
+        }
+        
+        // Limpar justificativa
+        document.getElementById('cancelar-justificativa').value = '';
+        
+        // Abrir modal
+        const modal = new bootstrap.Modal(document.getElementById('modalCancelarVenda'));
+        modal.show();
+      } else {
+        alert('Erro ao carregar dados: ' + data.error);
+      }
+    })
+    .catch(err => {
+      alert('Erro de conexão: ' + err);
+    });
+}
+
+function confirmarCancelamento() {
+  const justificativa = document.getElementById('cancelar-justificativa').value;
+  
+  if (!justificativa || justificativa.length < 15) {
+    alert('A justificativa deve ter no mínimo 15 caracteres.');
+    return;
+  }
+  
+  // Desabilitar botão
+  const btn = document.querySelector('#modalCancelarVenda .btn-danger');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+  
+  fetch(`/nfce/venda/cancelar/${vendaParaCancelar}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      justificativa: justificativa
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Fechar modal
+      bootstrap.Modal.getInstance(document.getElementById('modalCancelarVenda')).hide();
+      
+      // Mostrar mensagem de sucesso
+      alert(data.message + (data.protocolo_cancelamento ? '\nProtocolo: ' + data.protocolo_cancelamento : ''));
+      
+      // Recarregar página
+      location.reload();
+    } else {
+      alert('Erro: ' + data.error);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-ban"></i> Confirmar Cancelamento';
+    }
+  })
+  .catch(err => {
+    alert('Erro de conexão: ' + err);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-ban"></i> Confirmar Cancelamento';
+  });
+}
+</script>
+
+<!-- Modal de Cancelamento de Venda -->
+<div class="modal fade" id="modalCancelarVenda" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="fas fa-ban"></i> Cancelar Venda</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" id="cancelar-aviso" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i> <span></span>
+        </div>
+        
+        <table class="table table-sm">
+          <tr>
+            <th>Venda #</th>
+            <td id="cancelar-venda-id"></td>
+          </tr>
+          <tr>
+            <th>Documento</th>
+            <td><span id="cancelar-tipo-badge"></span> <span id="cancelar-tipo-doc"></span></td>
+          </tr>
+          <tr>
+            <th>Cliente</th>
+            <td id="cancelar-cliente"></td>
+          </tr>
+          <tr>
+            <th>Valor</th>
+            <td id="cancelar-valor"></td>
+          </tr>
+        </table>
+        
+        <div class="mb-3">
+          <label class="form-label"><strong>Justificativa do Cancelamento *</strong></label>
+          <textarea class="form-control" id="cancelar-justificativa" rows="3" 
+                    placeholder="Informe o motivo do cancelamento (mínimo 15 caracteres)" 
+                    minlength="15" required></textarea>
+          <small class="text-muted">Mínimo de 15 caracteres (exigido pela SEFAZ)</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Fechar
+        </button>
+        <button type="button" class="btn btn-danger" onclick="confirmarCancelamento()">
+          <i class="fas fa-ban"></i> Confirmar Cancelamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

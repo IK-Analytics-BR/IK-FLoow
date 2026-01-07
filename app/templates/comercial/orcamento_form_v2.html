@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if orcamento else 'Novo' }} Orcamento{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Abas */
+    .nav-tabs .nav-link { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+    .nav-tabs .nav-link.active { font-weight: 600; background-color: #fff3cd; border-color: #ffc107 #ffc107 #fff; }
+    
+    /* Formularios compactos */
+    .form-label { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.15rem; color: #495057; }
+    .form-control, .form-select { font-size: 0.8rem; padding: 0.25rem 0.4rem; height: auto; }
+    .form-control:focus { border-color: #ffc107; box-shadow: 0 0 0 0.1rem rgba(255,193,7,.25); }
+    .input-group-text { font-size: 0.75rem; padding: 0.25rem 0.4rem; }
+    .btn-sm { font-size: 0.75rem; padding: 0.2rem 0.4rem; }
+    
+    /* Numero do orcamento */
+    .numero-orcamento { background: #fffde7; font-size: 1.3rem; font-weight: bold; padding: 8px 16px; border: 2px solid #ffc107; border-radius: 4px; }
+    
+    /* Cards/Grades */
+    .grade { border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 12px; background: #fff; }
+    .grade-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 3px 3px 0 0; }
+    .grade-header.azul { background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); }
+    .grade-header.verde { background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); }
+    .grade-header.laranja { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); }
+    .grade-header.vermelho { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); }
+    .grade-header.roxo { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
+    .grade-header.cinza { background: linear-gradient(135deg, #607d8b 0%, #455a64 100%); }
+    .grade-header i { margin-right: 6px; }
+    .grade-body { padding: 10px; }
+    
+    /* Campo destacado */
+    .field-highlight { background-color: #fffde7 !important; }
+    
+    /* Tabelas */
+    .table-compact th { font-size: 0.7rem; padding: 0.3rem; background: #f8f9fa; }
+    .table-compact td { font-size: 0.75rem; padding: 0.25rem; vertical-align: middle; }
+    
+    /* Barra de acoes */
+    .footer-bar { background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px 20px; margin-top: 25px; border-radius: 4px; }
+    
+    /* Tab content com altura fixa */
+    .tab-content { min-height: 420px; }
+    .tab-pane { padding: 10px 0; min-height: 400px; }
+    
+    /* Ajustes responsivos */
+    .row.g-2 { --bs-gutter-x: 0.5rem; --bs-gutter-y: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabecalho -->
+    <div class="d-flex justify-content-between align-items-center py-2 border-bottom mb-3">
+        <h4 class="mb-0"><i class="fas fa-file-invoice-dollar text-warning me-2"></i>Orcamento</h4>
+        <div class="numero-orcamento">{{ orcamento.numero if orcamento else 'NOVO' }}</div>
+    </div>
+
+    <form id="formOrcamento" method="POST" action="{{ url_for('orcamentos.salvar') }}">
+        <input type="hidden" name="id" value="{{ orcamento.id if orcamento else '' }}">
+        <input type="hidden" name="itens" id="itens_json" value="[]">
+        <input type="hidden" name="duplicatas" id="duplicatas_json" value="[]">
+        <input type="hidden" name="num_parcelas" id="num_parcelas" value="1">
+        <input type="hidden" name="acao" id="acao_form" value="salvar">
+        
+        <!-- Barra de Atalhos -->
+        <div class="alert alert-info py-1 px-3 mb-2 d-flex justify-content-between align-items-center small">
+            <div>
+                <strong>Atalhos:</strong>
+                <span class="badge bg-dark ms-2">F5</span> Proxima Aba
+                <span class="badge bg-dark ms-2">F6</span> Aba Anterior
+                <span class="badge bg-dark ms-2">F2</span> Buscar Cliente
+                <span class="badge bg-dark ms-2">F3</span> Buscar (contextual)
+                <span class="badge bg-dark ms-2">ESC</span> Fechar/Cancelar
+            </div>
+            <span class="text-muted" id="indicadorAba">Aba 1/7</span>
+        </div>
+
+        <!-- Abas -->
+        <ul class="nav nav-tabs" id="orcamentoTabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabDados" onclick="atualizarIndicadorAba(1)"><i class="fas fa-file-alt me-1"></i>Dados</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabItens" onclick="atualizarIndicadorAba(2)"><i class="fas fa-boxes me-1"></i>Itens</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabDuplicatas" onclick="atualizarIndicadorAba(3)"><i class="fas fa-credit-card me-1"></i>Pagamento</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabTransporte" onclick="atualizarIndicadorAba(4)"><i class="fas fa-truck me-1"></i>Transporte</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabOutros" onclick="atualizarIndicadorAba(5)"><i class="fas fa-ellipsis-h me-1"></i>Outros</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabComissao" onclick="atualizarIndicadorAba(6)"><i class="fas fa-percentage me-1"></i>Comissao</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabCRM" onclick="atualizarIndicadorAba(7)"><i class="fas fa-history me-1"></i>Historico</a></li>
+        </ul>
+
+        <div class="tab-content border border-top-0 p-3 bg-white">
+            
+            <!-- ABA 1: DADOS DO ORCAMENTO -->
+            <div class="tab-pane fade show active" id="tabDados">
+                {% include 'comercial/partials/_orcamento_tab_dados.html' %}
+            </div>
+
+            <!-- ABA 2: ITENS DO ORCAMENTO -->
+            <div class="tab-pane fade" id="tabItens">
+                {% include 'comercial/partials/_orcamento_tab_itens.html' %}
+            </div>
+
+            <!-- ABA 3: DUPLICATAS -->
+            <div class="tab-pane fade" id="tabDuplicatas">
+                {% include 'comercial/partials/_orcamento_tab_duplicatas.html' %}
+            </div>
+
+            <!-- ABA 4: TRANSPORTE E OBSERVACOES -->
+            <div class="tab-pane fade" id="tabTransporte">
+                {% include 'comercial/partials/_orcamento_tab_transporte.html' %}
+            </div>
+
+            <!-- ABA 5: OUTROS -->
+            <div class="tab-pane fade" id="tabOutros">
+                {% include 'comercial/partials/_orcamento_tab_outros.html' %}
+            </div>
+
+            <!-- ABA 6: COMISSAO -->
+            <div class="tab-pane fade" id="tabComissao">
+                {% include 'comercial/partials/_orcamento_tab_comissao.html' %}
+            </div>
+
+            <!-- ABA 7: CRM -->
+            <div class="tab-pane fade" id="tabCRM">
+                {% include 'comercial/partials/_orcamento_tab_crm.html' %}
+            </div>
+
+        </div>
+
+        <!-- Barra de Acoes -->
+        <div class="footer-bar d-flex justify-content-between align-items-center">
+            <div>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="abrirEventosCRM()">
+                    <i class="fas fa-comments me-1"></i> Eventos CRM e Follow-Up
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="duplicarOrcamento()">
+                    <i class="fas fa-copy me-1"></i> Duplicar
+                </button>
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="gerarRevisao()">
+                    <i class="fas fa-sync me-1"></i> Gerar Revisao
+                </button>
+            </div>
+            <div>
+                <button type="button" class="btn btn-danger btn-sm me-2" onclick="salvarEFechar()">
+                    <i class="fas fa-save me-1"></i> Salvar e Fechar
+                </button>
+                <button type="submit" class="btn btn-success btn-sm me-2">
+                    <i class="fas fa-save me-1"></i> Salvar e Manter
+                </button>
+                <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i> Fechar
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Busca Cliente -->
+<div class="modal fade" id="modalBuscaCliente" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-primary text-white">
+                <h6 class="modal-title"><i class="fas fa-search me-2"></i>Buscar Cliente</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="busca_cliente_input" 
+                           placeholder="Digite o nome, CNPJ/CPF ou código..." autocomplete="off">
+                    <button class="btn btn-primary" type="button" onclick="pesquisarClientes()">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tabelaClientes">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:60px">Código</th>
+                                <th>Nome/Razão Social</th>
+                                <th style="width:140px">CNPJ/CPF</th>
+                                <th style="width:120px">Cidade</th>
+                                <th style="width:50px">UF</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyClientes">
+                            <tr><td colspan="5" class="text-center text-muted py-3">Digite para buscar...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <small class="text-muted me-auto"><kbd>↑</kbd><kbd>↓</kbd> navegar | <kbd>Enter</kbd> selecionar | <kbd>Esc</kbd> fechar</small>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Busca Produto -->
+<div class="modal fade" id="modalBuscaProduto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-success text-white">
+                <h6 class="modal-title"><i class="fas fa-search me-2"></i>Buscar Produto</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="busca_produto_input" 
+                           placeholder="Digite o nome, código ou referência..." autocomplete="off">
+                    <button class="btn btn-success" type="button" onclick="pesquisarProdutos()">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tabelaProdutos">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:80px">Código</th>
+                                <th>Descrição</th>
+                                <th style="width:60px">UN</th>
+                                <th style="width:100px">Preço</th>
+                                <th style="width:80px">Estoque</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyProdutos">
+                            <tr><td colspan="5" class="text-center text-muted py-3">Digite para buscar...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <small class="text-muted me-auto"><kbd>↑</kbd><kbd>↓</kbd> navegar | <kbd>Enter</kbd> ou <kbd>Duplo Clique</kbd> selecionar | <kbd>Esc</kbd> fechar</small>
+                <button type="button" class="btn btn-success btn-sm" onclick="selecionarProdutoDestacado()">
+                    <i class="fas fa-check me-1"></i>Selecionar
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Busca Transportadora -->
+<div class="modal fade" id="modalBuscaTransportadora" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-info text-white">
+                <h6 class="modal-title"><i class="fas fa-truck me-2"></i>Buscar Transportadora</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="busca_transportadora_input" 
+                           placeholder="Digite o nome, CNPJ ou código..." autocomplete="off">
+                    <button class="btn btn-info" type="button" onclick="pesquisarTransportadoras()">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:60px">Código</th>
+                                <th>Nome/Razão Social</th>
+                                <th style="width:140px">CNPJ/CPF</th>
+                                <th style="width:120px">Cidade</th>
+                                <th style="width:50px">UF</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyTransportadoras">
+                            <tr><td colspan="5" class="text-center text-muted py-3">Digite para buscar...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <small class="text-muted me-auto"><kbd>↑</kbd><kbd>↓</kbd> navegar | <kbd>Enter</kbd> selecionar | <kbd>Esc</kbd> fechar</small>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/orcamento_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/orcamento_dna_estoque.js') }}"></script>
+{% if orcamento %}
+<script>
+// Dados do orçamento para modo edição
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Modo Edição] Carregando dados do orçamento ID={{ orcamento.id }}');
+    
+    // Forma de pagamento
+    {% if orcamento.forma_pagamento_id %}
+    console.log('[Modo Edição] forma_pagamento_id={{ orcamento.forma_pagamento_id }}');
+    const pagamentoId = document.getElementById('pagamento_method_id');
+    if (pagamentoId && !pagamentoId.value) {
+        pagamentoId.value = '{{ orcamento.forma_pagamento_id }}';
+    }
+    {% endif %}
+    
+    // Vendedor
+    {% if orcamento.vendedor_id %}
+    console.log('[Modo Edição] vendedor_id={{ orcamento.vendedor_id }}');
+    const vendedorSelect = document.getElementById('vendedor_id');
+    if (vendedorSelect) {
+        vendedorSelect.value = '{{ orcamento.vendedor_id }}';
+    }
+    {% endif %}
+    
+    // Empresa
+    {% if orcamento.empresa_id %}
+    console.log('[Modo Edição] empresa_id={{ orcamento.empresa_id }}');
+    const empresaSelect = document.getElementById('empresa_id');
+    if (empresaSelect) {
+        empresaSelect.value = '{{ orcamento.empresa_id }}';
+    }
+    {% endif %}
+    
+    // Transportadora
+    {% if orcamento.transportadora_id %}
+    console.log('[Modo Edição] transportadora_id={{ orcamento.transportadora_id }}');
+    const transpId = document.getElementById('transportadora_id');
+    if (transpId && !transpId.value) {
+        transpId.value = '{{ orcamento.transportadora_id }}';
+    }
+    {% endif %}
+    
+    // Carregar duplicatas existentes
+    {% if duplicatas and duplicatas|length > 0 %}
+    console.log('[Modo Edição] Carregando {{ duplicatas|length }} duplicatas');
+    const duplicatasExistentes = [
+        {% for dup in duplicatas %}
+        {
+            numero: {{ dup.numero }},
+            vencimento: '{{ dup.vencimento.strftime("%Y-%m-%d") if dup.vencimento else "" }}',
+            valor: {{ dup.valor|default(0) }},
+            forma_pagamento: '{{ dup.forma_pagamento|default("") }}'
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Preencher array global
+    duplicatasOrcamento = duplicatasExistentes;
+    console.log('[Modo Edição] duplicatasOrcamento preenchido:', duplicatasOrcamento.length);
+    
+    // Atualizar select de parcelas com o número correto de opções
+    const selectParcelas = document.getElementById('pagamento_parcelas');
+    if (selectParcelas && formaPagamentoSelecionada) {
+        const maxParcelas = formaPagamentoSelecionada.maxParcelas || 12;
+        selectParcelas.innerHTML = '';
+        for (let i = 1; i <= maxParcelas; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i + 'x';
+            if (i === duplicatasExistentes.length) opt.selected = true;
+            selectParcelas.appendChild(opt);
+        }
+    }
+    
+    // Renderizar parcelas na tabela (com delay maior para garantir DOM pronto)
+    setTimeout(function() {
+        console.log('[Modo Edição] Renderizando parcelas...');
+        renderizarParcelasPagamento();
+        atualizarValorTotalPagamento();
+    }, 800);
+    {% endif %}
+});
+</script>
+{% endif %}
+{% endblock %}

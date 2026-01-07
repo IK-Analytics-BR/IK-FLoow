@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de ERP - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Configuração de Integração com ERP</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('integration.integrations_dashboard') }}">Integrações</a></li>
+        <li class="breadcrumb-item active">Configuração de ERP</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cog me-1"></i>
+                    Configurações de Conexão
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('integration.erp_update_config') }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {% if erp_status.enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="enabled">Habilitar Integração com ERP</label>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="erp_type" class="form-label">Tipo de ERP</label>
+                                    <select class="form-select" id="erp_type" name="erp_type">
+                                        <option value="generic" {% if erp_status.erp_type == 'generic' %}selected{% endif %}>Genérico (REST API)</option>
+                                        <option value="sap" {% if erp_status.erp_type == 'sap' %}selected{% endif %}>SAP</option>
+                                        <option value="oracle" {% if erp_status.erp_type == 'oracle' %}selected{% endif %}>Oracle</option>
+                                        <option value="microsoft" {% if erp_status.erp_type == 'microsoft' %}selected{% endif %}>Microsoft Dynamics</option>
+                                        <option value="totvs" {% if erp_status.erp_type == 'totvs' %}selected{% endif %}>TOTVS</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="base_url" class="form-label">URL Base da API</label>
+                                    <input type="url" class="form-control" id="base_url" name="base_url" value="{{ erp_status.base_url }}" placeholder="https://erp.example.com/api">
+                                    <div class="form-text">URL base para a API do ERP, sem barras no final.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="sync_interval" class="form-label">Intervalo de Sincronização (segundos)</label>
+                                    <input type="number" class="form-control" id="sync_interval" name="sync_interval" value="{{ erp_status.sync_interval }}" min="60" max="86400">
+                                    <div class="form-text">Intervalo para sincronização automática (mínimo 60 segundos).</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="api_key" class="form-label">Chave de API</label>
+                                    <input type="password" class="form-control" id="api_key" name="api_key" value="{{ erp_status.api_key }}" placeholder="Chave de API para autenticação">
+                                    <div class="form-text">Deixe em branco para manter a chave atual.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Usuário</label>
+                                    <input type="text" class="form-control" id="username" name="username" value="{{ erp_status.username }}" placeholder="Usuário para autenticação básica">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Senha</label>
+                                    <input type="password" class="form-control" id="password" name="password" placeholder="Senha para autenticação básica">
+                                    <div class="form-text">Deixe em branco para manter a senha atual.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar Configurações
+                            </button>
+                            <button type="button" id="testConnection" class="btn btn-secondary">
+                                <i class="fas fa-plug me-1"></i> Testar Conexão
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-sync me-1"></i>
+                    Sincronização de Dados
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Equipamentos</h5>
+                                    <p class="card-text">Sincronize dados de equipamentos entre o CMMS e o ERP.</p>
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-primary btn-sm sync-btn" data-type="equipment" data-direction="pull">
+                                            <i class="fas fa-download me-1"></i> Importar
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-sm sync-btn" data-type="equipment" data-direction="push">
+                                            <i class="fas fa-upload me-1"></i> Exportar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Estoque</h5>
+                                    <p class="card-text">Sincronize dados de estoque e peças entre o CMMS e o ERP.</p>
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-primary btn-sm sync-btn" data-type="inventory" data-direction="pull">
+                                            <i class="fas fa-download me-1"></i> Importar
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-sm sync-btn" data-type="inventory" data-direction="push">
+                                            <i class="fas fa-upload me-1"></i> Exportar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Ordens de Serviço</h5>
+                                    <p class="card-text">Sincronize ordens de serviço e custos com o ERP.</p>
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-primary btn-sm sync-btn" data-type="service_orders" data-direction="pull" disabled>
+                                            <i class="fas fa-download me-1"></i> Importar
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-sm sync-btn" data-type="service_orders" data-direction="push">
+                                            <i class="fas fa-upload me-1"></i> Exportar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" id="syncAll" class="btn btn-primary">
+                            <i class="fas fa-sync-alt me-1"></i> Sincronizar Tudo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Informações sobre Integração com ERP
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Requisitos para Integração</h5>
+                            <ul>
+                                <li>API REST disponível no sistema ERP</li>
+                                <li>Credenciais de acesso com permissões adequadas</li>
+                                <li>Mapeamento de campos entre os sistemas</li>
+                                <li>Conexão de rede estável entre os sistemas</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Tipos de Dados Sincronizados</h5>
+                            <ul>
+                                <li><strong>Equipamentos:</strong> Informações básicas, localização, status</li>
+                                <li><strong>Estoque:</strong> Peças, quantidades, custos unitários</li>
+                                <li><strong>Ordens de Serviço:</strong> Detalhes, custos, status</li>
+                                <li><strong>Clientes:</strong> Informações básicas de contato</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>Importante:</strong> A sincronização pode substituir dados existentes. Certifique-se de fazer backup antes de sincronizar pela primeira vez.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Resultado -->
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resultModalLabel">Resultado da Operação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="resultMessage"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Testar conexão
+        $('#testConnection').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.erp_test_connection") }}',
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                        if (response.details) {
+                            $('#resultMessage').append('<div class="mt-2"><strong>Detalhes:</strong><pre class="mt-2">' + response.details + '</pre></div>');
+                        }
+                    }
+                    $('#resultModalLabel').text('Teste de Conexão');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao executar teste de conexão.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Sincronizar dados
+        $('.sync-btn').click(function() {
+            var type = $(this).data('type');
+            var direction = $(this).data('direction');
+            
+            $.ajax({
+                url: '{{ url_for("integration.erp_sync") }}',
+                type: 'POST',
+                data: {
+                    sync_type: type,
+                    direction: direction
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                        if (response.details) {
+                            $('#resultMessage').append('<div class="mt-2"><strong>Detalhes:</strong><pre class="mt-2">' + response.details + '</pre></div>');
+                        }
+                    }
+                    $('#resultModalLabel').text('Sincronização de ' + type);
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao executar sincronização.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+        
+        // Sincronizar tudo
+        $('#syncAll').click(function() {
+            $.ajax({
+                url: '{{ url_for("integration.erp_sync") }}',
+                type: 'POST',
+                data: {
+                    sync_type: 'all'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#resultMessage').html('<div class="alert alert-success">' + response.message + '</div>');
+                        
+                        // Mostrar detalhes de cada sincronização
+                        if (response.details) {
+                            var details = '<div class="mt-3"><h6>Detalhes:</h6><ul>';
+                            
+                            if (response.details.equipment_pull) {
+                                details += '<li>Equipamentos: ' + (response.details.equipment_pull.success ? 
+                                    '<span class="text-success">' + response.details.equipment_pull.message + '</span>' : 
+                                    '<span class="text-danger">' + response.details.equipment_pull.message + '</span>') + '</li>';
+                            }
+                            
+                            if (response.details.inventory_pull) {
+                                details += '<li>Estoque: ' + (response.details.inventory_pull.success ? 
+                                    '<span class="text-success">' + response.details.inventory_pull.message + '</span>' : 
+                                    '<span class="text-danger">' + response.details.inventory_pull.message + '</span>') + '</li>';
+                            }
+                            
+                            if (response.details.service_orders_push) {
+                                details += '<li>Ordens de Serviço: ' + (response.details.service_orders_push.success ? 
+                                    '<span class="text-success">' + response.details.service_orders_push.message + '</span>' : 
+                                    '<span class="text-danger">' + response.details.service_orders_push.message + '</span>') + '</li>';
+                            }
+                            
+                            details += '</ul></div>';
+                            $('#resultMessage').append(details);
+                        }
+                    } else {
+                        $('#resultMessage').html('<div class="alert alert-danger">' + response.message + '</div>');
+                        if (response.details) {
+                            $('#resultMessage').append('<div class="mt-2"><strong>Detalhes:</strong><pre class="mt-2">' + JSON.stringify(response.details, null, 2) + '</pre></div>');
+                        }
+                    }
+                    $('#resultModalLabel').text('Sincronização Completa');
+                    $('#resultModal').modal('show');
+                },
+                error: function() {
+                    $('#resultMessage').html('<div class="alert alert-danger">Erro ao executar sincronização.</div>');
+                    $('#resultModalLabel').text('Erro');
+                    $('#resultModal').modal('show');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

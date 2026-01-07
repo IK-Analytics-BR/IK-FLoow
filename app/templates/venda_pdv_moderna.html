@@ -1,0 +1,728 @@
+{% extends "base.html" %}
+
+{% block title %}PDV - Ponto de Venda{% endblock %}
+
+{% block styles %}
+<style>
+    /* ===== OCULTAR MENU E NAVBAR NO PDV ===== */
+    #sidebar,
+    nav.navbar,
+    .navbar {
+        display: none !important;
+    }
+    
+    #content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* ===== CORES E TEMA ===== */
+    :root {
+        --primary-blue: #1e3a5f;
+        --secondary-blue: #2e5984;
+        --success-green: #22c55e;
+        --danger-red: #ef4444;
+        --warning-orange: #f59e0b;
+        --info-cyan: #06b6d4;
+        --dark-gray: #374151;
+        --light-gray: #f3f4f6;
+        --white: #ffffff;
+    }
+    
+    /* ===== RESET E BASE ===== */
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .pdv-container {
+        display: flex;
+        flex-direction: column;
+        height: 90vh; /* Ajustável - não sobrepõe barra Windows */
+        max-height: 90vh;
+        width: 100%; /* Largura total */
+        margin: 0;
+        background: var(--light-gray);
+        overflow: hidden;
+        position: relative;
+    }
+    
+    /* Botão de ajuste de altura */
+    .pdv-height-control {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background: var(--primary-blue);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+        z-index: 9999;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+    }
+    
+    .pdv-height-control:hover {
+        opacity: 1;
+    }
+    
+    /* ===== CABEÇALHO ===== */
+    .pdv-header {
+        background: var(--primary-blue);
+        color: white;
+        padding: 10px 20px;
+        border-bottom: 3px solid var(--secondary-blue);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+        height: 60px;
+    }
+    
+    .pdv-header-logo-sistema {
+        height: 35px;
+        opacity: 0.9;
+    }
+    
+    .pdv-header h1 {
+        font-size: 24px;
+        margin: 0;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    
+    .pdv-header-info {
+        display: flex;
+        gap: 20px;
+        font-size: 14px;
+    }
+    
+    /* ===== LAYOUT PRINCIPAL ===== */
+    .pdv-main {
+        display: grid;
+        grid-template-columns: 30% 70%; /* Coluna esquerda 30%, direita 70% */
+        gap: 0;
+        flex: 1;
+        overflow: hidden;
+        padding: 0;
+    }
+    
+    /* ===== PAINEL ESQUERDO ===== */
+    .pdv-left {
+        background: var(--secondary-blue);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        overflow-y: auto; /* Scroll apenas se necessário */
+        height: 100%;
+    }
+    
+    .pdv-box {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .pdv-box-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .pdv-input-group {
+        margin-bottom: 15px;
+    }
+    
+    .pdv-input-group label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+    
+    .pdv-input {
+        width: 100%;
+        padding: 12px;
+        font-size: 24px;
+        font-weight: 700;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        text-align: center;
+        background: #f9fafb;
+        color: var(--primary-blue);
+    }
+    
+    .pdv-input:focus {
+        outline: none;
+        border-color: var(--success-green);
+        background: white;
+    }
+    
+    .pdv-total-display {
+        background: linear-gradient(135deg, var(--success-green), #16a34a);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: auto;
+    }
+    
+    .pdv-total-label {
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+    
+    .pdv-total-value {
+        font-size: 48px;
+        font-weight: 900;
+        letter-spacing: -2px;
+    }
+    
+    /* ===== PAINEL DIREITO ===== */
+    .pdv-right {
+        background: white;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        gap: 0;
+    }
+    
+    .pdv-produtos-header {
+        background: var(--primary-blue);
+        color: white;
+        padding: 12px 15px;
+        border-radius: 6px 6px 0 0;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 14px;
+    }
+    
+    .pdv-produtos-table {
+        flex: 1; /* Usa todo o espaço disponível */
+        overflow-y: auto; /* Scroll apenas na tabela */
+        border: 2px solid var(--primary-blue);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        min-height: 0; /* Fix para flex */
+        max-height: 100%; /* Não ultrapassa o container */
+    }
+    
+    .pdv-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .pdv-table thead {
+        background: #f3f4f6;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .pdv-table th {
+        padding: 10px 8px;
+        text-align: left;
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--dark-gray);
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .pdv-table td {
+        padding: 12px 8px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .pdv-table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .pdv-table tbody tr:nth-child(even) {
+        background: #fafbfc;
+    }
+    
+    .pdv-table .text-center {
+        text-align: center;
+    }
+    
+    .pdv-table .text-right {
+        text-align: right;
+    }
+    
+    /* ===== RODAPÉ DO PDV ===== */
+    .pdv-footer {
+        background: var(--light-gray);
+        padding: 15px 20px;
+        border-top: 3px solid var(--primary-blue);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        flex-shrink: 0; /* Não encolhe */
+        height: auto; /* Altura automática baseada no conteúdo */
+        min-height: 100px; /* Altura mínima garantida */
+        position: relative; /* Garante que fique visível */
+        z-index: 10; /* Fica acima de outros elementos */
+    }
+    
+    .pdv-footer-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        border: 2px solid #e5e7eb;
+    }
+    
+    .pdv-footer-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    
+    .pdv-footer-value {
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--primary-blue);
+    }
+    
+    /* ===== BOTÕES ===== */
+    .pdv-btn {
+        padding: 15px 25px;
+        font-size: 16px;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .pdv-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .pdv-btn-success {
+        background: var(--success-green);
+        color: white;
+    }
+    
+    .pdv-btn-danger {
+        background: var(--danger-red);
+        color: white;
+    }
+    
+    .pdv-btn-primary {
+        background: var(--primary-blue);
+        color: white;
+    }
+    
+    .pdv-btn-info {
+        background: var(--info-cyan);
+        color: white;
+    }
+    
+    .pdv-btn i {
+        font-size: 20px;
+    }
+    
+    .pdv-btn kbd {
+        background: rgba(255,255,255,0.2);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+    
+    /* ===== ÍCONE DO CARRINHO ===== */
+    .pdv-cart-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--success-green), #16a34a);
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+    
+    .pdv-cart-icon i {
+        font-size: 40px;
+        color: white;
+    }
+    
+    /* ===== BADGE DE QUANTIDADE ===== */
+    .qty-badge {
+        background: var(--info-cyan);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    
+    /* ===== BOTÃO REMOVER ===== */
+    .btn-remove {
+        background: var(--danger-red);
+        color: white;
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    
+    .btn-remove:hover {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+    
+    /* ===== RESPONSIVO ===== */
+    @media (max-width: 1400px) {
+        .pdv-main {
+            grid-template-columns: 350px 1fr;
+        }
+        
+        .pdv-left {
+            padding: 15px;
+            gap: 10px;
+        }
+        
+        .pdv-box {
+            padding: 10px;
+        }
+        
+        .pdv-input {
+            font-size: 20px;
+            padding: 10px;
+        }
+        
+        .pdv-total-value {
+            font-size: 36px;
+        }
+    }
+    
+    @media (max-width: 1200px) {
+        .pdv-main {
+            grid-template-columns: 300px 1fr;
+        }
+        
+        .pdv-footer {
+            grid-template-columns: repeat(2, 1fr);
+            padding: 10px;
+            gap: 10px;
+        }
+        
+        .pdv-footer-value {
+            font-size: 20px;
+        }
+    }
+    
+    @media (max-width: 900px) {
+        .pdv-main {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto 1fr;
+        }
+        
+        .pdv-left {
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        
+        .pdv-footer {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    /* ===== SCROLLBAR CUSTOMIZADA ===== */
+    .pdv-produtos-table::-webkit-scrollbar,
+    .pdv-left::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .pdv-produtos-table::-webkit-scrollbar-track,
+    .pdv-left::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    
+    .pdv-produtos-table::-webkit-scrollbar-thumb,
+    .pdv-left::-webkit-scrollbar-thumb {
+        background: var(--primary-blue);
+        border-radius: 4px;
+    }
+    
+    .pdv-produtos-table::-webkit-scrollbar-thumb:hover,
+    .pdv-left::-webkit-scrollbar-thumb:hover {
+        background: var(--secondary-blue);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdv-container">
+    <!-- CABEÇALHO -->
+    <div class="pdv-header">
+        <!-- Logo Sistema (esquerda, discreta) -->
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="{{ url_for('static', filename='img/logo-sistema.svg') }}" 
+                 alt="Sistema PDV" 
+                 class="pdv-header-logo-sistema">
+            <h1 style="margin: 0; font-size: 22px;">🛒 PDV - CAIXA ABERTO</h1>
+        </div>
+        
+        <!-- Info (direita) -->
+        <div class="pdv-header-info">
+            <span><strong>Operador:</strong> {{ session.get('username', 'Admin') }}</span>
+            <span><strong>Caixa:</strong> #1</span>
+            <span id="pdv-clock"></span>
+        </div>
+    </div>
+    
+    <!-- LAYOUT PRINCIPAL -->
+    <div class="pdv-main">
+        <!-- PAINEL ESQUERDO -->
+        <div class="pdv-left">
+            <!-- CÓDIGO DE BARRAS -->
+            <div class="pdv-box">
+                <div class="pdv-box-title">📦 Código de Barras</div>
+                <input type="text" 
+                       id="codigoBarras" 
+                       class="pdv-input" 
+                       placeholder="00000" 
+                       autofocus
+                       onkeypress="handleCodigoProduto(event)">
+            </div>
+            
+            <!-- VALOR UNITÁRIO -->
+            <div class="pdv-box">
+                <div class="pdv-box-title">💵 Valor Unitário</div>
+                <input type="text" 
+                       id="valorUnitario" 
+                       class="pdv-input" 
+                       value="R$ 0,00" 
+                       readonly>
+            </div>
+            
+            <!-- TOTAL DO ITEM -->
+            <div class="pdv-box">
+                <div class="pdv-box-title">🧾 Total do Item</div>
+                <input type="text" 
+                       id="totalItem" 
+                       class="pdv-input" 
+                       value="R$ 0,00" 
+                       readonly>
+            </div>
+            
+            <!-- ÍCONE CARRINHO -->
+            <div class="pdv-cart-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            
+            <!-- TOTAL GERAL -->
+            <div class="pdv-total-display">
+                <div class="pdv-total-label">TOTAL DO ITEM</div>
+                <div class="pdv-total-value" id="totalGeralDisplay">R$ 0,00</div>
+            </div>
+        </div>
+        
+        <!-- PAINEL DIREITO -->
+        <div class="pdv-right">
+            <!-- CABEÇALHO DA LISTA -->
+            <div class="pdv-produtos-header">
+                📋 LISTA DE PRODUTOS
+            </div>
+            
+            <!-- TABELA DE PRODUTOS -->
+            <div class="pdv-produtos-table">
+                <table class="pdv-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">Item</th>
+                            <th style="width: 120px;">Cód. Barras</th>
+                            <th>Descrição</th>
+                            <th class="text-center" style="width: 80px;">Qtd</th>
+                            <th class="text-right" style="width: 100px;">VL Unit</th>
+                            <th class="text-right" style="width: 100px;">VL Desc</th>
+                            <th class="text-right" style="width: 100px;">Total Item</th>
+                            <th class="text-center" style="width: 60px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gradeVendasBody">
+                        <tr>
+                            <td colspan="8" class="text-center" style="padding: 40px; color: #9ca3af;">
+                                <i class="fas fa-box-open fa-3x mb-3" style="display: block; margin-bottom: 15px;"></i>
+                                Nenhum produto adicionado. Use o leitor de código de barras ou pressione <kbd>F3</kbd>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- RODAPÉ COM TOTAIS -->
+            <div class="pdv-footer">
+                <div class="pdv-footer-item">
+                    <div class="pdv-footer-label">Subtotal</div>
+                    <div class="pdv-footer-value" id="subtotalDisplay">0,00</div>
+                </div>
+                <div class="pdv-footer-item">
+                    <div class="pdv-footer-label">Total Recebido</div>
+                    <div class="pdv-footer-value" id="totalRecebidoDisplay">0,00</div>
+                </div>
+                <div class="pdv-footer-item">
+                    <div class="pdv-footer-label">Troco</div>
+                    <div class="pdv-footer-value" id="trocoDisplay" style="color: var(--success-green);">0,00</div>
+                </div>
+                <div class="pdv-footer-item" style="display: flex; align-items: center; justify-content: center;">
+                    <button class="pdv-btn pdv-btn-success" onclick="finalizarVenda()" style="width: 100%; padding: 20px;">
+                        <i class="fas fa-check-circle"></i>
+                        FINALIZAR
+                        <kbd>F9</kbd>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CONTROLE DE ALTURA -->
+<div class="pdv-height-control" id="heightControl" title="Ajustar altura da tela">
+    Altura: <span id="heightValue">90</span>%
+</div>
+
+<!-- ADICIONAR ATALHOS DE TECLADO -->
+<script>
+document.addEventListener('keydown', function(e) {
+    // F11 - Tela cheia
+    if (e.key === 'F11') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    
+    // Ctrl + Seta Cima/Baixo para ajustar altura
+    if (e.ctrlKey && e.key === 'ArrowUp') {
+        e.preventDefault();
+        adjustHeight(5);
+    }
+    if (e.ctrlKey && e.key === 'ArrowDown') {
+        e.preventDefault();
+        adjustHeight(-5);
+    }
+});
+
+// Função para ajustar altura
+let currentHeight = 90;
+function adjustHeight(delta) {
+    currentHeight += delta;
+    if (currentHeight < 80) currentHeight = 80;
+    if (currentHeight > 100) currentHeight = 100;
+    
+    const container = document.querySelector('.pdv-container');
+    if (container) {
+        container.style.height = currentHeight + 'vh';
+        container.style.maxHeight = currentHeight + 'vh';
+    }
+    
+    const heightValue = document.getElementById('heightValue');
+    if (heightValue) {
+        heightValue.textContent = currentHeight;
+    }
+    
+    // Salvar preferência
+    localStorage.setItem('pdv_height', currentHeight);
+}
+
+// Carregar altura salva
+window.addEventListener('load', function() {
+    const savedHeight = localStorage.getItem('pdv_height');
+    if (savedHeight) {
+        currentHeight = parseInt(savedHeight);
+        adjustHeight(0); // Aplicar altura salva
+    }
+});
+
+// Clique no controle para ajustar
+document.getElementById('heightControl').addEventListener('click', function() {
+    const newHeight = prompt('Digite a altura desejada (80-100%):', currentHeight);
+    if (newHeight) {
+        const height = parseInt(newHeight);
+        if (height >= 80 && height <= 100) {
+            currentHeight = height;
+            adjustHeight(0);
+        }
+    }
+});
+</script>
+
+<!-- SCRIPTS -->
+<script>
+    // Relógio
+    function atualizarRelogio() {
+        const agora = new Date();
+        const hora = agora.toLocaleTimeString('pt-BR');
+        document.getElementById('pdv-clock').textContent = hora;
+    }
+    setInterval(atualizarRelogio, 1000);
+    atualizarRelogio();
+    
+    // Focar no código de barras ao carregar
+    window.addEventListener('load', function() {
+        const inputCodigo = document.getElementById('codigoBarras');
+        if (inputCodigo) {
+            inputCodigo.focus();
+            
+            // Adicionar listener para detectar *3 em tempo real
+            inputCodigo.addEventListener('input', function(e) {
+                const valor = e.target.value;
+                // Se digitou * seguido de número, processar
+                if (valor.match(/^\*\d+$/)) {
+                    const numero = parseInt(valor.substring(1));
+                    if (!isNaN(numero) && numero > 0) {
+                        // Simular evento keypress para processar
+                        const event = new KeyboardEvent('keypress', {key: 'Enter'});
+                        handleCodigoProduto({...event, target: e.target, key: '*'});
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<!-- PDV MODERNO: MODAIS -->
+{% include 'modals/pdv_modals.html' %}
+
+<!-- PDV MODERNO: JAVASCRIPT -->
+<script src="{{ url_for('static', filename='js/pdv.js') }}"></script>
+{% endblock %}

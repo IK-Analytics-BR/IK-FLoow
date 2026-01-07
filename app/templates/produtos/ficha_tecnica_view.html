@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}Ficha Técnica - {{ ficha.produto_nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ url_for('ficha_tecnica.listar') }}" class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Voltar
+            </a>
+            <h4 class="mb-0">
+                <i class="fas fa-clipboard-list text-primary me-2"></i>
+                Ficha Técnica
+            </h4>
+        </div>
+        <div>
+            <a href="{{ url_for('ficha_tecnica.editar', id=ficha.id) }}" class="btn btn-warning">
+                <i class="fas fa-edit me-1"></i>Editar
+            </a>
+            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modalDuplicar">
+                <i class="fas fa-copy me-1"></i>Duplicar
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informações do Produto -->
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-box me-2"></i>Informações do Produto
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Código</label>
+                            <p class="fw-bold"><code>{{ ficha.produto_codigo or '-' }}</code></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Produto</label>
+                            <p class="fw-bold">{{ ficha.produto_nome }}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Unidade</label>
+                            <p class="fw-bold">{{ ficha.produto_unidade or 'UN' }}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Custo Atual</label>
+                            <p class="fw-bold text-primary">R$ {{ "%.2f"|format(ficha.produto_custo_atual or 0) }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Nome do Template</label>
+                            <p>{{ ficha.nome_template }}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Versão</label>
+                            <p><span class="badge bg-secondary">v{{ ficha.versao }}</span></p>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Tempo Produção</label>
+                            <p class="fw-bold">{{ ficha.tempo_producao_horas or 0 }}h</p>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Status</label>
+                            <p>
+                                {% if ficha.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if ficha.observacoes %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Observações</label>
+                            <p>{{ ficha.observacoes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Serviços / Mão de Obra -->
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-tools me-2"></i>Mão de Obra / Serviços
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th class="text-center">Qtde</th>
+                                <th class="text-center">Unidade</th>
+                                <th class="text-end">Custo Unit.</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in servicos %}
+                            <tr>
+                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td>{{ item.produto_nome or item.descricao or '-' }}</td>
+                                <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
+                                <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Nenhum serviço cadastrado</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold">Subtotal Serviços:</td>
+                                <td class="text-end fw-bold">R$ {{ "%.2f"|format(totais.servicos) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Matéria Prima -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-cubes me-2"></i>Matéria Prima
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th class="text-center">Qtde</th>
+                                <th class="text-center">Unidade</th>
+                                <th class="text-end">Custo Unit.</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in materias_primas %}
+                            <tr>
+                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td>{{ item.produto_nome or item.descricao or '-' }}</td>
+                                <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
+                                <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Nenhuma matéria prima cadastrada</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold">Subtotal Matéria Prima:</td>
+                                <td class="text-end fw-bold">R$ {{ "%.2f"|format(totais.materias_primas) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Consumo Interno -->
+            <div class="card mb-3">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-industry me-2"></i>Consumo Interno
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th class="text-center">Qtde</th>
+                                <th class="text-center">Unidade</th>
+                                <th class="text-end">Custo Unit.</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in consumo_interno %}
+                            <tr>
+                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td>{{ item.produto_nome or item.descricao or '-' }}</td>
+                                <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
+                                <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Nenhum consumo interno cadastrado</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold">Subtotal Consumo:</td>
+                                <td class="text-end fw-bold">R$ {{ "%.2f"|format(totais.consumo_interno) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Histórico de Produção - Chão de Fábrica -->
+            <div class="card mb-3">
+                <div class="card-header bg-dark text-white">
+                    <i class="fas fa-history me-2"></i>Histórico de Produção (Últimas 10 OPs)
+                </div>
+                <div class="card-body">
+                    {% if historico_producao and historico_producao.total_ops > 0 %}
+                    <!-- Resumo Calculado -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block">Total OPs Analisadas</small>
+                                <strong class="fs-4 text-primary">{{ historico_producao.total_ops }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block">Unidades Produzidas</small>
+                                <strong class="fs-4 text-success">{{ historico_producao.total_quantidade }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block">Tempo Total</small>
+                                <strong class="fs-4 text-info">{{ historico_producao.total_tempo_horas }}h</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-2 text-center bg-warning">
+                                <small class="text-dark d-block">Tempo/Unidade</small>
+                                <strong class="fs-4 text-dark">{{ "%.2f"|format(historico_producao.tempo_por_unidade_minutos) }} min</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tempo por Etapa -->
+                    {% if historico_producao.tempos_etapas %}
+                    <h6 class="mt-3 mb-2"><i class="fas fa-tasks me-1"></i>Tempo Médio por Etapa</h6>
+                    <table class="table table-sm table-bordered mb-3">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Etapa</th>
+                                <th class="text-center">Registros</th>
+                                <th class="text-center">Mínimo</th>
+                                <th class="text-center">Médio</th>
+                                <th class="text-center">Máximo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for etapa in historico_producao.tempos_etapas %}
+                            <tr>
+                                <td><i class="fas fa-circle me-1" style="color: #6c757d; font-size: 8px;"></i>{{ etapa.etapa_nome }}</td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ etapa.qtd_registros }}</span></td>
+                                <td class="text-center text-success">{{ "%.0f"|format(etapa.tempo_min_minutos or 0) }} min</td>
+                                <td class="text-center text-primary fw-bold">{{ "%.0f"|format(etapa.tempo_medio_minutos or 0) }} min</td>
+                                <td class="text-center text-danger">{{ "%.0f"|format(etapa.tempo_max_minutos or 0) }} min</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    <!-- Lista das Últimas OPs -->
+                    <h6 class="mt-3 mb-2"><i class="fas fa-list me-1"></i>Detalhamento por OP</h6>
+                    <table class="table table-sm table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>OP</th>
+                                <th class="text-center">Qtde</th>
+                                <th class="text-center">Início</th>
+                                <th class="text-center">Conclusão</th>
+                                <th class="text-center">Tempo Total</th>
+                                <th class="text-center">Tempo/Un</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for op in historico_producao.ultimas_ops %}
+                            <tr>
+                                <td><a href="{{ url_for('ordem_producao.visualizar_op', id=op.id) }}">{{ op.numero_op }}</a></td>
+                                <td class="text-center">{{ op.quantidade }}</td>
+                                <td class="text-center">{{ op.data_inicio_producao.strftime('%d/%m/%Y') if op.data_inicio_producao else '-' }}</td>
+                                <td class="text-center">{{ op.data_conclusao.strftime('%d/%m/%Y') if op.data_conclusao else '-' }}</td>
+                                <td class="text-center">
+                                    {% set horas = (op.tempo_total_minutos or 0) // 60 %}
+                                    {% set minutos = (op.tempo_total_minutos or 0) % 60 %}
+                                    {{ horas }}h {{ minutos }}m
+                                </td>
+                                <td class="text-center">
+                                    {% if op.quantidade and op.quantidade > 0 and op.tempo_total_minutos %}
+                                    {{ "%.2f"|format((op.tempo_total_minutos or 0) / op.quantidade) }} min
+                                    {% else %}-{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <!-- Botão para atualizar ficha com dados reais -->
+                    <div class="text-end mt-3">
+                        <button type="button" class="btn btn-warning" onclick="atualizarTempoReal()">
+                            <i class="fas fa-sync-alt me-1"></i>Atualizar Ficha com Tempo Real
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                        <p>Nenhuma OP concluída encontrada para este produto.</p>
+                        <small>O histórico será preenchido automaticamente conforme OPs forem concluídas.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo de Custos -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 70px;">
+                <div class="card-header bg-dark text-white">
+                    <i class="fas fa-calculator me-2"></i>Resumo de Custos
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-tools text-info me-2"></i>Mão de Obra:</span>
+                        <strong>R$ {{ "%.2f"|format(totais.servicos) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-cubes text-success me-2"></i>Matéria Prima:</span>
+                        <strong>R$ {{ "%.2f"|format(totais.materias_primas) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-industry text-warning me-2"></i>Consumo Interno:</span>
+                        <strong>R$ {{ "%.2f"|format(totais.consumo_interno) }}</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong class="text-primary">CUSTO TOTAL:</strong>
+                        <strong class="text-primary fs-5">R$ {{ "%.2f"|format(totais.total) }}</strong>
+                    </div>
+                    
+                    {% if ficha.produto_custo_atual %}
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Custo Cadastrado:</span>
+                        <strong>R$ {{ "%.2f"|format(ficha.produto_custo_atual|float) }}</strong>
+                    </div>
+                    {% set diferenca = totais.total - (ficha.produto_custo_atual|float or 0) %}
+                    <div class="d-flex justify-content-between">
+                        <span>Diferença:</span>
+                        <strong class="{{ 'text-danger' if diferenca > 0 else 'text-success' }}">
+                            {{ '+' if diferenca > 0 else '' }}R$ {{ "%.2f"|format(diferenca) }}
+                        </strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Atualizado em: {{ ficha.updated_at.strftime('%d/%m/%Y %H:%M') if ficha.updated_at else '-' }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Duplicar -->
+<div class="modal fade" id="modalDuplicar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('ficha_tecnica.duplicar', id=ficha.id) }}">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-copy me-2"></i>Duplicar Ficha Técnica</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Esta ação irá copiar toda a ficha técnica para outro produto.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Produto de Destino</label>
+                        <input type="text" class="form-control" id="buscaProdutoDestino" 
+                               placeholder="Digite para buscar..." autocomplete="off">
+                        <input type="hidden" name="produto_destino_id" id="produto_destino_id" required>
+                        <div id="listaProdutosDestino" class="list-group mt-1" style="max-height:200px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info" id="btnDuplicar" disabled>
+                        <i class="fas fa-copy me-1"></i>Duplicar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('buscaProdutoDestino').addEventListener('input', function() {
+    const termo = this.value.trim();
+    const lista = document.getElementById('listaProdutosDestino');
+    
+    if (termo.length < 2) {
+        lista.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria=6`)
+        .then(r => r.json())
+        .then(produtos => {
+            lista.innerHTML = '';
+            produtos.forEach(p => {
+                const item = document.createElement('a');
+                item.href = '#';
+                item.className = 'list-group-item list-group-item-action';
+                item.innerHTML = `<strong>${p.codigo || p.id}</strong> - ${p.nome}`;
+                item.onclick = function(e) {
+                    e.preventDefault();
+                    document.getElementById('produto_destino_id').value = p.id;
+                    document.getElementById('buscaProdutoDestino').value = `${p.codigo || p.id} - ${p.nome}`;
+                    document.getElementById('btnDuplicar').disabled = false;
+                    lista.innerHTML = '';
+                };
+                lista.appendChild(item);
+            });
+        });
+});
+
+function atualizarTempoReal() {
+    if (!confirm('Deseja atualizar o tempo de produção da ficha técnica com base no histórico real do chão de fábrica?\n\nIsso irá:\n- Atualizar o tempo de produção para {{ "%.2f"|format(historico_producao.tempo_por_unidade_horas) }}h por unidade\n- Sincronizar o item de serviço principal com este tempo')) {
+        return;
+    }
+    
+    fetch('/produtos/fichas-tecnicas/{{ ficha.id }}/atualizar-tempo-real', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            tempo_por_unidade_horas: {{ historico_producao.tempo_por_unidade_horas if historico_producao else 0 }},
+            tempo_por_unidade_minutos: {{ historico_producao.tempo_por_unidade_minutos if historico_producao else 0 }}
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Ficha técnica atualizada com sucesso!');
+            window.location.reload();
+        } else {
+            alert('Erro ao atualizar: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => {
+        alert('Erro na requisição: ' + err.message);
+    });
+}
+</script>
+{% endblock %}

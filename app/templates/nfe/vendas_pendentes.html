@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Vendas Pendentes de NF-e{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-clock text-warning"></i> 
+            Vendas Pendentes de NF-e
+        </h2>
+        <div>
+            <a href="{{ url_for('nfe_emissao.emitir_manual') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Emitir NF-e Manual
+            </a>
+            <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-primary">
+                <i class="fas fa-history"></i> Histórico
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter"></i> Filtros
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('nfe_emissao.vendas_pendentes') }}" id="formFiltros">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Data Início</label>
+                        <input type="date" name="data_inicio" class="form-control" 
+                               value="{{ filtros.data_inicio }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Data Fim</label>
+                        <input type="date" name="data_fim" class="form-control" 
+                               value="{{ filtros.data_fim }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Cliente</label>
+                        <select name="cliente_id" class="form-control">
+                            <option value="">Todos</option>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" 
+                                    {% if filtros.cliente_id == cliente.id|string %}selected{% endif %}>
+                                {{ cliente.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Empresa</label>
+                        <select name="empresa_id" class="form-control">
+                            <option value="">Todas</option>
+                            {% for empresa in empresas %}
+                            <option value="{{ empresa.id }}" 
+                                    {% if filtros.empresa_id == empresa.id|string %}selected{% endif %}>
+                                {{ empresa.nome_fantasia }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{{ url_for('nfe_emissao.vendas_pendentes') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Limpar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list"></i> 
+            Vendas sem NF-e 
+            <span class="badge bg-warning text-dark">{{ vendas|length }}</span>
+        </div>
+        <div class="card-body">
+            {% if vendas %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>CPF/CNPJ</th>
+                            <th>Empresa</th>
+                            <th>Itens</th>
+                            <th>Valor Total</th>
+                            <th>Pagamento</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venda in vendas %}
+                        <tr>
+                            <td><strong>#{{ venda.id }}</strong></td>
+                            <td>{{ venda.sale_date.strftime('%d/%m/%Y') if venda.sale_date else '-' }}</td>
+                            <td>{{ venda.cliente_nome or 'Não informado' }}</td>
+                            <td>{{ venda.cnpj_cpf or '-' }}</td>
+                            <td>{{ venda.empresa_nome or '-' }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ venda.qtd_itens }} item(ns)</span>
+                            </td>
+                            <td>
+                                <strong class="text-success">
+                                    R$ {{ "%.2f"|format(venda.total_amount) }}
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ venda.payment_method|upper }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-info" 
+                                            onclick="visualizarVenda({{ venda.id }})"
+                                            title="Visualizar">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-success" 
+                                            onclick="emitirNFe({{ venda.id }})"
+                                            title="Emitir NF-e">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h5>Nenhuma venda pendente encontrada</h5>
+                <p>Todas as vendas já possuem NF-e emitida ou não há vendas com os filtros selecionados.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Preview -->
+<div class="modal fade" id="modalPreview" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i> Preview da Venda
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Fechar
+                </button>
+                <button type="button" class="btn btn-success" id="btnEmitirModal">
+                    <i class="fas fa-file-invoice"></i> Emitir NF-e
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let vendaAtual = null;
+
+// Visualizar venda
+function visualizarVenda(vendaId) {
+    vendaAtual = vendaId;
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalPreview'));
+    modal.show();
+    
+    // Carregar dados
+    fetch(`/nfe/preview-venda/${vendaId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderPreview(data.venda, data.itens);
+            } else {
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('previewContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Erro ao carregar dados: ${error}
+                </div>
+            `;
+        });
+}
+
+// Renderizar preview
+function renderPreview(venda, itens) {
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-building"></i> Emitente</h5>
+                <p>
+                    <strong>${venda.empresa_nome}</strong><br>
+                    CNPJ: ${venda.empresa_cnpj || '-'}<br>
+                    IE: ${venda.empresa_ie || '-'}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-user"></i> Destinatário</h5>
+                <p>
+                    <strong>${venda.cliente_nome || 'Não informado'}</strong><br>
+                    CPF/CNPJ: ${venda.cnpj_cpf || '-'}<br>
+                    Email: ${venda.email || '-'}<br>
+                    Telefone: ${venda.phone || '-'}
+                </p>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h5><i class="fas fa-box"></i> Produtos/Serviços</h5>
+        <table class="table table-sm table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>NCM</th>
+                    <th>CFOP</th>
+                    <th>Qtd</th>
+                    <th>Valor Unit.</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    itens.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.produto_codigo || '-'}</td>
+                <td>${item.produto_nome}</td>
+                <td>${item.ncm || '-'}</td>
+                <td>${item.cfop || '-'}</td>
+                <td>${item.quantity} ${item.unit_measure || 'UN'}</td>
+                <td>R$ ${parseFloat(item.unit_price).toFixed(2)}</td>
+                <td><strong>R$ ${parseFloat(item.subtotal).toFixed(2)}</strong></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+            <tfoot>
+                <tr class="table-success">
+                    <td colspan="6" class="text-end"><strong>TOTAL DA NF-e:</strong></td>
+                    <td><strong>R$ ${parseFloat(venda.total_amount).toFixed(2)}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = html;
+}
+
+// Emitir NF-e (direto)
+function emitirNFe(vendaId) {
+    // Redirecionar para o formulário de emissão manual em modo edição
+    window.location.href = `/nfe/editar/${vendaId}`;
+}
+
+// Emitir do modal
+document.getElementById('btnEmitirModal').addEventListener('click', function() {
+    if (vendaAtual) {
+        bootstrap.Modal.getInstance(document.getElementById('modalPreview')).hide();
+        emitirNFe(vendaAtual);
+    }
+});
+</script>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Usuário{% endblock %}
+
+{% block extra_css %}
+<style>
+    .view-container {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .view-label { font-weight: 600; color: #495057; }
+    .view-value { margin-bottom: 15px; }
+    .badge-role { font-size: 0.9rem; padding: 0.35em 0.65em; }
+    .badge-admin { background-color: #dc3545; }
+    .badge-user { background-color: #0d6efd; }
+    .badge-supplier { background-color: #198754; }
+    .badge-status-active { background-color: #198754; }
+    .badge-status-inactive { background-color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Visualizar Usuário</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <a href="{{ url_for('usuario.usuario_editar', id=usuario.id) }}" class="btn btn-sm btn-warning me-2">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <a href="{{ url_for('usuario.usuarios') }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="view-container">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Código</div>
+                                    <div class="view-value">{{ usuario.id }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Nome Completo</div>
+                                    <div class="view-value">{{ usuario.name }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Nome de Usuário</div>
+                                    <div class="view-value">{{ usuario.username }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Email</div>
+                                    <div class="view-value">{{ usuario.email }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="view-label">Perfil</div>
+                                    <div class="view-value">
+                                        {% if usuario.role == 'admin' %}
+                                        <span class="badge badge-role badge-admin">Administrador</span>
+                                        {% elif usuario.role == 'user' %}
+                                        <span class="badge badge-role badge-user">Usuário</span>
+                                        {% elif usuario.role == 'supplier' %}
+                                        <span class="badge badge-role badge-supplier">Fornecedor</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="view-label">Status</div>
+                                    <div class="view-value">
+                                        {% if usuario.status == 'active' %}
+                                        <span class="badge badge-status-active">Ativo</span>
+                                        {% else %}
+                                        <span class="badge badge-status-inactive">Inativo</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="view-container">
+                            <h5>Permissões</h5>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <ul class="list-group">
+                                        {% if usuario.role == 'admin' %}
+                                        <li class="list-group-item">Acesso total ao sistema</li>
+                                        <li class="list-group-item">Gerenciamento de usuários</li>
+                                        <li class="list-group-item">Gerenciamento de clientes</li>
+                                        <li class="list-group-item">Gerenciamento de produtos</li>
+                                        <li class="list-group-item">Gerenciamento de insumos</li>
+                                        <li class="list-group-item">Gerenciamento de equipamentos</li>
+                                        <li class="list-group-item">Gerenciamento de fornecedores</li>
+                                        {% elif usuario.role == 'user' %}
+                                        <li class="list-group-item">Visualização de clientes</li>
+                                        <li class="list-group-item">Visualização de produtos</li>
+                                        <li class="list-group-item">Visualização de insumos</li>
+                                        <li class="list-group-item">Visualização de equipamentos</li>
+                                        <li class="list-group-item">Visualização de fornecedores</li>
+                                        {% elif usuario.role == 'supplier' %}
+                                        <li class="list-group-item">Visualização de insumos</li>
+                                        <li class="list-group-item">Gerenciamento de fornecimentos</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="view-container">
+                            <h5><i class="fas fa-info-circle"></i> Informações</h5>
+                            <p>Visualizando detalhes do usuário.</p>
+                            <p>Para editar os dados, clique no botão "Editar".</p>
+                            <p>Para voltar à lista de usuários, clique em "Voltar".</p>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-user-shield"></i> Segurança
+                                <p class="mb-0 mt-2">
+                                    Por motivos de segurança, a senha do usuário não é exibida.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+{% endblock %}

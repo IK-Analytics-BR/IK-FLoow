@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Vendedores - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Vendedores</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Vendedores</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-user-tie me-1"></i>
+            Lista de Vendedores
+            <a href="{{ url_for('vendedor.vendedor_cadastrar') }}" class="btn btn-primary btn-sm float-end">
+                <i class="fas fa-plus"></i> Novo Vendedor
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar vendedor...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <select id="regionFilter" class="form-select">
+                            <option value="">Todas as regiões</option>
+                            {% set regions = [] %}
+                            {% for vendedor in vendedores %}
+                                {% if vendedor.region not in regions %}
+                                    {% set regions = regions + [vendedor.region] %}
+                                    <option value="{{ vendedor.region }}">{{ vendedor.region }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="vendedoresTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Região</th>
+                            <th>Telefone</th>
+                            <th>E-mail</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vendedor in vendedores %}
+                        <tr>
+                            <td>{{ vendedor.name }}</td>
+                            <td>{{ vendedor.cpf }}</td>
+                            <td>{{ vendedor.region }}</td>
+                            <td>{{ vendedor.phone }}</td>
+                            <td>{{ vendedor.email }}</td>
+                            <td>
+                                {% if vendedor.status == 'active' %}
+                                <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('vendedor.vendedor_view', vendedor_id=vendedor.id) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('vendedor.vendedor_editar', vendedor_id=vendedor.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger btn-sm" title="Excluir" data-bs-toggle="modal" data-bs-target="#deleteModal{{ vendedor.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ vendedor.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ vendedor.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ vendedor.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Tem certeza que deseja excluir o vendedor <strong>{{ vendedor.name }}</strong>?
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('vendedor.vendedor_excluir', vendedor_id=vendedor.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#vendedoresTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        // Filtro por região
+        $("#regionFilter").on("change", function() {
+            var value = $(this).val().toLowerCase();
+            if (value === "") {
+                // Mostrar todas as linhas se nenhuma região for selecionada
+                $("#vendedoresTable tbody tr").show();
+            } else {
+                // Filtrar por região
+                $("#vendedoresTable tbody tr").filter(function() {
+                    var region = $(this).find("td:eq(2)").text().toLowerCase();
+                    $(this).toggle(region === value);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

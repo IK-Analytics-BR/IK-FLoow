@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}CFOPs - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Código Fiscal de Operações e Prestações (CFOP)</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">CFOPs</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-list me-1"></i> Lista de CFOPs
+                </div>
+                <div>
+                    <form class="d-flex" id="searchForm">
+                        <input class="form-control me-2" type="search" id="searchInput" placeholder="Buscar por código ou descrição" aria-label="Buscar">
+                        <button class="btn btn-outline-primary" type="submit">Buscar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="cfopTable">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descrição</th>
+                            <th>Data Início</th>
+                            <th>Data Fim</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cfop in cfops %}
+                        <tr>
+                            <td>{{ cfop.codigo }}</td>
+                            <td>{{ cfop.descricao }}</td>
+                            <td>{{ cfop.data_inicio.strftime('%d/%m/%Y') if cfop.data_inicio else '' }}</td>
+                            <td>{{ cfop.data_fim.strftime('%d/%m/%Y') if cfop.data_fim else '' }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary select-cfop" data-codigo="{{ cfop.codigo }}" data-descricao="{{ cfop.descricao }}">
+                                    <i class="fas fa-check"></i> Selecionar
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">Nenhum CFOP encontrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const tbody = document.querySelector('#cfopTable tbody');
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+
+        async function fetchJson(url) {
+            const res = await fetch(url, { credentials: 'same-origin' });
+            return await res.json();
+        }
+
+        searchForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const term = (searchInput.value || '').trim();
+
+            if (term.length < 2) {
+                alert('Digite pelo menos 2 caracteres para buscar.');
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Buscando...</td></tr>';
+
+            try {
+                const data = await fetchJson('/api/cfops/search?term=' + encodeURIComponent(term));
+                const results = (data && data.results) ? data.results : [];
+
+                if (!results.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum CFOP encontrado para "' + escapeHtml(term) + '".</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = results.map(r => {
+                    const parts = String(r.text || '').split(' - ');
+                    const codigo = parts[0] || '';
+                    const descricao = parts.slice(1).join(' - ');
+                    return (
+                        '<tr>' +
+                            '<td>' + escapeHtml(codigo) + '</td>' +
+                            '<td>' + escapeHtml(descricao) + '</td>' +
+                            '<td></td>' +
+                            '<td></td>' +
+                            '<td>' +
+                                '<button class="btn btn-sm btn-primary select-cfop" data-codigo="' + escapeHtml(codigo) + '" data-descricao="' + escapeHtml(descricao) + '">' +
+                                    '<i class="fas fa-check"></i> Selecionar' +
+                                '</button>' +
+                            '</td>' +
+                        '</tr>'
+                    );
+                }).join('');
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Erro ao buscar CFOPs.</td></tr>';
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.select-cfop');
+            if (!btn) return;
+
+            const codigo = btn.getAttribute('data-codigo') || '';
+            const descricao = btn.getAttribute('data-descricao') || '';
+
+            if (window.opener && !window.opener.closed && typeof window.opener.setSelectedCFOP === 'function') {
+                window.opener.setSelectedCFOP(codigo, descricao);
+                window.close();
+            } else {
+                alert('Código CFOP: ' + codigo + '\nDescrição: ' + descricao);
+            }
+        });
+    });
+</script>
+{% endblock %}

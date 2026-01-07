@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Romaneio de Vendas - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes do Romaneio de Vendas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('romaneio.romaneio_list') }}">Romaneios de Vendas</a></li>
+        <li class="breadcrumb-item active">Detalhes do Romaneio</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-clipboard-list me-1"></i>
+                    Informações do Romaneio
+                    <div class="float-end">
+                        {% if romaneio.status not in ['completed', 'canceled'] %}
+                        <a href="{{ url_for('romaneio.romaneio_editar', manifest_id=romaneio.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5 class="card-title">{{ romaneio.manifest_number }}</h5>
+                        <p class="card-text">
+                            {% if romaneio.status == 'draft' %}
+                                <span class="badge bg-secondary">Rascunho</span>
+                            {% elif romaneio.status == 'in_progress' %}
+                                <span class="badge bg-primary">Em Andamento</span>
+                            {% elif romaneio.status == 'completed' %}
+                                <span class="badge bg-success">Concluído</span>
+                            {% elif romaneio.status == 'canceled' %}
+                                <span class="badge bg-danger">Cancelado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>Data:</th>
+                            <td>{{ romaneio.date.strftime('%d/%m/%Y') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Vendedor:</th>
+                            <td>{{ romaneio.seller_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Rota:</th>
+                            <td>{{ romaneio.route_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Clientes:</th>
+                            <td>{{ total_clientes }}</td>
+                        </tr>
+                        <tr>
+                            <th>Visitados:</th>
+                            <td>{{ clientes_visitados }} de {{ total_clientes }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total de Pedidos:</th>
+                            <td>R$ {{ "%.2f"|format(total_pedidos) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cadastrado em:</th>
+                            <td>{{ romaneio.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                    </table>
+                    
+                    {% if romaneio.notes %}
+                    <div class="mt-3">
+                        <h6>Observações:</h6>
+                        <p>{{ romaneio.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    {% if romaneio.status == 'draft' %}
+                    <form action="{{ url_for('romaneio.romaneio_finalizar', manifest_id=romaneio.id) }}" method="post" class="d-inline">
+                        <input type="hidden" name="status" value="in_progress">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play me-1"></i> Iniciar Romaneio
+                        </button>
+                    </form>
+                    {% elif romaneio.status == 'in_progress' %}
+                    <form action="{{ url_for('romaneio.romaneio_finalizar', manifest_id=romaneio.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-1"></i> Finalizar Romaneio
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if romaneio.status not in ['completed', 'canceled'] %}
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times me-1"></i> Cancelar Romaneio
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-map-marked-alt me-1"></i>
+                    Visitas
+                </div>
+                <div class="card-body">
+                    {% if visitas %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Ordem</th>
+                                    <th>Cliente</th>
+                                    <th>Status</th>
+                                    <th>Horário</th>
+                                    <th>Pedido</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for visita in visitas %}
+                                <tr>
+                                    <td>{{ visita.visit_order }}</td>
+                                    <td>{{ visita.customer_name }}</td>
+                                    <td>
+                                        {% if visita.visit_status == 'pending' %}
+                                            <span class="badge bg-secondary">Pendente</span>
+                                        {% elif visita.visit_status == 'visited' %}
+                                            <span class="badge bg-success">Visitado</span>
+                                        {% elif visita.visit_status == 'skipped' %}
+                                            <span class="badge bg-warning">Pulado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ visita.visit_time.strftime('%H:%M') if visita.visit_time else '-' }}</td>
+                                    <td>
+                                        {% set has_order = false %}
+                                        {% for pedido in pedidos %}
+                                            {% if pedido.visit_id == visita.id %}
+                                                {% set has_order = true %}
+                                                <span class="badge bg-primary">{{ pedido.order_number }}</span>
+                                                <span class="badge bg-success">R$ {{ "%.2f"|format(pedido.total_amount) }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if not has_order %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if romaneio.status not in ['completed', 'canceled'] %}
+                                            {% if visita.visit_status == 'pending' %}
+                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#visitModal{{ visita.id }}">
+                                                <i class="fas fa-check"></i> Registrar Visita
+                                            </button>
+                                            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#skipModal{{ visita.id }}">
+                                                <i class="fas fa-forward"></i> Pular
+                                            </button>
+                                            {% elif visita.visit_status == 'visited' and not has_order %}
+                                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#orderModal{{ visita.id }}">
+                                                <i class="fas fa-shopping-cart"></i> Registrar Pedido
+                                            </button>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        <a href="{{ url_for('cliente.cliente_visualizar', id=visita.customer_id) }}" class="btn btn-info btn-sm" title="Ver Cliente">
+                                            <i class="fas fa-user"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Este romaneio não possui visitas programadas.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-shopping-cart me-1"></i>
+                    Pedidos
+                </div>
+                <div class="card-body">
+                    {% if pedidos %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Cliente</th>
+                                    <th>Forma de Pagamento</th>
+                                    <th>Condições</th>
+                                    <th>Valor Total</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pedido in pedidos %}
+                                <tr>
+                                    <td>{{ pedido.order_number }}</td>
+                                    <td>{{ pedido.customer_name }}</td>
+                                    <td>{{ pedido.payment_method }}</td>
+                                    <td>{{ pedido.payment_terms }}</td>
+                                    <td>R$ {{ "%.2f"|format(pedido.total_amount) }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewOrderModal{{ pedido.id }}">
+                                            <i class="fas fa-eye"></i> Detalhes
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Este romaneio não possui pedidos registrados.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modais para ações -->
+    {% for visita in visitas %}
+    <div class="visita-container" data-visita-id="{{ visita.id }}">
+    <!-- Modal para registrar visita -->
+    <div class="modal fade" id="visitModal{{ visita.id }}" tabindex="-1" aria-labelledby="visitModalLabel{{ visita.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="visitModalLabel{{ visita.id }}">Registrar Visita</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('romaneio.romaneio_visita_update', visit_id=visita.id) }}" method="post">
+                    <div class="modal-body">
+                        <p>Cliente: <strong>{{ visita.customer_name }}</strong></p>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Observações</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <input type="hidden" name="status" value="visited">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Registrar Visita</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para pular visita -->
+    <div class="modal fade" id="skipModal{{ visita.id }}" tabindex="-1" aria-labelledby="skipModalLabel{{ visita.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="skipModalLabel{{ visita.id }}">Pular Visita</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('romaneio.romaneio_visita_update', visit_id=visita.id) }}" method="post">
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja pular a visita ao cliente <strong>{{ visita.customer_name }}</strong>?</p>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" required></textarea>
+                        </div>
+                        <input type="hidden" name="status" value="skipped">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">Pular Visita</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para registrar pedido -->
+    <div class="modal fade" id="orderModal{{ visita.id }}" tabindex="-1" aria-labelledby="orderModalLabel{{ visita.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderModalLabel{{ visita.id }}">Registrar Pedido</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('romaneio.romaneio_pedido_add', visit_id=visita.id) }}" method="post">
+                    <div class="modal-body">
+                        <p>Cliente: <strong>{{ visita.customer_name }}</strong></p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="payment_method" class="form-label">Forma de Pagamento <span class="text-danger">*</span></label>
+                                <select class="form-select" id="payment_method" name="payment_method" required>
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                    <option value="Cartão de Débito">Cartão de Débito</option>
+                                    <option value="Boleto">Boleto</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Pix">Pix</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="payment_terms" class="form-label">Condições de Pagamento</label>
+                                <input type="text" class="form-control" id="payment_terms" name="payment_terms" placeholder="Ex: 30/60/90 dias">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Itens do Pedido</label>
+                            <div id="items-container{{ visita.id }}" class="items-container" data-visita-id="{{ visita.id }}">
+                                <div class="row mb-2 item-row">
+                                    <div class="col-md-5">
+                                        <select class="form-select produto-select" name="produtos[]" required>
+                                            <option value="">Selecione um produto</option>
+                                            <!-- Aqui seria ideal ter uma lista de produtos -->
+                                            <option value="1">Produto 1</option>
+                                            <option value="2">Produto 2</option>
+                                            <option value="3">Produto 3</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control quantidade-input" name="quantidades[]" placeholder="Qtd" min="1" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control preco-input" name="precos[]" placeholder="Preço" step="0.01" min="0.01" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control total-input" placeholder="Total" readonly>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-danger btn-sm remove-item">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-item{{ visita.id }}" data-visita-id="{{ visita.id }}">
+                                <i class="fas fa-plus"></i> Adicionar Item
+                            </button>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 text-end">
+                                <h5>Total: R$ <span id="total-pedido{{ visita.id }}" class="total-pedido" data-visita-id="{{ visita.id }}">0.00</span></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Registrar Pedido</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir o romaneio <strong>{{ romaneio.manifest_number }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('romaneio.romaneio_excluir', manifest_id=romaneio.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmação de cancelamento -->
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Confirmar Cancelamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja cancelar o romaneio <strong>{{ romaneio.manifest_number }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Não</button>
+                    <form action="{{ url_for('romaneio.romaneio_cancelar', manifest_id=romaneio.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Sim, Cancelar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/romaneio.js') }}"></script>
+<script>
+    $(document).ready(function() {
+        // Inicializar o romaneio para cada visita usando data attributes
+        $('.visita-container').each(function() {
+            var visitaId = $(this).data('visita-id');
+            if (visitaId) {
+                initRomaneio(visitaId);
+            }
+        });
+    });
+</script>
+{% endblock %}

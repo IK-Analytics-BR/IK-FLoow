@@ -1,0 +1,127 @@
+                    <!-- Botões de Ação -->
+                    <div class="mt-4 mb-0">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{{ url_for('produto.produtos') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar
+                                </button>
+                                {% if produto %}
+                                <a href="{{ url_for('produto.produto_excluir', id=produto.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir este produto?');">
+                                    <i class="fas fa-trash me-1"></i> Excluir
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Formatação de valores monetários
+        $('#price').mask('#.##0,00', {reverse: true});
+        $('#cost_price').mask('#.##0,00', {reverse: true});
+        $('#last_purchase_price').mask('#.##0,00', {reverse: true});
+        
+        // Inicializar o cálculo do preço de venda
+        calculateSalePrice();
+        
+        // Carregar subgrupos quando o grupo é selecionado
+        $('#group_id').change(function() {
+            loadSubgroups($(this).val());
+        });
+        
+        // Calcular volume quando as dimensões são alteradas
+        calculateVolume();
+        
+        // Manter a aba ativa após o recarregamento da página
+        var activeTab = sessionStorage.getItem('activeProductTab');
+        if (activeTab) {
+            $('#productTabs button[data-bs-target="' + activeTab + '"]').tab('show');
+        }
+        
+        // Salvar a aba ativa quando ela é alterada
+        $('#productTabs button').on('shown.bs.tab', function (e) {
+            var target = $(e.target).data('bs-target');
+            sessionStorage.setItem('activeProductTab', target);
+        });
+    });
+    
+    // Função para calcular o preço de venda com base no custo e margem
+    function calculateSalePrice() {
+        const costPrice = parseFloat($('#cost_price').val().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+        const margin = parseFloat($('#margin').val()) || 0;
+        
+        if (costPrice > 0) {
+            // Fórmula: preço de venda = preço de custo / (1 - (margem / 100))
+            const salePrice = costPrice / (1 - (margin / 100));
+            
+            // Arredondar para duas casas decimais
+            const roundedSalePrice = Math.round(salePrice * 100) / 100;
+            
+            // Atualizar o campo de preço de venda
+            $('#price').val(roundedSalePrice.toFixed(2));
+        }
+    }
+    
+    // Função para calcular o volume com base nas dimensões
+    function calculateVolume() {
+        const length = parseFloat($('#length_cm').val()) || 0;
+        const width = parseFloat($('#width_cm').val()) || 0;
+        const height = parseFloat($('#height_cm').val()) || 0;
+        
+        if (length > 0 && width > 0 && height > 0) {
+            // Calcular o volume em m³ (converter de cm³ para m³)
+            const volume = (length * width * height) / 1000000;
+            
+            // Arredondar para três casas decimais
+            const roundedVolume = Math.round(volume * 1000) / 1000;
+            
+            // Atualizar o campo de volume
+            $('#volume_m3').val(roundedVolume.toFixed(3));
+        }
+    }
+    
+    // Função para carregar subgrupos com base no grupo selecionado
+    function loadSubgroups(groupId) {
+        if (!groupId) {
+            // Limpar o select de subgrupos
+            $('#subgroup_id').empty();
+            $('#subgroup_id').append('<option value="" selected>Selecione um subgrupo</option>');
+            return;
+        }
+        
+        // Fazer uma requisição AJAX para buscar os subgrupos do grupo selecionado
+        $.ajax({
+            url: '/api/subgroups-by-group/' + groupId,
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                // Limpar o select de subgrupos
+                $('#subgroup_id').empty();
+                $('#subgroup_id').append('<option value="" selected>Selecione um subgrupo</option>');
+                
+                // Adicionar os subgrupos retornados
+                if (data.subgroups && data.subgroups.length > 0) {
+                    $.each(data.subgroups, function(index, subgroup) {
+                        $('#subgroup_id').append('<option value="' + subgroup.id + '">' + subgroup.name + '</option>');
+                    });
+                }
+            },
+            error: function(error) {
+                console.error('Erro ao carregar subgrupos:', error);
+            }
+        });
+    }
+</script>
+{% endblock %}

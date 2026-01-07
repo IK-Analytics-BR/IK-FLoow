@@ -1,0 +1,645 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório Consolidado - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ title }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('reports.reports_dashboard') }}">Relatórios</a></li>
+        <li class="breadcrumb-item active">Relatório Consolidado</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+            <div class="float-end">
+                <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="printReport()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" action="{{ url_for('reports.consolidated_report') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="period" class="form-label">Período</label>
+                        <select class="form-select" id="period" name="period" onchange="updatePeriodFields()">
+                            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Mensal</option>
+                            <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Trimestral</option>
+                            <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Anual</option>
+                            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="yearField">
+                        <label for="year" class="form-label">Ano</label>
+                        <select class="form-select" id="year" name="year">
+                            {% for y in range(now().year-5, now().year+1) %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="monthField">
+                        <label for="month" class="form-label">Mês</label>
+                        <select class="form-select" id="month" name="month">
+                            {% for m in range(1, 13) %}
+                            <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="applyFilter">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row mt-3" id="customDateFields" style="display: none;">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Data Final</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-area me-1"></i>
+                    Resumo Geral
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-primary text-white mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Financeiro</h5>
+                                    <div class="display-4">R$ {{ "%.2f"|format(report_data.financial.balance) }}</div>
+                                    <p class="card-text">Saldo do período</p>
+                                </div>
+                                <div class="card-footer d-flex justify-content-between">
+                                    <div>Entradas: R$ {{ "%.2f"|format(report_data.financial.income) }}</div>
+                                    <div>Saídas: R$ {{ "%.2f"|format(report_data.financial.expenses) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Compras</h5>
+                                    <div class="display-4">{{ report_data.purchases.orders_count }}</div>
+                                    <p class="card-text">Pedidos no período</p>
+                                </div>
+                                <div class="card-footer d-flex justify-content-between">
+                                    <div>Valor: R$ {{ "%.2f"|format(report_data.purchases.orders_total) }}</div>
+                                    <div>Notas: {{ report_data.purchases.invoices_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white mb-4">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Estoque</h5>
+                                    <div class="display-4">R$ {{ "%.2f"|format(report_data.inventory.stock_value) }}</div>
+                                    <p class="card-text">Valor em estoque</p>
+                                </div>
+                                <div class="card-footer d-flex justify-content-between">
+                                    <div>Abaixo do mín: {{ report_data.inventory.low_stock_count }}</div>
+                                    <div>Movimentações: {{ report_data.inventory.movements_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-money-bill-wave me-1"></i>
+                    Resumo Financeiro
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-success h-100">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-arrow-circle-up me-1"></i> Entradas
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-success">R$ {{ "%.2f"|format(report_data.financial.income) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-danger h-100">
+                                <div class="card-header bg-danger text-white">
+                                    <i class="fas fa-arrow-circle-down me-1"></i> Saídas
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-danger">R$ {{ "%.2f"|format(report_data.financial.expenses) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card border-warning h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <i class="fas fa-exclamation-circle me-1"></i> A Receber
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-warning">R$ {{ "%.2f"|format(report_data.financial.receivables) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-info h-100">
+                                <div class="card-header bg-info text-white">
+                                    <i class="fas fa-exclamation-circle me-1"></i> A Pagar
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-info">R$ {{ "%.2f"|format(report_data.financial.payables) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <canvas id="financialChart" width="100%" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('reports.financial_reports') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-chart-line me-1"></i> Ver Relatório Financeiro Detalhado
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-shopping-cart me-1"></i>
+                    Resumo de Compras
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-file-alt me-1"></i> Pedidos
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-primary">{{ report_data.purchases.orders_count }}</h2>
+                                    <p>Valor: R$ {{ "%.2f"|format(report_data.purchases.orders_total) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-secondary h-100">
+                                <div class="card-header bg-secondary text-white">
+                                    <i class="fas fa-file-invoice me-1"></i> Notas Fiscais
+                                </div>
+                                <div class="card-body">
+                                    <h2 class="text-secondary">{{ report_data.purchases.invoices_count }}</h2>
+                                    <p>Valor: R$ {{ "%.2f"|format(report_data.purchases.invoices_total) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <canvas id="purchasesChart" width="100%" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('reports.purchase_reports') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-chart-bar me-1"></i> Ver Relatório de Compras Detalhado
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-boxes me-1"></i>
+                    Resumo de Estoque
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card border-info h-100">
+                                <div class="card-header bg-info text-white">
+                                    <i class="fas fa-dollar-sign me-1"></i> Valor em Estoque
+                                </div>
+                                <div class="card-body text-center">
+                                    <h2 class="text-info">R$ {{ "%.2f"|format(report_data.inventory.stock_value) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> Abaixo do Mínimo
+                                </div>
+                                <div class="card-body text-center">
+                                    <h2 class="text-warning">{{ report_data.inventory.low_stock_count }}</h2>
+                                    <p>produtos precisam de reposição</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-success h-100">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-exchange-alt me-1"></i> Movimentações
+                                </div>
+                                <div class="card-body text-center">
+                                    <h2 class="text-success">{{ report_data.inventory.movements_count }}</h2>
+                                    <p>no período</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <canvas id="inventoryChart" width="100%" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('reports.inventory_reports') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-chart-pie me-1"></i> Ver Relatório de Estoque Detalhado
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Evolução Financeira
+                </div>
+                <div class="card-body">
+                    <canvas id="evolutionChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Atualizar campos de período
+        updatePeriodFields();
+        
+        // Gráfico financeiro
+        var ctxFinancial = document.getElementById("financialChart");
+        if (ctxFinancial) {
+            new Chart(ctxFinancial, {
+                type: "bar",
+                data: {
+                    labels: ["Entradas", "Saídas", "Saldo", "A Receber", "A Pagar"],
+                    datasets: [{
+                        label: "Valor (R$)",
+                        backgroundColor: [
+                            "rgba(40, 167, 69, 0.8)",
+                            "rgba(220, 53, 69, 0.8)",
+                            "{{ 'rgba(13, 110, 253, 0.8)' if report_data.financial.balance >= 0 else 'rgba(255, 193, 7, 0.8)' }}",
+                            "rgba(255, 193, 7, 0.8)",
+                            "rgba(23, 162, 184, 0.8)"
+                        ],
+                        borderColor: [
+                            "rgba(40, 167, 69, 1)",
+                            "rgba(220, 53, 69, 1)",
+                            "{{ 'rgba(13, 110, 253, 1)' if report_data.financial.balance >= 0 else 'rgba(255, 193, 7, 1)' }}",
+                            "rgba(255, 193, 7, 1)",
+                            "rgba(23, 162, 184, 1)"
+                        ],
+                        borderWidth: 1,
+                        data: [
+                            {{ report_data.financial.income }},
+                            {{ report_data.financial.expenses }},
+                            {{ report_data.financial.balance }},
+                            {{ report_data.financial.receivables }},
+                            {{ report_data.financial.payables }}
+                        ]
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de compras
+        var ctxPurchases = document.getElementById("purchasesChart");
+        if (ctxPurchases) {
+            new Chart(ctxPurchases, {
+                type: "bar",
+                data: {
+                    labels: ["Pedidos", "Notas Fiscais"],
+                    datasets: [{
+                        label: "Quantidade",
+                        backgroundColor: [
+                            "rgba(13, 110, 253, 0.8)",
+                            "rgba(108, 117, 125, 0.8)"
+                        ],
+                        borderColor: [
+                            "rgba(13, 110, 253, 1)",
+                            "rgba(108, 117, 125, 1)"
+                        ],
+                        borderWidth: 1,
+                        data: [
+                            {{ report_data.purchases.orders_count }},
+                            {{ report_data.purchases.invoices_count }}
+                        ]
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de estoque
+        var ctxInventory = document.getElementById("inventoryChart");
+        if (ctxInventory) {
+            new Chart(ctxInventory, {
+                type: "doughnut",
+                data: {
+                    labels: ["Valor em Estoque", "Produtos Abaixo do Mínimo"],
+                    datasets: [{
+                        backgroundColor: [
+                            "rgba(23, 162, 184, 0.8)",
+                            "rgba(255, 193, 7, 0.8)"
+                        ],
+                        borderColor: [
+                            "rgba(23, 162, 184, 1)",
+                            "rgba(255, 193, 7, 1)"
+                        ],
+                        borderWidth: 1,
+                        data: [
+                            {{ report_data.inventory.stock_value }},
+                            {{ report_data.inventory.low_stock_count }}
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Gráfico de evolução
+        var ctxEvolution = document.getElementById("evolutionChart");
+        if (ctxEvolution) {
+            // Dados de exemplo para o gráfico de evolução
+            // Em uma implementação real, esses dados viriam do servidor
+            var months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            var incomeData = [10000, 12000, 15000, 11000, 13000, 16000, 14000, 15000, 17000, 16000, 18000, 20000];
+            var expenseData = [8000, 9000, 10000, 9500, 11000, 12000, 11000, 12000, 13000, 12500, 14000, 15000];
+            var balanceData = [];
+            
+            // Calcular saldo
+            for (var i = 0; i < incomeData.length; i++) {
+                balanceData.push(incomeData[i] - expenseData[i]);
+            }
+            
+            new Chart(ctxEvolution, {
+                type: "line",
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: "Entradas",
+                            backgroundColor: "rgba(40, 167, 69, 0.2)",
+                            borderColor: "rgba(40, 167, 69, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "rgba(40, 167, 69, 1)",
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: false,
+                            data: incomeData
+                        },
+                        {
+                            label: "Saídas",
+                            backgroundColor: "rgba(220, 53, 69, 0.2)",
+                            borderColor: "rgba(220, 53, 69, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "rgba(220, 53, 69, 1)",
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: false,
+                            data: expenseData
+                        },
+                        {
+                            label: "Saldo",
+                            backgroundColor: "rgba(13, 110, 253, 0.2)",
+                            borderColor: "rgba(13, 110, 253, 1)",
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "rgba(13, 110, 253, 1)",
+                            pointBorderColor: "#fff",
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: balanceData
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+    });
+    
+    // Função para atualizar campos de período
+    function updatePeriodFields() {
+        var period = $('#period').val();
+        
+        if (period === 'monthly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'quarterly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'yearly') {
+            $('#yearField').show();
+            $('#monthField').hide();
+            $('#customDateFields').hide();
+        } else if (period === 'custom') {
+            $('#yearField').hide();
+            $('#monthField').hide();
+            $('#customDateFields').show();
+        }
+    }
+    
+    // Função para exportar para PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // Criar novo documento PDF
+        const doc = new jsPDF();
+        
+        // Título
+        doc.setFontSize(18);
+        doc.text('{{ title }}', 14, 22);
+        
+        // Informações do relatório
+        doc.setFontSize(10);
+        doc.text('Data do relatório: ' + new Date().toLocaleDateString(), 14, 30);
+        
+        // Resumo financeiro
+        doc.setFontSize(14);
+        doc.text('Resumo Financeiro', 14, 40);
+        
+        doc.setFontSize(10);
+        doc.text('Entradas: R$ {{ "%.2f"|format(report_data.financial.income) }}', 14, 50);
+        doc.text('Saídas: R$ {{ "%.2f"|format(report_data.financial.expenses) }}', 14, 55);
+        doc.text('Saldo: R$ {{ "%.2f"|format(report_data.financial.balance) }}', 14, 60);
+        doc.text('A Receber: R$ {{ "%.2f"|format(report_data.financial.receivables) }}', 14, 65);
+        doc.text('A Pagar: R$ {{ "%.2f"|format(report_data.financial.payables) }}', 14, 70);
+        
+        // Resumo de compras
+        doc.setFontSize(14);
+        doc.text('Resumo de Compras', 14, 80);
+        
+        doc.setFontSize(10);
+        doc.text('Pedidos: {{ report_data.purchases.orders_count }}', 14, 90);
+        doc.text('Valor dos Pedidos: R$ {{ "%.2f"|format(report_data.purchases.orders_total) }}', 14, 95);
+        doc.text('Notas Fiscais: {{ report_data.purchases.invoices_count }}', 14, 100);
+        doc.text('Valor das Notas: R$ {{ "%.2f"|format(report_data.purchases.invoices_total) }}', 14, 105);
+        
+        // Resumo de estoque
+        doc.setFontSize(14);
+        doc.text('Resumo de Estoque', 14, 115);
+        
+        doc.setFontSize(10);
+        doc.text('Valor em Estoque: R$ {{ "%.2f"|format(report_data.inventory.stock_value) }}', 14, 125);
+        doc.text('Produtos Abaixo do Mínimo: {{ report_data.inventory.low_stock_count }}', 14, 130);
+        doc.text('Movimentações no Período: {{ report_data.inventory.movements_count }}', 14, 135);
+        
+        // Salvar o PDF
+        doc.save('relatorio_consolidado.pdf');
+    }
+    
+    // Função para exportar para Excel
+    function exportToExcel() {
+        // Criar uma nova planilha
+        const wb = XLSX.utils.book_new();
+        
+        // Dados financeiros
+        const financialData = [
+            ['Resumo Financeiro', ''],
+            ['Entradas', {{ report_data.financial.income }}],
+            ['Saídas', {{ report_data.financial.expenses }}],
+            ['Saldo', {{ report_data.financial.balance }}],
+            ['A Receber', {{ report_data.financial.receivables }}],
+            ['A Pagar', {{ report_data.financial.payables }}],
+            ['', ''],
+            ['Resumo de Compras', ''],
+            ['Pedidos', {{ report_data.purchases.orders_count }}],
+            ['Valor dos Pedidos', {{ report_data.purchases.orders_total }}],
+            ['Notas Fiscais', {{ report_data.purchases.invoices_count }}],
+            ['Valor das Notas', {{ report_data.purchases.invoices_total }}],
+            ['', ''],
+            ['Resumo de Estoque', ''],
+            ['Valor em Estoque', {{ report_data.inventory.stock_value }}],
+            ['Produtos Abaixo do Mínimo', {{ report_data.inventory.low_stock_count }}],
+            ['Movimentações no Período', {{ report_data.inventory.movements_count }}]
+        ];
+        
+        // Converter os dados para uma planilha
+        const ws = XLSX.utils.aoa_to_sheet(financialData);
+        
+        // Adicionar a planilha ao livro
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório Consolidado');
+        
+        // Salvar o arquivo
+        XLSX.writeFile(wb, 'relatorio_consolidado.xlsx');
+    }
+    
+    // Função para imprimir o relatório
+    function printReport() {
+        window.print();
+    }
+</script>
+
+<style media="print">
+    @page {
+        size: portrait;
+    }
+    
+    .card-header, .breadcrumb, form, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+    }
+</style>
+{% endblock %}

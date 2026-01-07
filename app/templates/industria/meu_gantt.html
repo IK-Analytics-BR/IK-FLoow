@@ -1,0 +1,1122 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Gantt - Operador{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">
+        <i class="fas fa-hard-hat text-warning me-2"></i>
+        Minha Produção
+    </h1>
+    <p class="text-muted">Gerencie seus lotes de produção</p>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body py-2">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="form-label mb-0 me-2">Filtrar por status:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Todos</option>
+                        <option value="em_espera" {% if status_filtro == 'em_espera' %}selected{% endif %}>Em Espera</option>
+                        <option value="em_producao" {% if status_filtro == 'em_producao' %}selected{% endif %}>Em Produção</option>
+                        <option value="despachado" {% if status_filtro == 'despachado' %}selected{% endif %}>Despachado</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Kanban de Status -->
+    <div class="row">
+        <!-- Coluna Em Espera -->
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-clock me-2"></i>
+                    <strong>Em Espera</strong>
+                    <span class="badge bg-dark float-end">{{ lotes_por_status.em_espera|length }}</span>
+                </div>
+                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                    {% for lote in lotes_por_status.em_espera %}
+                    <div class="card mb-2 shadow-sm border-start border-warning border-4 lote-card"
+                         data-status-operador="em_espera"
+                         data-inicio-producao-op="{{ lote.data_inicio_producao.isoformat() if lote.data_inicio_producao else '' }}"
+                         data-chegada-etapa="{{ lote.data_chegada_etapa.isoformat() if lote.data_chegada_etapa else '' }}"
+                         data-atribuicao="{{ lote.data_atribuicao.isoformat() if lote.data_atribuicao else '' }}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">
+                                        {% if lote.prioridade == 1 %}<span class="badge bg-danger me-1">🔴</span>
+                                        {% elif lote.prioridade == 2 %}<span class="badge bg-warning text-dark me-1">🟠</span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary">{{ lote.numero_op }}</span>
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-box me-1"></i>{{ lote.produto_nome|truncate(30) }}
+                                    </p>
+                                    <p class="card-text small mb-1 text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ lote.cliente_nome|truncate(25) }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ lote.lote_quantidade }} un</span>
+                                </div>
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <i class="fas fa-layer-group me-1"></i>{{ lote.etapa_nome or 'Sem etapa' }}
+                            </div>
+                            <div class="small mb-2" style="font-size: 10px;">
+                                <span class="text-muted" title="Tempo total de produção">🏭 <span class="timer-producao">--</span></span>
+                                <span class="text-warning ms-2" title="Tempo em espera">⏳ <span class="timer-etapa">--</span></span>
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm w-100" 
+                                    onclick="abrirModalIniciar({{ lote.lote_id }}, '{{ lote.lote_quantidade }}', '{{ lote.produto_nome|e }}', '{{ lote.numero_op }}')">
+                                <i class="fas fa-play me-1"></i> Iniciar Produção
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-2"></i>
+                        <p>Nenhum lote em espera</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Em Produção -->
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-cog fa-spin me-2"></i>
+                        <strong>Em Produção</strong>
+                        <span class="badge bg-light text-dark ms-2">{{ lotes_por_status.em_producao|length }}</span>
+                    </div>
+                    {% if lotes_por_status.em_producao|length > 0 %}
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-warning btn-sm" id="btnPausarTodos" 
+                                onclick="abrirModalPausarTodos()" title="Pausar todos os lotes">
+                            <i class="fas fa-pause"></i> Pausar Todos
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm d-none" id="btnRetomarTodos" 
+                                onclick="retomarTodos()" title="Retomar todos os lotes pausados">
+                            <i class="fas fa-play"></i> Retomar Todos
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                    {% for lote in lotes_por_status.em_producao %}
+                    <div class="card mb-2 shadow-sm border-start border-primary border-4 card-lote-producao lote-card
+                                {% if lote.pausa_id %}border-warning{% endif %}" 
+                         id="cardLote_{{ lote.lote_id }}" data-lote-id="{{ lote.lote_id }}"
+                         data-status-operador="em_producao"
+                         data-inicio-producao-op="{{ lote.data_inicio_producao.isoformat() if lote.data_inicio_producao else '' }}"
+                         data-chegada-etapa="{{ lote.data_chegada_etapa.isoformat() if lote.data_chegada_etapa else '' }}"
+                         data-inicio-producao="{{ lote.data_inicio_operador.isoformat() if lote.data_inicio_operador else '' }}"
+                         data-pausa-inicio="{{ lote.pausa_inicio.isoformat() if lote.pausa_inicio else '' }}"
+                         {% if lote.pausa_id %}style="border-color: #f59e0b !important; background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%) !important;"{% endif %}>
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">
+                                        {% if lote.pausa_id %}<i class="fas fa-pause-circle text-warning me-1"></i>{% endif %}
+                                        <span class="badge bg-secondary">{{ lote.numero_op }}</span>
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-box me-1"></i>{{ lote.produto_nome|truncate(30) }}
+                                    </p>
+                                    <p class="card-text small mb-1 text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ lote.cliente_nome|truncate(25) }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ lote.lote_quantidade }} un</span>
+                                </div>
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <i class="fas fa-layer-group me-1"></i>{{ lote.etapa_nome or 'Sem etapa' }}
+                            </div>
+                            <div class="small mb-2" style="font-size: 10px;">
+                                <span class="text-muted" title="Tempo total de produção">🏭 <span class="timer-producao">--</span></span>
+                                <span class="{% if lote.pausa_id %}text-warning{% else %}text-info{% endif %} ms-2" title="Tempo no status atual">
+                                    {% if lote.pausa_id %}⏸️{% else %}⚙️{% endif %} <span class="timer-etapa">--</span>
+                                </span>
+                            </div>
+                            <!-- Indicador de pausa -->
+                            <div id="pausaStatus_{{ lote.lote_id }}" class="alert alert-warning py-1 px-2 mb-2 d-none">
+                                <small><i class="fas fa-pause-circle me-1"></i><span class="motivo-pausa"></span></small>
+                            </div>
+                            <div class="btn-group w-100 mb-1" role="group">
+                                <button type="button" class="btn btn-warning btn-sm btn-pausar w-100" 
+                                        data-lote-id="{{ lote.lote_id }}"
+                                        data-numero-op="{{ lote.numero_op }}"
+                                        data-bs-toggle="modal" data-bs-target="#modalPausa">
+                                    <i class="fas fa-pause me-1"></i> Pausar
+                                </button>
+                                <button type="button" class="btn btn-success btn-sm btn-retomar d-none w-100" 
+                                        data-lote-id="{{ lote.lote_id }}"
+                                        onclick="retomarProducao({{ lote.lote_id }})">
+                                    <i class="fas fa-play me-1"></i> Retomar
+                                </button>
+                            </div>
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" 
+                                        onclick="abrirModalAlterarEtapa({{ lote.lote_id }}, '{{ lote.produto_nome|e }}', {{ lote.etapa_atual_id or 0 }}, '{{ lote.lote_quantidade }}')"
+                                        title="Alterar para outra etapa do seu líder">
+                                    <i class="fas fa-exchange-alt"></i> Etapa
+                                </button>
+                                <button type="button" class="btn btn-info btn-sm" 
+                                        onclick="abrirModalDespacho({{ lote.lote_id }}, '{{ lote.lote_quantidade }}', '{{ lote.produto_nome|e }}', '{{ lote.etapa_nome|e }}', {{ lote.etapa_atual_id or 0 }})">
+                                    <i class="fas fa-paper-plane me-1"></i> Despachar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-2"></i>
+                        <p>Nenhum lote em produção</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Despachado -->
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Despachado</strong>
+                    <span class="badge bg-light text-dark float-end">{{ lotes_por_status.despachado|length }}</span>
+                </div>
+                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                    {% for lote in lotes_por_status.despachado %}
+                    <div class="card mb-2 shadow-sm border-start border-success border-4">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">
+                                        <span class="badge bg-secondary">{{ lote.numero_op }}</span>
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-box me-1"></i>{{ lote.produto_nome|truncate(30) }}
+                                    </p>
+                                    <p class="card-text small mb-1 text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ lote.cliente_nome|truncate(25) }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-success">{{ lote.lote_quantidade }} un</span>
+                                </div>
+                            </div>
+                            <div class="small text-muted mb-2">
+                                <i class="fas fa-layer-group me-1"></i>{{ lote.etapa_nome or 'Sem etapa' }}
+                                {% if lote.etapa_destino_nome %}
+                                <span class="badge bg-dark ms-1" style="font-size: 10px;">
+                                    → {{ lote.etapa_destino_nome }}
+                                </span>
+                                {% endif %}
+                                {% if lote.arara %}
+                                <span class="badge bg-secondary ms-1" style="font-size: 10px;">
+                                    <i class="fas fa-hanger"></i> {{ lote.arara }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-warning btn-sm w-100" 
+                                    onclick="abrirModalCorrigirDespacho({{ lote.lote_id }}, '{{ lote.numero_op }}', '{{ lote.etapa_destino_nome|e if lote.etapa_destino_nome else '' }}', '{{ lote.arara|e if lote.arara else '' }}')"
+                                    title="Corrigir despacho errado">
+                                <i class="fas fa-edit me-1"></i> Corrigir Despacho
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-2"></i>
+                        <p>Nenhum lote despachado</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Iniciar Produção -->
+<div class="modal fade" id="modalIniciar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-play me-2"></i>Iniciar Produção
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formIniciar">
+                <div class="modal-body">
+                    <input type="hidden" id="iniciar_lote_id" name="lote_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Lote</label>
+                        <div id="iniciar_lote_info" class="form-control-plaintext fw-bold"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="iniciar_quantidade" class="form-label">Quantidade a Produzir</label>
+                        <input type="number" class="form-control" id="iniciar_quantidade" name="quantidade" 
+                               step="1" min="1" required>
+                        <small class="text-muted">Total disponível: <span id="iniciar_qtd_max"></span></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="iniciar_etapa" class="form-label">
+                            <i class="fas fa-layer-group me-1 text-primary"></i>Etapa a Executar
+                        </label>
+                        <select class="form-select" id="iniciar_etapa" name="etapa_id" required>
+                            {% for etapa in etapas_lider %}
+                            <option value="{{ etapa.id }}">{{ etapa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Etapas disponíveis do seu líder</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-play me-1"></i>Iniciar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Etapa -->
+<div class="modal fade" id="modalAlterarEtapa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt me-2"></i>Alterar Etapa
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formAlterarEtapa">
+                <div class="modal-body">
+                    <input type="hidden" id="alterar_lote_id" name="lote_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Produto</label>
+                        <div id="alterar_produto" class="form-control-plaintext fw-bold"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="alterar_quantidade" class="form-label">Quantidade para esta Etapa</label>
+                        <input type="number" class="form-control" id="alterar_quantidade" name="quantidade" 
+                               step="1" min="1" required>
+                        <small class="text-muted">Total disponível: <span id="alterar_qtd_max"></span></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="alterar_etapa" class="form-label">
+                            <i class="fas fa-layer-group me-1 text-primary"></i>Nova Etapa
+                        </label>
+                        <select class="form-select" id="alterar_etapa" name="etapa_id" required>
+                            {% for etapa in etapas_lider %}
+                            <option value="{{ etapa.id }}">{{ etapa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Apenas etapas do seu líder</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check me-1"></i>Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Despacho -->
+<div class="modal fade" id="modalDespacho" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-paper-plane me-2"></i>Despachar Lote
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDespacho">
+                <div class="modal-body">
+                    <input type="hidden" id="despacho_lote_id" name="lote_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Produto</label>
+                        <input type="text" class="form-control" id="despacho_produto" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Etapa Atual</label>
+                        <input type="text" class="form-control" id="despacho_etapa_atual" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="despacho_proxima_etapa" class="form-label">
+                            <i class="fas fa-arrow-right me-1 text-success"></i>Enviar para Etapa (Outro Líder)
+                        </label>
+                        <select class="form-select" id="despacho_proxima_etapa" name="proxima_etapa_id" required>
+                            {% set etapas_lider_ids = etapas_lider|map(attribute='id')|list %}
+                            {% for etapa in etapas %}
+                            {% if etapa.id not in etapas_lider_ids %}
+                            <option value="{{ etapa.id }}">{{ etapa.nome }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Apenas etapas de outros líderes</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="despacho_quantidade" class="form-label">Quantidade a Enviar</label>
+                        <input type="number" class="form-control" id="despacho_quantidade" name="quantidade" 
+                               step="0.01" min="0.01" required>
+                        <small class="text-muted">Quantidade disponível: <span id="despacho_qtd_max"></span></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="despacho_arara" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i>Arara / Local
+                        </label>
+                        <input type="text" class="form-control" id="despacho_arara" name="arara" 
+                               placeholder="Ex: Arara 5, Prateleira B2">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="despacho_obs" class="form-label">Observação</label>
+                        <textarea class="form-control" id="despacho_obs" name="observacao" rows="2" 
+                                  placeholder="Observações (opcional)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-paper-plane me-1"></i>Despachar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal Iniciar Produção
+function abrirModalIniciar(loteId, quantidade, produto, numeroOp) {
+    document.getElementById('iniciar_lote_id').value = loteId;
+    document.getElementById('iniciar_lote_info').innerHTML = '<span class="badge bg-secondary me-2">' + numeroOp + '</span>' + produto;
+    document.getElementById('iniciar_quantidade').value = quantidade;
+    document.getElementById('iniciar_quantidade').max = quantidade;
+    document.getElementById('iniciar_qtd_max').textContent = quantidade;
+    
+    new bootstrap.Modal(document.getElementById('modalIniciar')).show();
+}
+
+document.getElementById('formIniciar').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("ordem_producao.meu_gantt_iniciar_producao") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalIniciar')).hide();
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro de conexão: ' + err));
+});
+
+// Modal Alterar Etapa
+function abrirModalAlterarEtapa(loteId, produto, etapaAtualId, quantidade) {
+    document.getElementById('alterar_lote_id').value = loteId;
+    document.getElementById('alterar_produto').textContent = produto;
+    document.getElementById('alterar_quantidade').value = quantidade;
+    document.getElementById('alterar_quantidade').max = quantidade;
+    document.getElementById('alterar_qtd_max').textContent = quantidade;
+    
+    // Selecionar etapa atual
+    const select = document.getElementById('alterar_etapa');
+    for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value == etapaAtualId) {
+            select.selectedIndex = i;
+            break;
+        }
+    }
+    
+    new bootstrap.Modal(document.getElementById('modalAlterarEtapa')).show();
+}
+
+document.getElementById('formAlterarEtapa').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const btn = this.querySelector('button[type="submit"]');
+    const btnText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+    
+    fetch('{{ url_for("ordem_producao.meu_gantt_alterar_etapa") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(resp => {
+        if (!resp.ok) throw new Error('Erro no servidor');
+        return resp.json();
+    })
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalAlterarEtapa')).hide();
+            setTimeout(() => location.reload(), 300);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = btnText;
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = btnText;
+        console.error('Erro:', err);
+        alert('Erro de conexão. Verifique se a operação foi realizada e recarregue a página.');
+    });
+});
+
+// Modal Despacho
+function abrirModalDespacho(loteId, quantidade, produto, etapaAtual, etapaAtualId) {
+    document.getElementById('despacho_lote_id').value = loteId;
+    document.getElementById('despacho_produto').value = produto;
+    document.getElementById('despacho_etapa_atual').value = etapaAtual || 'Sem etapa';
+    document.getElementById('despacho_quantidade').value = quantidade;
+    document.getElementById('despacho_quantidade').max = quantidade;
+    document.getElementById('despacho_qtd_max').textContent = quantidade;
+    document.getElementById('despacho_arara').value = '';
+    document.getElementById('despacho_obs').value = '';
+    
+    new bootstrap.Modal(document.getElementById('modalDespacho')).show();
+}
+
+// Função removida - não há mais operador destino no despacho
+
+document.getElementById('formDespacho').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("ordem_producao.meu_gantt_despachar") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalDespacho')).hide();
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro de conexão: ' + err));
+});
+
+// Auto-refresh a cada 30 segundos
+setInterval(function() {
+    location.reload();
+}, 30000);
+
+// ===== PAUSAS DE PRODUÇÃO =====
+let motivosPausa = [];
+
+// Carregar motivos de pausa ao iniciar
+fetch('/industria/producao-pausas/api/motivos-ativos')
+    .then(resp => resp.json())
+    .then(data => { motivosPausa = data; })
+    .catch(err => console.error('Erro ao carregar motivos:', err));
+
+// Configurar modais após DOM carregado
+document.addEventListener('DOMContentLoaded', function() {
+    // Quando o modal de pausa abre, preencher com os dados do botão clicado
+    const modalPausa = document.getElementById('modalPausa');
+    if (modalPausa) {
+        modalPausa.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (!button) return;
+            
+            const loteId = button.getAttribute('data-lote-id');
+            const numeroOp = button.getAttribute('data-numero-op');
+            
+            document.getElementById('pausa_lote_id').value = loteId;
+            document.getElementById('pausa_lote_info').innerHTML = '<span class="badge bg-secondary">' + numeroOp + '</span>';
+            
+            // Preencher select de motivos
+            const select = document.getElementById('pausa_motivo_id');
+            select.innerHTML = '<option value="">Selecione o motivo...</option>';
+            
+            let produtivos = '';
+            let improdutivos = '';
+            
+            motivosPausa.forEach(m => {
+                const opt = `<option value="${m.id}" data-tipo="${m.tipo}">${m.nome}</option>`;
+                if (m.tipo === 'produtivo') {
+                    produtivos += opt;
+                } else {
+                    improdutivos += opt;
+                }
+            });
+            
+            if (produtivos) {
+                select.innerHTML += `<optgroup label="✓ Produtivos">${produtivos}</optgroup>`;
+            }
+            if (improdutivos) {
+                select.innerHTML += `<optgroup label="✗ Improdutivos">${improdutivos}</optgroup>`;
+            }
+        });
+    }
+});
+
+// Configurar form de pausa após DOM carregado
+document.addEventListener('DOMContentLoaded', function() {
+    const formPausa = document.getElementById('formPausa');
+    if (formPausa) {
+        formPausa.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const loteId = document.getElementById('pausa_lote_id').value;
+            const motivoId = document.getElementById('pausa_motivo_id').value;
+            const observacao = document.getElementById('pausa_observacao').value;
+            
+            if (!motivoId) {
+                alert('Selecione um motivo!');
+                return;
+            }
+            
+            fetch('/industria/producao-pausas/api/pausar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({lote_id: loteId, motivo_id: motivoId, observacao: observacao})
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalPausa')).hide();
+                    atualizarStatusPausa(loteId, true, data.message);
+                } else {
+                    alert('Erro: ' + (data.error || 'Erro desconhecido'));
+                }
+            })
+            .catch(err => alert('Erro: ' + err));
+        });
+    }
+});
+
+function retomarProducao(loteId) {
+    if (!confirm('Retomar produção deste lote?')) return;
+    
+    fetch('/industria/producao-pausas/api/retomar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({lote_id: loteId})
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            atualizarStatusPausa(loteId, false, null);
+            alert(data.message);
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro: ' + err));
+}
+
+function atualizarStatusPausa(loteId, pausado, motivo) {
+    const card = document.getElementById('cardLote_' + loteId);
+    const statusDiv = document.getElementById('pausaStatus_' + loteId);
+    const btnPausar = document.querySelector(`.btn-pausar[data-lote-id="${loteId}"]`);
+    const btnRetomar = document.querySelector(`.btn-retomar[data-lote-id="${loteId}"]`);
+    
+    if (!card || !statusDiv || !btnPausar || !btnRetomar) {
+        console.error('Elementos não encontrados para lote:', loteId);
+        return;
+    }
+    
+    if (pausado) {
+        // Visual do card - mudar borda para amarelo/warning
+        card.classList.remove('border-primary');
+        card.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
+        card.style.borderLeftWidth = '6px';
+        
+        // Mostrar indicador de pausa
+        statusDiv.classList.remove('d-none');
+        statusDiv.querySelector('.motivo-pausa').textContent = motivo || 'Pausado';
+        
+        // Trocar botões - esconder Pausar, mostrar Retomar
+        btnPausar.classList.add('d-none');
+        btnRetomar.classList.remove('d-none');
+    } else {
+        // Restaurar visual do card
+        card.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10');
+        card.classList.add('border-primary');
+        card.style.borderLeftWidth = '4px';
+        
+        // Esconder indicador
+        statusDiv.classList.add('d-none');
+        
+        // Trocar botões - mostrar Pausar, esconder Retomar
+        btnPausar.classList.remove('d-none');
+        btnRetomar.classList.add('d-none');
+    }
+}
+
+// Verificar status de pausa ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    let todosPausados = true;
+    let algumPausado = false;
+    const totalLotes = document.querySelectorAll('.btn-pausar').length;
+    
+    document.querySelectorAll('.btn-pausar').forEach(btn => {
+        const loteId = btn.getAttribute('data-lote-id');
+        fetch('/industria/producao-pausas/api/status/' + loteId)
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.pausado) {
+                    atualizarStatusPausa(loteId, true, data.motivo);
+                    algumPausado = true;
+                } else {
+                    todosPausados = false;
+                }
+                atualizarBotoesTodos();
+            })
+            .catch(() => { todosPausados = false; });
+    });
+});
+
+// ===== PAUSAR/RETOMAR TODOS =====
+function abrirModalPausarTodos() {
+    document.getElementById('pausaTodos_lote_id').value = 'todos';
+    
+    // Contar lotes não pausados
+    const lotesAtivos = document.querySelectorAll('.btn-pausar:not(.d-none)').length;
+    document.getElementById('pausaTodos_info').innerHTML = 
+        `<span class="badge bg-primary">${lotesAtivos} lotes</span> serão pausados`;
+    
+    // Preencher select de motivos
+    const select = document.getElementById('pausaTodos_motivo_id');
+    select.innerHTML = '<option value="">Selecione o motivo...</option>';
+    
+    let produtivos = '';
+    let improdutivos = '';
+    
+    motivosPausa.forEach(m => {
+        const opt = `<option value="${m.id}" data-tipo="${m.tipo}">${m.nome}</option>`;
+        if (m.tipo === 'produtivo') {
+            produtivos += opt;
+        } else {
+            improdutivos += opt;
+        }
+    });
+    
+    if (produtivos) {
+        select.innerHTML += `<optgroup label="✓ Produtivos">${produtivos}</optgroup>`;
+    }
+    if (improdutivos) {
+        select.innerHTML += `<optgroup label="✗ Improdutivos">${improdutivos}</optgroup>`;
+    }
+    
+    new bootstrap.Modal(document.getElementById('modalPausarTodos')).show();
+}
+
+// Configurar form de pausar todos após DOM carregado
+document.addEventListener('DOMContentLoaded', function() {
+    const formPausarTodos = document.getElementById('formPausarTodos');
+    if (formPausarTodos) {
+        formPausarTodos.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const motivoId = document.getElementById('pausaTodos_motivo_id').value;
+            const observacao = document.getElementById('pausaTodos_observacao').value;
+            
+            if (!motivoId) {
+                alert('Selecione um motivo!');
+                return;
+            }
+            
+            // Pegar TODOS os lotes em produção (pausados ou não)
+            const lotesEmProducao = [];
+            document.querySelectorAll('.card-lote-producao').forEach(card => {
+                lotesEmProducao.push(card.getAttribute('data-lote-id'));
+            });
+            
+            if (lotesEmProducao.length === 0) {
+                alert('Nenhum lote em produção!');
+                return;
+            }
+            
+            // Pausar/trocar motivo de cada lote
+            let processados = 0;
+            lotesEmProducao.forEach(loteId => {
+                // Usa endpoint que pausa OU troca motivo se já pausado
+                fetch('/industria/producao-pausas/api/pausar-ou-trocar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({lote_id: loteId, motivo_id: motivoId, observacao: observacao})
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    processados++;
+                    if (data.success) {
+                        atualizarStatusPausa(loteId, true, data.message);
+                    }
+                    if (processados === lotesEmProducao.length) {
+                        bootstrap.Modal.getInstance(document.getElementById('modalPausarTodos')).hide();
+                        atualizarBotoesTodos();
+                    }
+                })
+                .catch(() => { processados++; });
+            });
+        });
+    }
+});
+
+function retomarTodos() {
+    if (!confirm('Retomar produção de todos os lotes pausados?')) return;
+    
+    // Pegar todos os lotes pausados
+    const lotesParaRetomar = [];
+    document.querySelectorAll('.btn-retomar:not(.d-none)').forEach(btn => {
+        lotesParaRetomar.push(btn.getAttribute('data-lote-id'));
+    });
+    
+    if (lotesParaRetomar.length === 0) {
+        alert('Nenhum lote pausado para retomar!');
+        return;
+    }
+    
+    let retomados = 0;
+    lotesParaRetomar.forEach(loteId => {
+        fetch('/industria/producao-pausas/api/retomar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({lote_id: loteId})
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                atualizarStatusPausa(loteId, false, null);
+                retomados++;
+            }
+            if (retomados === lotesParaRetomar.length) {
+                atualizarBotoesTodos();
+                alert(`${retomados} lotes retomados!`);
+            }
+        })
+        .catch(() => {});
+    });
+}
+
+function atualizarBotoesTodos() {
+    const btnPausarTodos = document.getElementById('btnPausarTodos');
+    const btnRetomarTodos = document.getElementById('btnRetomarTodos');
+    
+    if (!btnPausarTodos || !btnRetomarTodos) return;
+    
+    const lotesAtivos = document.querySelectorAll('.btn-pausar:not(.d-none)').length;
+    const lotesPausados = document.querySelectorAll('.btn-retomar:not(.d-none)').length;
+    
+    // Mostrar/esconder botões baseado no estado
+    if (lotesAtivos > 0) {
+        btnPausarTodos.classList.remove('d-none');
+    } else {
+        btnPausarTodos.classList.add('d-none');
+    }
+    
+    if (lotesPausados > 0) {
+        btnRetomarTodos.classList.remove('d-none');
+    } else {
+        btnRetomarTodos.classList.add('d-none');
+    }
+}
+
+// ===== TEMPORIZADORES =====
+function formatarTempo(ms) {
+    if (ms < 0) ms = 0;
+    const totalSeg = Math.floor(ms / 1000);
+    const totalMin = Math.floor(totalSeg / 60);
+    const horas = Math.floor(totalMin / 60);
+    const minutos = totalMin % 60;
+    
+    if (horas > 0) {
+        return horas + 'h' + String(minutos).padStart(2, '0') + 'm';
+    }
+    return minutos + 'm' + String(totalSeg % 60).padStart(2, '0') + 's';
+}
+
+function atualizarTemporizadores() {
+    const agora = new Date().getTime();
+    
+    document.querySelectorAll('.lote-card').forEach(card => {
+        const timerProducaoEl = card.querySelector('.timer-producao');
+        const timerEtapaEl = card.querySelector('.timer-etapa');
+        
+        const pausaInicio = card.dataset.pausaInicio;
+        const inicioProducao = card.dataset.inicioProducao;
+        const atribuicao = card.dataset.atribuicao;
+        const inicioProducaoOp = card.dataset.inicioProducaoOp;
+        const chegadaEtapa = card.dataset.chegadaEtapa;
+        const statusOperador = card.dataset.statusOperador;
+        
+        // Timer 1: Tempo total de produção (desde início da OP)
+        if (timerProducaoEl && inicioProducaoOp) {
+            const diffProducao = agora - new Date(inicioProducaoOp).getTime();
+            timerProducaoEl.textContent = formatarTempo(diffProducao);
+        }
+        
+        // Timer 2: Tempo na etapa atual
+        if (timerEtapaEl) {
+            let timestampEtapa = null;
+            
+            if (pausaInicio) {
+                timestampEtapa = new Date(pausaInicio).getTime();
+            } else if (statusOperador === 'em_producao' && inicioProducao) {
+                timestampEtapa = new Date(inicioProducao).getTime();
+            } else if (statusOperador === 'em_espera' && atribuicao) {
+                timestampEtapa = new Date(atribuicao).getTime();
+            } else if (chegadaEtapa) {
+                timestampEtapa = new Date(chegadaEtapa).getTime();
+            } else if (inicioProducaoOp) {
+                timestampEtapa = new Date(inicioProducaoOp).getTime();
+            }
+            
+            if (timestampEtapa) {
+                const diffEtapa = agora - timestampEtapa;
+                timerEtapaEl.textContent = formatarTempo(diffEtapa);
+            }
+        }
+    });
+}
+
+// Atualizar a cada segundo
+setInterval(atualizarTemporizadores, 1000);
+// Primeira atualização imediata
+setTimeout(atualizarTemporizadores, 100);
+
+// ===== CORRIGIR DESPACHO =====
+function abrirModalCorrigirDespacho(loteId, numeroOp, etapaDestino, arara) {
+    document.getElementById('corrigir_lote_id').value = loteId;
+    document.getElementById('corrigir_info').textContent = 'OP: ' + numeroOp;
+    document.getElementById('corrigir_etapa_atual').textContent = etapaDestino || 'Não informada';
+    document.getElementById('corrigir_arara_atual').textContent = arara || 'Não informada';
+    document.getElementById('corrigir_arara').value = arara || '';
+    document.getElementById('corrigir_observacao').value = '';
+    
+    new bootstrap.Modal(document.getElementById('modalCorrigirDespacho')).show();
+}
+
+document.getElementById('formCorrigirDespacho').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const loteId = document.getElementById('corrigir_lote_id').value;
+    const etapaDestinoId = document.getElementById('corrigir_etapa').value;
+    const arara = document.getElementById('corrigir_arara').value;
+    const observacao = document.getElementById('corrigir_observacao').value;
+    
+    if (!etapaDestinoId) {
+        alert('Selecione a etapa de destino correta.');
+        return;
+    }
+    
+    if (!observacao.trim()) {
+        alert('Informe o motivo da correção.');
+        return;
+    }
+    
+    fetch('/industria/ordem-producao/meu-gantt/corrigir-despacho', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `lote_id=${loteId}&etapa_destino_id=${etapaDestinoId}&arara=${encodeURIComponent(arara)}&observacao=${encodeURIComponent(observacao)}`
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCorrigirDespacho')).hide();
+            alert('Despacho corrigido com sucesso!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro: ' + err));
+});
+</script>
+
+<!-- Modal Pausa -->
+<div class="modal fade" id="modalPausa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-pause-circle me-2"></i>Pausar Produção</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formPausa">
+                <div class="modal-body">
+                    <input type="hidden" id="pausa_lote_id" name="lote_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Lote</label>
+                        <div id="pausa_lote_info" class="form-control-plaintext"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pausa_motivo_id" class="form-label">Motivo da Pausa <span class="text-danger">*</span></label>
+                        <select class="form-select" id="pausa_motivo_id" name="motivo_id" required>
+                            <option value="">Selecione o motivo...</option>
+                        </select>
+                        <small class="text-muted">
+                            <span class="text-success">✓ Produtivo</span> = conta como tempo de produção |
+                            <span class="text-danger">✗ Improdutivo</span> = descontado
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pausa_observacao" class="form-label">Observação</label>
+                        <textarea class="form-control" id="pausa_observacao" name="observacao" rows="2" 
+                                  placeholder="Observação opcional..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-pause me-1"></i>Pausar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pausar Todos -->
+<div class="modal fade" id="modalPausarTodos" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-pause-circle me-2"></i>Pausar Todos os Lotes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formPausarTodos">
+                <div class="modal-body">
+                    <input type="hidden" id="pausaTodos_lote_id" value="todos">
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="pausaTodos_info">Todos os lotes em produção serão pausados</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pausaTodos_motivo_id" class="form-label">Motivo da Pausa <span class="text-danger">*</span></label>
+                        <select class="form-select" id="pausaTodos_motivo_id" name="motivo_id" required>
+                            <option value="">Selecione o motivo...</option>
+                        </select>
+                        <small class="text-muted">
+                            <span class="text-success">✓ Produtivo</span> = conta como tempo de produção |
+                            <span class="text-danger">✗ Improdutivo</span> = descontado
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pausaTodos_observacao" class="form-label">Observação</label>
+                        <textarea class="form-control" id="pausaTodos_observacao" name="observacao" rows="2" 
+                                  placeholder="Observação opcional..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-pause me-1"></i>Pausar Todos
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Corrigir Despacho -->
+<div class="modal fade" id="modalCorrigirDespacho" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Corrigir Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formCorrigirDespacho">
+                <div class="modal-body">
+                    <input type="hidden" id="corrigir_lote_id" name="lote_id">
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="corrigir_info">OP: --</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="corrigir_etapa" class="form-label">Nova Etapa de Destino <span class="text-danger">*</span></label>
+                        <select class="form-select" id="corrigir_etapa" name="etapa_destino_id" required>
+                            <option value="">Selecione a etapa correta...</option>
+                            {% for etapa in etapas %}
+                            <option value="{{ etapa.id }}">{{ etapa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Etapa atual: <span id="corrigir_etapa_atual">--</span></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="corrigir_arara" class="form-label">Arara/Local</label>
+                        <input type="text" class="form-control" id="corrigir_arara" name="arara" 
+                               placeholder="Ex: A1, B2, Bancada 3...">
+                        <small class="text-muted">Arara atual: <span id="corrigir_arara_atual">--</span></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="corrigir_observacao" class="form-label">Motivo da Correção <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="corrigir_observacao" name="observacao" rows="2" 
+                                  placeholder="Descreva o motivo da correção..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-check me-1"></i>Corrigir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

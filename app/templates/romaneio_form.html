@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Novo Romaneio de Vendas' if not manifest_id else 'Editar Romaneio de Vendas' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Novo Romaneio de Vendas' if not manifest_id else 'Editar Romaneio de Vendas' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('romaneio.romaneio_list') }}">Romaneios de Vendas</a></li>
+        <li class="breadcrumb-item active">{{ 'Novo Romaneio' if not manifest_id else 'Editar Romaneio' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-clipboard-list me-1"></i>
+            {{ 'Novo Romaneio de Vendas' if not manifest_id else 'Editar Romaneio de Vendas' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('romaneio.romaneio_cadastrar') if not manifest_id else url_for('romaneio.romaneio_editar', manifest_id=manifest_id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="date" class="form-label">Data <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="date" name="date" value="{{ romaneio.date.strftime('%Y-%m-%d') if romaneio and romaneio.date else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        {% if manifest_id %}
+                        <label class="form-label">Número do Romaneio</label>
+                        <input type="text" class="form-control" value="{{ romaneio.manifest_number }}" readonly>
+                        <div class="form-text">O número do romaneio é gerado automaticamente e não pode ser alterado.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="seller_id" class="form-label">Vendedor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="seller_id" name="seller_id" required>
+                            <option value="">Selecione um vendedor</option>
+                            {% for vendedor in vendedores %}
+                            <option value="{{ vendedor.id }}" {% if romaneio and romaneio.seller_id == vendedor.id %}selected{% endif %}>
+                                {{ vendedor.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="route_id" class="form-label">Rota <span class="text-danger">*</span></label>
+                        <select class="form-select" id="route_id" name="route_id" required>
+                            <option value="">Selecione uma rota</option>
+                            {% for rota in rotas %}
+                            <option value="{{ rota.id }}" data-seller-id="{{ rota.seller_id }}" {% if romaneio and romaneio.route_id == rota.id %}selected{% endif %}>
+                                {{ rota.name }} ({{ rota.seller_name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                {% if manifest_id %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="draft" {% if romaneio and romaneio.status == 'draft' %}selected{% endif %}>Rascunho</option>
+                            <option value="in_progress" {% if romaneio and romaneio.status == 'in_progress' %}selected{% endif %}>Em Andamento</option>
+                            <option value="completed" {% if romaneio and romaneio.status == 'completed' %}selected{% endif %}>Concluído</option>
+                            <option value="canceled" {% if romaneio and romaneio.status == 'canceled' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="notes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ romaneio.notes if romaneio else '' }}</textarea>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('romaneio.romaneio_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if manifest_id %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações Importantes
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <p><strong>Nota:</strong> Ao editar um romaneio, você pode alterar suas informações básicas e status.</p>
+                <p>Para gerenciar visitas e pedidos, utilize a tela de visualização do romaneio.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtrar rotas por vendedor usando seller_id (evita problemas com nomes)
+        function filtrarRotasPorVendedor() {
+            var sellerId = $('#seller_id').val();
+
+            // Esconder todas as rotas
+            $('#route_id option').hide();
+            $('#route_id option:first').show();
+
+            if (!sellerId) {
+                // Sem vendedor selecionado, não mostrar nenhuma rota além do placeholder
+                $('#route_id').val('');
+                return;
+            }
+
+            // Mostrar apenas as rotas do vendedor selecionado
+            $('#route_id option').each(function() {
+                var optSellerId = String($(this).data('seller-id') || '');
+                if (optSellerId && optSellerId === String(sellerId)) {
+                    $(this).show();
+                }
+            });
+
+            // Se a rota atualmente selecionada não pertencer ao vendedor, limpar seleção
+            var selectedOpt = $('#route_id option:selected');
+            if (!selectedOpt.length || String(selectedOpt.data('seller-id') || '') !== String(sellerId)) {
+                $('#route_id').val('');
+            }
+        }
+
+        $('#seller_id').on('change', filtrarRotasPorVendedor);
+
+        // Aplicar filtro ao carregar a página (útil na edição)
+        filtrarRotasPorVendedor();
+        
+        // Definir data atual para novos romaneios
+        if (!$('#date').val()) {
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+            var yyyy = today.getFullYear();
+            
+            today = yyyy + '-' + mm + '-' + dd;
+            $('#date').val(today);
+        }
+    });
+</script>
+{% endblock %}

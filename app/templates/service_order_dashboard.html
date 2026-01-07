@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Ordens de Serviço - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Dashboard de Ordens de Serviço</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('service_order.service_order_list') }}">Ordens de Serviço</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+    
+    <!-- Cards de estatísticas -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Total de OS</div>
+                            <div class="display-6">{{ stats.total }}</div>
+                        </div>
+                        <i class="fas fa-tools fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('service_order.service_order_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Em Andamento</div>
+                            <div class="display-6">{{ stats.in_progress_count }}</div>
+                        </div>
+                        <i class="fas fa-spinner fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('service_order.service_order_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Concluídas</div>
+                            <div class="display-6">{{ stats.completed_count }}</div>
+                        </div>
+                        <i class="fas fa-check-circle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('service_order.service_order_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Canceladas</div>
+                            <div class="display-6">{{ stats.canceled_count }}</div>
+                        </div>
+                        <i class="fas fa-ban fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('service_order.service_order_list') }}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Ordens de Serviço por Tipo
+                </div>
+                <div class="card-body">
+                    <canvas id="ordersByTypeChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Ordens de Serviço por Cliente
+                </div>
+                <div class="card-body">
+                    <canvas id="ordersByCustomerChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Ordens de Serviço por Técnico
+                </div>
+                <div class="card-body">
+                    <canvas id="ordersByTechnicianChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list-alt me-1"></i>
+                    Ordens de Serviço Recentes
+                </div>
+                <div class="card-body">
+                    {% if recent_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>{{ order.order_number }}</td>
+                                    <td>{{ order.customer_name }}</td>
+                                    <td>
+                                        {% if order.type == 'preventive' %}
+                                        <span class="badge bg-success">Preventiva</span>
+                                        {% elif order.type == 'corrective' %}
+                                        <span class="badge bg-danger">Corretiva</span>
+                                        {% elif order.type == 'predictive' %}
+                                        <span class="badge bg-info">Preditiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if order.status == 'open' %}
+                                        <span class="badge bg-primary">Aberta</span>
+                                        {% elif order.status == 'in_progress' %}
+                                        <span class="badge bg-warning">Em Andamento</span>
+                                        {% elif order.status == 'completed' %}
+                                        <span class="badge bg-success">Concluída</span>
+                                        {% elif order.status == 'canceled' %}
+                                        <span class="badge bg-danger">Cancelada</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('service_order.service_order_view', order_id=order.id) }}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma ordem de serviço recente.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Gráfico de ordens de serviço por tipo
+        var ctxType = document.getElementById('ordersByTypeChart').getContext('2d');
+        new Chart(ctxType, {
+            type: 'pie',
+            data: {
+                labels: [
+                    {% for item in by_type %}
+                        '{{ "Preventiva" if item.type == "preventive" else "Corretiva" if item.type == "corrective" else "Preditiva" }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    data: [
+                        {% for item in by_type %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(23, 162, 184, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribuição por Tipo de Manutenção'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de ordens de serviço por cliente
+        var ctxCustomer = document.getElementById('ordersByCustomerChart').getContext('2d');
+        new Chart(ctxCustomer, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in by_customer %}
+                        '{{ item.customer_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Ordens de Serviço',
+                    data: [
+                        {% for item in by_customer %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 5 Clientes por Número de OS'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de ordens de serviço por técnico
+        var ctxTechnician = document.getElementById('ordersByTechnicianChart').getContext('2d');
+        new Chart(ctxTechnician, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in by_technician %}
+                        '{{ item.technician_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Ordens de Serviço',
+                    data: [
+                        {% for item in by_technician %}
+                            {{ item.count }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.5)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Ordens de Serviço por Técnico'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

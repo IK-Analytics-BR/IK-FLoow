@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Horímetro - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Horímetro</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Horímetro</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-clock me-1"></i>
+            Leituras de Horímetro
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <a href="{{ url_for('hour_meter.hour_meter_add') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nova Leitura
+                </a>
+            </div>
+            
+            {% if readings %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Equipamento</th>
+                            <th>Data da Leitura</th>
+                            <th>Horas</th>
+                            <th>Tipo</th>
+                            <th>Registrado por</th>
+                            <th>Data de Registro</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reading in readings %}
+                        <tr>
+                            <td>{{ reading.id }}</td>
+                            <td>
+                                <a href="{{ url_for('hour_meter.hour_meter_by_equipment', equipment_id=reading.equipment_id) }}">
+                                    {{ reading.equipment_name }}
+                                </a>
+                            </td>
+                            <td>{{ reading.reading_date }}</td>
+                            <td>{{ reading.hours }}</td>
+                            <td>
+                                {% if reading.reading_type == 'manual' %}
+                                <span class="badge bg-primary">Manual</span>
+                                {% else %}
+                                <span class="badge bg-info">IoT</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ reading.user_name or 'Sistema' }}</td>
+                            <td>{{ reading.created_at }}</td>
+                            <td>
+                                {% if session.role == 'admin' %}
+                                <form action="{{ url_for('hour_meter.hour_meter_delete', reading_id=reading.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir esta leitura?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhuma leitura de horímetro registrada.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações
+        </div>
+        <div class="card-body">
+            <p>O horímetro é utilizado para registrar as horas de operação dos equipamentos. Estas informações são essenciais para o cálculo de desgaste e planejamento de manutenções preventivas.</p>
+            <p>Para registrar uma nova leitura, clique no botão "Nova Leitura" acima.</p>
+            <p>Para visualizar o histórico de leituras de um equipamento específico, clique no nome do equipamento na tabela.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[2, 'desc'], [0, 'desc']]
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+<svg width="120" height="40" xmlns="http://www.w3.org/2000/svg">
+  <rect width="120" height="40" fill="#1e3a5f" rx="4"/>
+  <text x="60" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">
+    SISTEMA PDV
+  </text>
+</svg>

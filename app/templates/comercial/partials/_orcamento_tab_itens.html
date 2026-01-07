@@ -1,0 +1,207 @@
+<!-- ABA 2: ITENS DO ORCAMENTO -->
+<div class="row">
+    <div class="col-md-9">
+        <!-- GRADE: Adicionar Produto -->
+        <div class="grade">
+            <div class="grade-header azul"><i class="fas fa-search"></i>Adicionar Produto</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-2">
+                        <label class="form-label">Codigo</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="produto_codigo" placeholder="F2 buscar">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="buscarProduto()" title="Buscar produto (F2)">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <input type="hidden" id="produto_id">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Produto</label>
+                        <input type="text" class="form-control" id="produto_nome" readonly>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">UN</label>
+                        <input type="text" class="form-control text-center" id="item_unidade" value="UN" readonly>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">Qtde</label>
+                        <input type="number" class="form-control text-end" id="item_quantidade" value="1" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Preco Lista</label>
+                        <input type="number" class="form-control text-end" id="item_preco_lista" value="0.00" step="0.01">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">% Desc</label>
+                        <input type="number" class="form-control text-end" id="item_perc_desconto" value="0" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Unitario</label>
+                        <input type="number" class="form-control text-end field-highlight" id="item_preco_unitario" value="0.00" step="0.01">
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-2">
+                        <label class="form-label">Lista Preco</label>
+                        <select class="form-select" id="lista_preco" onchange="aplicarListaPreco()">
+                            <option value="">Padrao</option>
+                            {% if listas_preco %}
+                                {% for lp in listas_preco %}
+                                <option value="{{ lp.id }}">{{ lp.nome }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Entrega (dias)</label>
+                        <input type="number" class="form-control" id="item_entrega_dias" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Obs. Item</label>
+                        <input type="text" class="form-control" id="item_observacao">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">SubTotal</label>
+                        <input type="text" class="form-control text-end" id="item_subtotal" value="0,00" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-success btn-sm w-100" onclick="adicionarItem()">
+                            <i class="fas fa-plus"></i> Adicionar Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Lista de Itens -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-list"></i>Itens do Orcamento</div>
+            <div class="grade-body p-0">
+                <table class="table table-compact table-hover table-bordered mb-0" id="tabelaItens">
+                    <thead>
+                        <tr>
+                            <th style="width:80px">Codigo</th>
+                            <th>Produto</th>
+                            <th style="width:50px">UN</th>
+                            <th style="width:60px">Qtde</th>
+                            <th style="width:80px">Preco</th>
+                            <th style="width:50px">%Desc</th>
+                            <th style="width:80px">Unitario</th>
+                            <th style="width:90px">Total</th>
+                            <th style="width:70px">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyItens">
+                        {% if itens %}
+                            {% for item in itens %}
+                            <tr data-id="{{ item.id }}" 
+                                data-produto-id="{{ item.produto_id }}"
+                                data-codigo="{{ item.produto_codigo or item.internal_code or '' }}"
+                                data-nome="{{ item.produto_nome or item.name or '' }}"
+                                data-unidade="{{ item.unidade or 'UN' }}"
+                                data-quantidade="{{ item.quantidade }}"
+                                data-preco-lista="{{ item.preco_tabela or item.preco_lista or 0 }}"
+                                data-desconto="{{ item.percentual_desconto or 0 }}"
+                                data-preco-unitario="{{ item.preco_unitario }}"
+                                data-valor-total="{{ item.valor_total }}">
+                                <td>{{ item.produto_codigo or item.internal_code or '' }}</td>
+                                <td>{{ item.produto_nome or item.name or '' }}</td>
+                                <td>{{ item.unidade or 'UN' }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.quantidade) }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.preco_tabela or item.preco_lista or 0) }}</td>
+                                <td class="text-end">{{ "%.1f"|format(item.percentual_desconto or 0) }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.preco_unitario) }}</td>
+                                <td class="text-end fw-bold">{{ "%.2f"|format(item.valor_total) }}</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" onclick="editarItemDireto(this)" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" onclick="removerItemPorId('{{ item.id }}')" title="Remover">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr id="semItens">
+                            <td colspan="9" class="text-center text-muted py-3">Nenhum item adicionado</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div class="col-md-3">
+        <!-- GRADE: Acoes -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-cog"></i>Acoes</div>
+            <div class="grade-body">
+                <div class="d-grid gap-1">
+                    <button type="button" class="btn btn-info btn-sm" onclick="verificarEstoqueItemSelecionado()" title="Verificar estoque produzido com DNA similar">
+                        <i class="fas fa-boxes me-1"></i>Verificar Estoque
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm"><i class="fas fa-magic me-1"></i>Gerador</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-info-circle me-1"></i>Detalhar Produto</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-box me-1"></i>Embalagens</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm"><i class="fas fa-trash me-1"></i>Descartavel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Resumo -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-calculator"></i>Resumo</div>
+            <div class="grade-body">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="small">Itens:</span>
+                    <strong id="resumo_qtd_itens">{{ itens|length if itens else 0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="small">Total Produtos:</span>
+                    <strong id="resumo_total_produtos">0,00</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="small">IPI + ST:</span>
+                    <strong>0,00</strong>
+                </div>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between">
+                    <span class="small fw-bold">TOTAL:</span>
+                    <strong class="text-success" id="resumo_total_com_impostos">0,00</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Ordenar -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-sort"></i>Ordenar</div>
+            <div class="grade-body">
+                <div class="d-grid gap-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-up"></i> Subir</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-down"></i> Descer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Buscar Produto -->
+<div class="modal fade" id="modalBuscarProduto" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Buscar Produto</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-2" id="busca_produto" placeholder="Digite codigo, nome ou codigo de barras...">
+                <div id="resultado_produtos"></div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,44 @@
+<!-- Modal de Busca de CFOP -->
+<div class="modal fade" id="cfopSearchModal" tabindex="-1" aria-labelledby="cfopSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cfopSearchModalLabel">Buscar CFOP</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="targetCfopField" value="">
+        <input type="hidden" id="targetCfopDescField" value="">
+        
+        <div class="row mb-3">
+          <div class="col-md-12">
+            <div class="input-group">
+              <input type="text" class="form-control" id="cfopSearchInput" placeholder="Digite o código ou descrição do CFOP (mínimo 2 caracteres)">
+              <button class="btn btn-primary" type="button" id="cfopSearchButton">
+                <i class="fas fa-search"></i> Buscar
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-striped table-hover" id="cfopResultsTable">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Resultados da busca serão inseridos aqui -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>

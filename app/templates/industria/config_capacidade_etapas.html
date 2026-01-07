@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Capacidade das Etapas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-tachometer-alt text-warning me-2"></i>
+                Capacidade das Etapas
+            </h1>
+            <p class="text-muted mb-0">Configure a capacidade de processamento de cada etapa para identificar gargalos</p>
+        </div>
+        <a href="{{ url_for('config_producao.tempos_producao') }}" class="btn btn-outline-primary">
+            <i class="fas fa-stopwatch me-1"></i>Tempos de Produção
+        </a>
+    </div>
+
+    <!-- Info -->
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Como funciona:</strong> A capacidade define quantos lotes uma etapa pode processar por dia. 
+        O sistema usa essa informação para calcular previsões e identificar gargalos (etapas sobrecarregadas).
+    </div>
+
+    <!-- Tabela de Etapas -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;">Ordem</th>
+                            <th>Etapa</th>
+                            <th class="text-center" style="width: 150px;">
+                                Capacidade Diária
+                                <i class="fas fa-question-circle text-muted" title="Lotes por dia"></i>
+                            </th>
+                            <th class="text-center" style="width: 150px;">
+                                Simultânea
+                                <i class="fas fa-question-circle text-muted" title="Lotes ao mesmo tempo"></i>
+                            </th>
+                            <th class="text-center" style="width: 120px;">
+                                Setup (min)
+                                <i class="fas fa-question-circle text-muted" title="Tempo entre lotes"></i>
+                            </th>
+                            <th>Observação</th>
+                            <th class="text-center" style="width: 80px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in etapas %}
+                        <tr>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ e.ordem }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ e.nome }}</strong>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-center"
+                                       id="cap-diaria-{{ e.id }}" value="{{ e.capacidade_diaria }}"
+                                       min="1" max="999">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-center"
+                                       id="cap-simult-{{ e.id }}" value="{{ e.capacidade_simultanea }}"
+                                       min="1" max="99">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-center"
+                                       id="tempo-setup-{{ e.id }}" value="{{ e.tempo_setup }}"
+                                       min="0" max="999">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm"
+                                       id="obs-{{ e.id }}" value="{{ e.observacao or '' }}"
+                                       placeholder="Observação...">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="salvarCapacidade({{ e.id }})">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legenda -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-book me-2"></i>Legenda
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <h6><i class="fas fa-calendar-day text-primary me-2"></i>Capacidade Diária</h6>
+                    <p class="small text-muted mb-0">
+                        Quantos lotes a etapa consegue processar em um dia de trabalho completo.
+                        Ex: Se a etapa leva 1h por lote e o dia tem 8h úteis, capacidade = 8.
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6><i class="fas fa-layer-group text-success me-2"></i>Capacidade Simultânea</h6>
+                    <p class="small text-muted mb-0">
+                        Quantos lotes podem ser trabalhados ao mesmo tempo (postos de trabalho paralelos).
+                        Ex: 2 operadores trabalhando na mesma etapa = capacidade 2.
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6><i class="fas fa-clock text-warning me-2"></i>Tempo de Setup</h6>
+                    <p class="small text-muted mb-0">
+                        Tempo em minutos necessário para preparar a etapa entre um lote e outro.
+                        Ex: Troca de ferramentas, limpeza, etc.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function salvarCapacidade(etapaId) {
+    const capacidadeDiaria = document.getElementById(`cap-diaria-${etapaId}`).value;
+    const capacidadeSimultanea = document.getElementById(`cap-simult-${etapaId}`).value;
+    const tempoSetup = document.getElementById(`tempo-setup-${etapaId}`).value;
+    const observacao = document.getElementById(`obs-${etapaId}`).value;
+    
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+    
+    fetch('{{ url_for("config_producao.salvar_capacidade_etapa") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `etapa_id=${etapaId}&capacidade_diaria=${capacidadeDiaria}&capacidade_simultanea=${capacidadeSimultanea}&tempo_setup=${tempoSetup}&observacao=${encodeURIComponent(observacao)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-save"></i>';
+            }, 2000);
+        } else {
+            btn.innerHTML = '<i class="fas fa-times text-danger"></i>';
+            alert('Erro: ' + data.error);
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-save"></i>';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-times text-danger"></i>';
+        alert('Erro ao salvar');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-save"></i>';
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+<!-- Modal para confirmação quando um documento duplicado é encontrado -->
+<div class="modal fade" id="duplicateDocumentModal" tabindex="-1" aria-labelledby="duplicateDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="duplicateDocumentModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Documento já cadastrado
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <p><strong>Atenção!</strong> O {{ tipo_documento }} informado já está cadastrado para:</p>
+                    <p class="fs-5">{{ entidade.name }}</p>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Informações do cadastro existente
+                            </div>
+                            <div class="card-body">
+                                <p><strong>{{ tipo_documento }}:</strong> {{ entidade.cnpj }}</p>
+                                <p><strong>Nome:</strong> {{ entidade.name }}</p>
+                                <p><strong>Cidade/UF:</strong> {{ entidade.city }}/{{ entidade.state }}</p>
+                                <p><strong>Telefone:</strong> {{ entidade.phone }}</p>
+                                <p><strong>Email:</strong> {{ entidade.email }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <i class="fas fa-question-circle me-2"></i>
+                                O que deseja fazer?
+                            </div>
+                            <div class="card-body">
+                                <p>Escolha uma das opções abaixo:</p>
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for(editar_url, id=entidade.id) }}" class="btn btn-primary">
+                                        <i class="fas fa-edit me-2"></i>
+                                        Editar cadastro existente
+                                    </a>
+                                    <a href="{{ url_for(visualizar_url, id=entidade.id) }}" class="btn btn-info">
+                                        <i class="fas fa-eye me-2"></i>
+                                        Visualizar cadastro existente
+                                    </a>
+                                    <form action="{{ url_for(forcar_url) }}" method="post" id="forceCreateForm">
+                                        <input type="hidden" name="force_create" value="true">
+                                        {% for key, value in form_data.items() %}
+                                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                        {% endfor %}
+                                        <button type="submit" class="btn btn-danger w-100 mt-2">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            Forçar criação de novo cadastro
+                                        </button>
+                                    </form>
+                                    <button type="button" class="btn btn-secondary mt-2" data-bs-dismiss="modal">
+                                        <i class="fas fa-times me-2"></i>
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script para abrir o modal automaticamente -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var duplicateModal = new bootstrap.Modal(document.getElementById('duplicateDocumentModal'));
+        duplicateModal.show();
+    });
+</script>

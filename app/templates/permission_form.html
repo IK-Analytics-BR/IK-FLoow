@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Permissão' if not permission else 'Editar Permissão' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Nova Permissão' if not permission else 'Editar Permissão' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('users.permissions_list') }}">Permissões</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Permissão' if not permission else 'Editar Permissão' }}</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-key me-1"></i>
+                    {{ 'Cadastrar Nova Permissão' if not permission else 'Editar Permissão: ' + permission.name }}
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('users.permission_create') if not permission else url_for('users.permission_edit', permission_id=permission.id) }}" id="permissionForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Nome <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ permission.name if permission else '' }}" required>
+                                <div class="form-text">Nome único que identifica a permissão no sistema.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="description" class="form-label">Descrição <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="description" name="description" value="{{ permission.description if permission else '' }}" required>
+                                <div class="form-text">Descrição clara da finalidade desta permissão.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar
+                                </button>
+                                <a href="{{ url_for('users.permissions_list') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Guia para Criação de Permissões
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-lightbulb me-2"></i> Dicas para Nomes de Permissões</h5>
+                        <p>Use nomes descritivos e padronizados para facilitar o gerenciamento. Recomendamos seguir o formato <code>módulo.ação</code>, por exemplo:</p>
+                        <ul>
+                            <li><code>financeiro.visualizar</code> - Permite visualizar dados financeiros</li>
+                            <li><code>estoque.editar</code> - Permite editar dados de estoque</li>
+                            <li><code>compras.aprovar</code> - Permite aprovar pedidos de compra</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-check-circle me-1"></i> Recomendado
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        <li>Nomes concisos e significativos</li>
+                                        <li>Descrições claras e detalhadas</li>
+                                        <li>Permissões específicas para cada funcionalidade</li>
+                                        <li>Seguir um padrão de nomenclatura</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-danger text-white">
+                                    <i class="fas fa-times-circle me-1"></i> Evitar
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        <li>Nomes genéricos ou ambíguos</li>
+                                        <li>Descrições vagas ou incompletas</li>
+                                        <li>Permissões muito abrangentes</li>
+                                        <li>Duplicação de permissões existentes</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i> Importante</h5>
+                        <p>Uma vez criada, a permissão poderá ser atribuída a usuários. Se precisar modificar o escopo de uma permissão, considere criar uma nova em vez de alterar uma existente, para evitar conceder acesso indevido a usuários que já possuem a permissão.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Validação do formulário
+        $("#permissionForm").submit(function(event) {
+            var name = $("#name").val();
+            var description = $("#description").val();
+            
+            // Verificar se o nome está preenchido
+            if (!name.trim()) {
+                event.preventDefault();
+                alert("O nome da permissão é obrigatório.");
+                return false;
+            }
+            
+            // Verificar se a descrição está preenchida
+            if (!description.trim()) {
+                event.preventDefault();
+                alert("A descrição da permissão é obrigatória.");
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Sugestão de formato para o nome da permissão
+        $("#name").on("blur", function() {
+            var value = $(this).val();
+            
+            if (value && !value.includes('.')) {
+                $(this).next(".form-text").addClass("text-warning").text("Sugestão: Use o formato 'módulo.ação' (ex: estoque.editar).");
+            } else {
+                $(this).next(".form-text").removeClass("text-warning").text("Nome único que identifica a permissão no sistema.");
+            }
+        });
+    });
+</script>
+{% endblock %}

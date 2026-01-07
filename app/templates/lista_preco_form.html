@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}{% if lista %}Editar{% else %}Nova{% endif %} Lista de Preço - Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">
+        <i class="fas fa-tags me-2"></i>{% if lista %}Editar{% else %}Nova{% endif %} Lista de Preço
+    </h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('lista_preco.lista') }}">Listas de Preço</a></li>
+        <li class="breadcrumb-item active">{% if lista %}Editar{% else %}Nova{% endif %}</li>
+    </ol>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i> Dados da Lista de Preço
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="nome" class="form-label">Nome <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nome" name="nome" 
+                               value="{{ lista.nome if lista else '' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="codigo" class="form-label">Código</label>
+                        <input type="text" class="form-control text-uppercase" id="codigo" name="codigo" 
+                               value="{{ lista.codigo if lista else '' }}" maxlength="20"
+                               placeholder="Gerado automaticamente">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="prioridade" class="form-label">Prioridade</label>
+                        <input type="number" class="form-control" id="prioridade" name="prioridade" 
+                               value="{{ lista.prioridade if lista else 0 }}" min="0">
+                        <small class="text-muted">Menor = maior prioridade</small>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="descricao" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="descricao" name="descricao" rows="2">{{ lista.descricao if lista else '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="tipo" class="form-label">Tipo de Cálculo</label>
+                        <select class="form-select" id="tipo" name="tipo">
+                            <option value="fixo" {{ 'selected' if lista and lista.tipo == 'fixo' }}>Preço Fixo</option>
+                            <option value="markup" {{ 'selected' if lista and lista.tipo == 'markup' }}>Markup sobre custo</option>
+                            <option value="desconto" {{ 'selected' if lista and lista.tipo == 'desconto' }}>Desconto sobre preço</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="percentual_padrao" class="form-label">Percentual Padrão (%)</label>
+                        <input type="number" class="form-control" id="percentual_padrao" name="percentual_padrao" 
+                               value="{{ lista.percentual_padrao if lista else 0 }}" step="0.01" min="0" max="100">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_inicio" class="form-label">Data Início</label>
+                        <input type="date" class="form-control" id="data_inicio" name="data_inicio" 
+                               value="{{ lista.data_inicio.strftime('%Y-%m-%d') if lista and lista.data_inicio else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_fim" class="form-label">Data Fim</label>
+                        <input type="date" class="form-control" id="data_fim" name="data_fim" 
+                               value="{{ lista.data_fim.strftime('%Y-%m-%d') if lista and lista.data_fim else '' }}">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ativo" name="ativo" 
+                                   {{ 'checked' if not lista or lista.ativo }}>
+                            <label class="form-check-label" for="ativo">Lista Ativa</label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Salvar
+                    </button>
+                    <a href="{{ url_for('lista_preco.lista') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Voltar
+                    </a>
+                    {% if lista %}
+                    <a href="{{ url_for('lista_preco.gerenciar_precos', id=lista.id) }}" class="btn btn-success ms-auto">
+                        <i class="fas fa-dollar-sign me-1"></i> Gerenciar Preços
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

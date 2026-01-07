@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if grupo else 'Novo' }} Grupo de Etapas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-layer-group"></i> {{ 'Editar' if grupo else 'Novo' }} Grupo de Etapas</h4>
+                    <a href="{{ url_for('ordem_producao.etapas_grupos_lista') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome</label>
+                                <input type="text" class="form-control" name="nome" value="{{ grupo.nome if grupo else '' }}" required maxlength="80">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Ordem</label>
+                                <input type="number" class="form-control" name="ordem" value="{{ grupo.ordem if grupo else 0 }}" required min="0">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Ativo</label>
+                                <select class="form-select" name="ativo">
+                                    <option value="1" {% if (grupo and grupo.ativo) or not grupo %}selected{% endif %}>Sim</option>
+                                    <option value="0" {% if grupo and not grupo.ativo %}selected{% endif %}>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Cor (hex)</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="cor_hex_picker" value="{{ grupo.cor_hex if grupo and grupo.cor_hex else '#0d6efd' }}" title="Escolher cor">
+                                    <input type="text" class="form-control" id="cor_hex" name="cor_hex" value="{{ grupo.cor_hex if grupo else '' }}" maxlength="15" placeholder="#0d6efd">
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Descrição</label>
+                                <textarea class="form-control" name="descricao" rows="4">{{ grupo.descricao if grupo and grupo.descricao else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                        <a class="btn btn-secondary" href="{{ url_for('ordem_producao.etapas_grupos_lista') }}">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const picker = document.getElementById('cor_hex_picker');
+    const input = document.getElementById('cor_hex');
+
+    if (picker && input) {
+        if (!input.value) {
+            input.value = picker.value;
+        } else {
+            picker.value = input.value;
+        }
+
+        picker.addEventListener('input', function() {
+            input.value = this.value;
+        });
+
+        input.addEventListener('input', function() {
+            const v = (this.value || '').trim();
+            if (v && v.startsWith('#') && (v.length === 4 || v.length === 7)) {
+                picker.value = v;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

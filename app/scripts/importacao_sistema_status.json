@@ -1,0 +1,12 @@
+{
+  "status": "processando",
+  "etapa": "Importando 4200/399136 registros...",
+  "modo": "mesclar",
+  "total_registros": 399136,
+  "registros_processados": 4200,
+  "registros_importados": 4194,
+  "registros_duplicados": 6,
+  "registros_erro": 0,
+  "percentual": 1,
+  "inicio": "2025-10-10T15:08:37.718337"
+}

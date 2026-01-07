@@ -1,0 +1,224 @@
+<!-- =====================================================
+     ABA 4: TRANSPORTE
+     Contém: Transportadora, Frete, Volumes e Veículo
+     ===================================================== -->
+<div class="row">
+    <div class="col-md-6">
+        <!-- GRADE: Transportadora -->
+        <div class="grade">
+            <div class="grade-header azul"><i class="fas fa-truck"></i>Transportadora</div>
+            <div class="grade-body">
+                <!-- Perfil e seleção de transportadora -->
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label">Perfil</label>
+                        <select class="form-select" name="perfil_transporte" id="perfil_transporte">
+                            <option value="" {{ 'selected' if not orcamento or not orcamento.perfil_transporte }}>NAO UTILIZADO</option>
+                            <option value="cif" {{ 'selected' if orcamento and orcamento.perfil_transporte == 'cif' }}>CIF</option>
+                            <option value="fob" {{ 'selected' if orcamento and orcamento.perfil_transporte == 'fob' }}>FOB</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Transportadora</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="transportadora_codigo" style="max-width:60px"
+                                   value="{{ orcamento.transportadora_id if orcamento else '' }}" placeholder="F2">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="buscarTransportadora()" title="Buscar (F2)">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <input type="text" class="form-control" id="transportadora_nome" readonly
+                                   value="{{ transportadora_dados.nome if transportadora_dados else '' }}">
+                        </div>
+                        <input type="hidden" name="transportadora_id" id="transportadora_id" 
+                               value="{{ orcamento.transportadora_id if orcamento else '' }}">
+                    </div>
+                </div>
+                <!-- Dados da transportadora (preenchidos automaticamente) -->
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">CNPJ/CPF</label>
+                        <input type="text" class="form-control" id="transp_documento" readonly
+                               value="{{ transportadora_dados.cnpj or transportadora_dados.cpf if transportadora_dados else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">IE</label>
+                        <input type="text" class="form-control" id="transp_ie" readonly
+                               value="{{ transportadora_dados.inscricao_estadual if transportadora_dados else '' }}">
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-8">
+                        <label class="form-label">Endereco</label>
+                        <input type="text" class="form-control" id="transp_endereco" readonly
+                               value="{{ (transportadora_dados.endereco or '') + (', ' + transportadora_dados.numero if transportadora_dados and transportadora_dados.numero else '') + (' - ' + transportadora_dados.bairro if transportadora_dados and transportadora_dados.bairro else '') if transportadora_dados else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Cidade/UF</label>
+                        <input type="text" class="form-control" id="transp_cidade" readonly
+                               value="{{ (transportadora_dados.cidade or '') + '/' + (transportadora_dados.estado or '') if transportadora_dados else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Frete -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-shipping-fast"></i>Frete</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Frete por Conta</label>
+                        <select class="form-select" name="frete_por_conta" id="frete_por_conta">
+                            <option value="emitente" {{ 'selected' if not orcamento or orcamento.frete_por_conta == 'emitente' or not orcamento.frete_por_conta }}>CIF (Emitente)</option>
+                            <option value="destinatario" {{ 'selected' if orcamento and orcamento.frete_por_conta == 'destinatario' }}>FOB (Destinatario)</option>
+                            <option value="terceiros" {{ 'selected' if orcamento and orcamento.frete_por_conta == 'terceiros' }}>Terceiros</option>
+                            <option value="sem_frete" {{ 'selected' if orcamento and orcamento.frete_por_conta == 'sem_frete' }}>Sem Frete</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Obs. Frete</label>
+                        <input type="text" class="form-control" name="obs_frete" id="obs_frete"
+                               value="{{ orcamento.obs_frete if orcamento else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Volumes -->
+        <div class="grade">
+            <div class="grade-header laranja"><i class="fas fa-boxes"></i>Volumes</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Especie</label>
+                        <input type="text" class="form-control" name="especie" id="especie"
+                               value="{{ orcamento.especie if orcamento else '' }}" placeholder="Caixa, Saco...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Qtde</label>
+                        <input type="number" class="form-control" name="volumes_quantidade" id="volumes_quantidade"
+                               value="{{ orcamento.volumes_quantidade if orcamento else 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Peso Bruto</label>
+                        <input type="number" class="form-control text-end" name="peso_bruto" id="peso_bruto"
+                               value="{{ '%.2f'|format(orcamento.peso_bruto) if orcamento and orcamento.peso_bruto else '0.00' }}" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Peso Liquido</label>
+                        <input type="number" class="form-control text-end" name="peso_liquido" id="peso_liquido"
+                               value="{{ '%.2f'|format(orcamento.peso_liquido) if orcamento and orcamento.peso_liquido else '0.00' }}" step="0.01">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="calcularPesos()" title="Calcular pesos dos itens">
+                            <i class="fas fa-calculator"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Dados do veículo (para transporte próprio) -->
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label">Placa</label>
+                        <input type="text" class="form-control" name="veiculo_placa" id="veiculo_placa"
+                               value="{{ orcamento.veiculo_placa if orcamento else '' }}" maxlength="10">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">UF</label>
+                        <input type="text" class="form-control" name="veiculo_uf" id="veiculo_uf"
+                               value="{{ orcamento.veiculo_uf if orcamento else '' }}" maxlength="2">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">RNTC</label>
+                        <input type="text" class="form-control" name="veiculo_rntc" id="veiculo_rntc"
+                               value="{{ orcamento.veiculo_rntc if orcamento else '' }}" placeholder="Registro Nacional Transp. Carga">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <!-- GRADE: Informacoes Adicionais -->
+        <div class="grade">
+            <div class="grade-header roxo"><i class="fas fa-info-circle"></i>Informacoes Adicionais</div>
+            <div class="grade-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Ref. Cliente</label>
+                        <input type="text" class="form-control" name="referencia_cliente" id="referencia_cliente"
+                               value="{{ orcamento.referencia_cliente if orcamento else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Validade (dias)</label>
+                        <input type="text" class="form-control" name="obs_validade" id="obs_validade"
+                               value="{{ orcamento.obs_validade if orcamento else '15' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Entrega</label>
+                        <input type="text" class="form-control" name="obs_entrega" id="obs_entrega"
+                               value="{{ orcamento.obs_entrega if orcamento else '' }}">
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label">Embalagem</label>
+                        <input type="text" class="form-control" name="obs_embalagem" id="obs_embalagem"
+                               value="{{ orcamento.obs_embalagem if orcamento else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Garantia</label>
+                        <input type="text" class="form-control" name="obs_garantia" id="obs_garantia"
+                               value="{{ orcamento.obs_garantia if orcamento else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Certificado</label>
+                        <input type="text" class="form-control" name="obs_certificado" id="obs_certificado"
+                               value="{{ orcamento.obs_certificado if orcamento else '' }}">
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="icms_incluso" id="icms_incluso"
+                                   {{ 'checked' if orcamento and orcamento.icms_incluso else '' }}>
+                            <label class="form-check-label small" for="icms_incluso">ICMS Incluso 18%</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="ipi_incluso" id="ipi_incluso"
+                                   {{ 'checked' if orcamento and orcamento.ipi_incluso else '' }}>
+                            <label class="form-check-label small" for="ipi_incluso">IPI Excluso 6,5%</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Observacoes -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-comment-alt"></i>Observacoes</div>
+            <div class="grade-body">
+                <ul class="nav nav-tabs nav-tabs-sm" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active py-1 px-2 small" data-bs-toggle="tab" href="#obsGerais">Gerais</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2 small" data-bs-toggle="tab" href="#obsInternas">Internas</a>
+                    </li>
+                </ul>
+                <div class="tab-content border border-top-0 p-2">
+                    <div class="tab-pane fade show active" id="obsGerais">
+                        <textarea class="form-control" name="observacoes" rows="3" 
+                                  placeholder="Observacoes visiveis no documento">{{ orcamento.observacoes if orcamento else '' }}</textarea>
+                    </div>
+                    <div class="tab-pane fade" id="obsInternas">
+                        <textarea class="form-control" name="observacoes_internas" rows="3" 
+                                  placeholder="Observacoes internas">{{ orcamento.observacoes_internas if orcamento else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

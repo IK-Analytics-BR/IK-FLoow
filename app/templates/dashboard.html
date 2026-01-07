@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Analítico{% endblock %}
+
+{% block styles %}
+<style>
+    /* FORÇA CONTAINER FIXO - IGNORA LAYOUT NORMAL */
+    body {
+        overflow: hidden !important;
+    }
+
+    #content {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Container fixo que ocupa área exata */
+    .dashboard-tableau-container {
+        position: fixed;
+        top: 56px;  /* Altura da navbar */
+        left: 250px; /* Largura do menu lateral */
+        right: 0;
+        bottom: 0;
+        width: calc(100vw - 250px);
+        height: calc(100vh - 56px);
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+        background: white;
+        z-index: 1;
+    }
+
+    /* Título */
+    .dashboard-title {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        padding: 15px 20px;
+        margin: 0;
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        z-index: 2;
+    }
+
+    /* Wrapper do Tableau - preenche espaço restante */
+    .tableau-viz-wrapper {
+        position: absolute;
+        top: 60px;  /* Abaixo do título */
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: calc(100vh - 116px); /* 56px navbar + 60px título */
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    .tableauPlaceholder {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* OCULTA TOOLBAR E LINKS DO TABLEAU */
+    a[href*="tableau.com"],
+    a[href*="tableausoftware"],
+    div[id^="tabZoneId"],
+    div.tab-toolbar,
+    div.tableauToolbar,
+    #download-workbook-dialog,
+    button[title*="Download"],
+    button[title*="Compartilhar"],
+    button[title*="Share"],
+    .vizDownloadDialog,
+    .vizShareDialog {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-tableau-container">
+    <h3 class="dashboard-title"> </h3>
+    <div class="tableau-viz-wrapper">
+        <div class='tableauPlaceholder' id='vizMenuIKFlow'>
+            <noscript>
+                <a href='#'>
+                    <img alt='Menu IK Flow'
+                         src='https://public.tableau.com/static/images/IK/IKFlowV2/Menu/1_rss.png'
+                         style='border: none' />
+                </a>
+            </noscript>
+            <object class='tableauViz' style='display:none;'>
+                <param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' />
+                <param name='embed_code_version' value='3' />
+                <param name='site_root' value='' />
+                <param name='name' value='IKFlowV2/Menu' />
+                <param name='tabs' value='no' />
+                <param name='toolbar' value='no' />
+                <param name='static_image' value='https://public.tableau.com/static/images/IK/IKFlowV2/Menu/1.png' />
+                <param name='animate_transition' value='yes' />
+                <param name='display_static_image' value='yes' />
+                <param name='display_spinner' value='yes' />
+                <param name='display_overlay' value='yes' />
+                <param name='display_count' value='yes' />
+                <param name='language' value='pt-BR' />
+            </object>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type='text/javascript'>
+    console.log('🚀 Iniciando Tableau com container fixo (Menu)...');
+
+    var divElement = document.getElementById('vizMenuIKFlow');
+    var vizElement = divElement.getElementsByTagName('object')[0];
+    var wrapper = document.querySelector('.tableau-viz-wrapper');
+
+    // Largura e altura: 100% do container fixo
+    vizElement.style.width = '100%';
+    vizElement.style.height = '100%';
+
+    // Pegar dimensões reais do wrapper
+    var largura = wrapper.offsetWidth;
+    var altura = wrapper.offsetHeight;
+
+    console.log('📐 Container:', largura + 'px x ' + altura + 'px');
+    console.log('📐 Viewport:', window.innerWidth + 'px x ' + window.innerHeight + 'px');
+
+    // Carregar Tableau
+    var scriptElement = document.createElement('script');
+    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+    vizElement.parentNode.insertBefore(scriptElement, vizElement);
+
+    console.log('✅ Tableau (Menu) carregando em container fixo');
+
+    // Função para remover toolbar após carregamento
+    function removerToolbar() {
+        document.querySelectorAll('a[href*="tableau"]').forEach(el => {
+            el.style.display = 'none';
+            el.remove();
+        });
+
+        document.querySelectorAll('.tab-toolbar, .tableauToolbar, [class*="toolbar"]').forEach(el => {
+            el.style.display = 'none';
+            el.remove();
+        });
+
+        console.log('🚫 Toolbar removida');
+    }
+
+    // Executar após 3 segundos (quando Tableau carregar)
+    setTimeout(removerToolbar, 3000);
+    // Executar novamente após 5 segundos (garantia)
+    setTimeout(removerToolbar, 5000);
+</script>
+{% endblock %}

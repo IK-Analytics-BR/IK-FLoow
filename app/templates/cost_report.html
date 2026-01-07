@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório de Custos - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Relatório de Custos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.cmms_dashboard') }}">Dashboard CMMS</a></li>
+        <li class="breadcrumb-item active">Relatório de Custos</li>
+    </ol>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('dashboard.cost_report') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Data Inicial</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">Data Final</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="customer_id" class="form-label">Cliente</label>
+                    <select class="form-select" id="customer_id" name="customer_id">
+                        <option value="">Todos os clientes</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer_id|int == customer.id %}selected{% endif %}>
+                            {{ customer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="equipment_id" class="form-label">Equipamento</label>
+                    <select class="form-select" id="equipment_id" name="equipment_id">
+                        <option value="">Todos os equipamentos</option>
+                        {% for equipment in equipments %}
+                        <option value="{{ equipment.id }}" data-customer="{{ equipment.customer_id }}" class="equipment-option" {% if equipment_id|int == equipment.id %}selected{% endif %}>
+                            {{ equipment.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="group_by" class="form-label">Agrupar por</label>
+                    <select class="form-select" id="group_by" name="group_by">
+                        <option value="equipment" {% if group_by == 'equipment' %}selected{% endif %}>Equipamento</option>
+                        <option value="customer" {% if group_by == 'customer' %}selected{% endif %}>Cliente</option>
+                        <option value="type" {% if group_by == 'type' %}selected{% endif %}>Tipo de Manutenção</option>
+                    </select>
+                </div>
+                <div class="col-md-9 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{{ url_for('dashboard.cost_report') }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-undo me-1"></i> Limpar
+                    </a>
+                    <a href="{{ url_for('dashboard.export_report', report_type='cost') }}" class="btn btn-success">
+                        <i class="fas fa-file-csv me-1"></i> Exportar CSV
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Resumo -->
+    <div class="row">
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Custo Total</div>
+                            <div class="display-6">R$ {{ "%.2f"|format(total_cost) }}</div>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Custo de Peças</div>
+                            <div class="display-6">R$ {{ "%.2f"|format(total_items_cost) }}</div>
+                        </div>
+                        <i class="fas fa-cogs fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Custo de Mão de Obra</div>
+                            <div class="display-6">R$ {{ "%.2f"|format(total_labor_cost) }}</div>
+                        </div>
+                        <i class="fas fa-user-cog fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Distribuição de Custos
+                </div>
+                <div class="card-body">
+                    <canvas id="costDistributionChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Top 5 {{ group_label }}s por Custo
+                </div>
+                <div class="card-body">
+                    <canvas id="topCostsChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabela de Custos -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            Custos por {{ group_label }}
+        </div>
+        <div class="card-body">
+            {% if costs %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>{{ group_label }}</th>
+                            <th>Custo de Peças</th>
+                            <th>Custo de Mão de Obra</th>
+                            <th>Custo Total</th>
+                            <th>% do Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cost in costs %}
+                        <tr>
+                            <td>
+                                {% if group_by == 'type' %}
+                                    {% if cost.group_name == 'preventive' %}
+                                    <span class="badge bg-success">Preventiva</span>
+                                    {% elif cost.group_name == 'corrective' %}
+                                    <span class="badge bg-danger">Corretiva</span>
+                                    {% elif cost.group_name == 'predictive' %}
+                                    <span class="badge bg-info">Preditiva</span>
+                                    {% else %}
+                                    {{ cost.group_name }}
+                                    {% endif %}
+                                {% else %}
+                                    {{ cost.group_name }}
+                                {% endif %}
+                            </td>
+                            <td>R$ {{ "%.2f"|format(cost.items_cost) }}</td>
+                            <td>R$ {{ "%.2f"|format(cost.labor_cost) }}</td>
+                            <td>R$ {{ "%.2f"|format(cost.total_cost) }}</td>
+                            <td>{{ "%.2f"|format((cost.total_cost / total_cost * 100) if total_cost > 0 else 0) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th>Total</th>
+                            <th>R$ {{ "%.2f"|format(total_items_cost) }}</th>
+                            <th>R$ {{ "%.2f"|format(total_labor_cost) }}</th>
+                            <th>R$ {{ "%.2f"|format(total_cost) }}</th>
+                            <th>100%</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhum dado de custo encontrado para os filtros selecionados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Análise de Custos -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chart-line me-1"></i>
+            Análise de Custos
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Distribuição de Custos</h5>
+                    <p>
+                        Os custos de manutenção estão distribuídos em {{ "%.2f"|format((total_items_cost / total_cost * 100) if total_cost > 0 else 0) }}% para peças
+                        e {{ "%.2f"|format((total_labor_cost / total_cost * 100) if total_cost > 0 else 0) }}% para mão de obra.
+                    </p>
+                    
+                    {% if costs %}
+                    <h5 class="mt-4">{{ group_label }} com Maior Custo</h5>
+                    <p>
+                        O {{ group_label.lower() }} com maior custo é <strong>{{ costs[0].group_name }}</strong>,
+                        representando {{ "%.2f"|format((costs[0].total_cost / total_cost * 100) if total_cost > 0 else 0) }}% do custo total.
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h5>Recomendações</h5>
+                    <ul>
+                        {% if costs and costs[0].items_cost > costs[0].labor_cost %}
+                        <li>Analisar alternativas de fornecedores para reduzir o custo de peças para {{ costs[0].group_name }}.</li>
+                        {% elif costs %}
+                        <li>Revisar a eficiência da mão de obra para {{ costs[0].group_name }}.</li>
+                        {% endif %}
+                        <li>Implementar manutenções preventivas para reduzir custos de manutenções corretivas.</li>
+                        <li>Monitorar o desgaste dos equipamentos para antecipar necessidades de manutenção.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[3, 'desc']],
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ]
+        });
+        
+        // Filtrar equipamentos por cliente
+        $('#customer_id').change(function() {
+            var customerId = $(this).val();
+            
+            // Esconder todos os equipamentos
+            $('.equipment-option').hide();
+            
+            if (customerId) {
+                // Mostrar apenas os equipamentos do cliente selecionado
+                $('.equipment-option[data-customer="' + customerId + '"]').show();
+            } else {
+                // Se nenhum cliente selecionado, mostrar todos
+                $('.equipment-option').show();
+            }
+            
+            // Limpar a seleção atual
+            $('#equipment_id').val('');
+        });
+        
+        // Gráfico de distribuição de custos
+        var ctxDistribution = document.getElementById('costDistributionChart').getContext('2d');
+        new Chart(ctxDistribution, {
+            type: 'pie',
+            data: {
+                labels: ['Peças', 'Mão de Obra'],
+                datasets: [{
+                    data: [
+                        {{ total_items_cost }},
+                        {{ total_labor_cost }}
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(255, 193, 7, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribuição de Custos'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de top 5 por custo
+        var ctxTop = document.getElementById('topCostsChart').getContext('2d');
+        new Chart(ctxTop, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for cost in costs[:5] %}
+                        '{{ cost.group_name }}'{{ "," if not loop.last }}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Peças',
+                    data: [
+                        {% for cost in costs[:5] %}
+                            {{ cost.items_cost }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Mão de Obra',
+                    data: [
+                        {% for cost in costs[:5] %}
+                            {{ cost.labor_cost }}{{ "," if not loop.last }}
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.5)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 5 {{ group_label }}s por Custo'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Ordem de Serviço - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Nova Ordem de Serviço</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('service_order.service_order_list') }}">Ordens de Serviço</a></li>
+        <li class="breadcrumb-item active">Nova OS</li>
+    </ol>
+    
+    <!-- Debug Info -->
+    <div class="alert alert-info">
+        <h5>Debug Info:</h5>
+        <p>Clientes disponíveis: {{ customers|length if customers else 0 }}</p>
+        {% if customers %}
+            <ul>
+                {% for customer in customers %}
+                    <li>ID: {{ customer.id }} - Nome: {{ customer.name }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhum cliente disponível</p>
+        {% endif %}
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-tools me-1"></i>
+            Nova Ordem de Serviço
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('service_order.service_order_add') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="customer_id" class="form-label">Cliente <span class="text-danger">*</span></label>
+                        <select class="form-select" id="customer_id" name="customer_id" required>
+                            <option value="">Selecione um cliente</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">
+                                {{ customer.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="equipment_id" class="form-label">Equipamento <span class="text-danger">*</span></label>
+                        <select class="form-select" id="equipment_id" name="equipment_id" required>
+                            <option value="">Selecione um equipamento</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}" data-customer="{{ equipment.customer_id }}" class="equipment-option">
+                                {{ equipment.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="supply_id" class="form-label">Componente</label>
+                        <select class="form-select" id="supply_id" name="supply_id">
+                            <option value="">Selecione um componente (opcional)</option>
+                            {% for supply in supplies %}
+                            <option value="{{ supply.id }}">
+                                {{ supply.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional. Se não selecionado, a OS será para o equipamento como um todo.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="maintenance_plan_id" class="form-label">Plano de Manutenção</label>
+                        <select class="form-select" id="maintenance_plan_id" name="maintenance_plan_id">
+                            <option value="">Selecione um plano (opcional)</option>
+                            {% for plan in maintenance_plans %}
+                            <option value="{{ plan.id }}" 
+                                    data-customer="{{ plan.customer_id }}" 
+                                    data-equipment="{{ plan.equipment_id }}"
+                                    class="plan-option">
+                                {{ plan.task }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional. Vincule esta OS a um plano de manutenção existente.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="type" class="form-label">Tipo de Manutenção <span class="text-danger">*</span></label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="">Selecione um tipo</option>
+                            <option value="preventive">Preventiva</option>
+                            <option value="corrective">Corretiva</option>
+                            <option value="predictive">Preditiva</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="technician_id" class="form-label">Técnico Responsável</label>
+                        <select class="form-select" id="technician_id" name="technician_id">
+                            <option value="">Selecione um técnico (opcional)</option>
+                            {% for technician in technicians %}
+                            <option value="{{ technician.id }}">
+                                {{ technician.name }} {% if technician.specialty %}({{ technician.specialty }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional. Pode ser atribuído posteriormente.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="observations" class="form-label">Observações</label>
+                        <textarea class="form-control" id="observations" name="observations" rows="5"></textarea>
+                        <div class="form-text">Descreva o problema ou as instruções para a manutenção.</div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('service_order.service_order_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtrar equipamentos por cliente
+        $('#customer_id').change(function() {
+            var customerId = $(this).val();
+            
+            // Esconder todos os equipamentos
+            $('.equipment-option').hide();
+            
+            // Mostrar apenas os equipamentos do cliente selecionado
+            $('.equipment-option[data-customer="' + customerId + '"]').show();
+            
+            // Limpar a seleção atual
+            $('#equipment_id').val('');
+            
+            // Filtrar planos de manutenção
+            $('.plan-option').hide();
+            $('.plan-option[data-customer="' + customerId + '"]').show();
+            $('#maintenance_plan_id').val('');
+        });
+        
+        // Filtrar planos de manutenção por equipamento
+        $('#equipment_id').change(function() {
+            var equipmentId = $(this).val();
+            
+            // Esconder todos os planos
+            $('.plan-option').hide();
+            
+            // Mostrar apenas os planos do equipamento selecionado
+            $('.plan-option[data-equipment="' + equipmentId + '"]').show();
+            
+            // Limpar a seleção atual
+            $('#maintenance_plan_id').val('');
+        });
+        
+        // Preencher campos com base no plano de manutenção selecionado
+        $('#maintenance_plan_id').change(function() {
+            var planOption = $(this).find('option:selected');
+            if (planOption.val()) {
+                var customerId = planOption.data('customer');
+                var equipmentId = planOption.data('equipment');
+                
+                $('#customer_id').val(customerId);
+                $('#equipment_id').val(equipmentId);
+                $('#type').val('preventive'); // Planos geralmente são preventivos
+            }
+        });
+    });
+</script>
+{% endblock %}

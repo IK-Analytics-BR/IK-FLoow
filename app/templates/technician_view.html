@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Técnico - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes do Técnico</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('technician.technicians_list') }}">Técnicos</a></li>
+        <li class="breadcrumb-item active">Detalhes do Técnico</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-10 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-user-cog me-1"></i>
+                    Informações do Técnico
+                    <div class="float-end">
+                        <a href="{{ url_for('technician.technician_edit', technician_id=technician.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center mb-4">
+                            <div class="avatar-circle">
+                                <span class="avatar-initials">{{ technician.name[:1] | upper }}</span>
+                            </div>
+                            <div class="mt-2">
+                                {% if technician.status == 'active' %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% elif technician.status == 'inactive' %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% elif technician.status == 'on_leave' %}
+                                    <span class="badge bg-warning">Afastado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h3>{{ technician.name }}</h3>
+                            <p class="text-muted">
+                                <strong>Registro:</strong> {{ technician.registration_number }}
+                                {% if technician.specialty %}
+                                    <span class="ms-3"><strong>Especialidade:</strong> {{ technician.specialty }}</span>
+                                {% endif %}
+                            </p>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-address-card me-2"></i> Informações de Contato</h5>
+                                    <p><strong>Telefone:</strong> {{ technician.phone or 'Não informado' }}</p>
+                                    <p><strong>E-mail:</strong> {{ technician.email or 'Não informado' }}</p>
+                                    <p><strong>Documento:</strong> {{ technician.document_number or 'Não informado' }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-map-marker-alt me-2"></i> Endereço</h5>
+                                    <p><strong>Logradouro:</strong> {{ technician.address or 'Não informado' }}</p>
+                                    <p><strong>Cidade/Estado:</strong> {{ (technician.city + '/' + technician.state) if technician.city and technician.state else 'Não informado' }}</p>
+                                    <p><strong>CEP:</strong> {{ technician.zip_code or 'Não informado' }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if technician.notes %}
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h5><i class="fas fa-clipboard me-2"></i> Observações</h5>
+                                    <div class="card">
+                                        <div class="card-body bg-light">
+                                            {{ technician.notes }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-tools me-1"></i>
+                    Ordens de Serviço Associadas
+                </div>
+                <div class="card-body">
+                    {% if service_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Cliente</th>
+                                        <th>Data</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in service_orders %}
+                                    <tr>
+                                        <td>{{ order.order_number }}</td>
+                                        <td>{{ order.customer_name }}</td>
+                                        <td>{{ order.created_at.strftime('%d/%m/%Y') }}</td>
+                                        <td>
+                                            {% if order.status == 'open' %}
+                                                <span class="badge bg-primary">Aberta</span>
+                                            {% elif order.status == 'in_progress' %}
+                                                <span class="badge bg-info">Em Andamento</span>
+                                            {% elif order.status == 'completed' %}
+                                                <span class="badge bg-success">Concluída</span>
+                                            {% elif order.status == 'canceled' %}
+                                                <span class="badge bg-danger">Cancelada</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="#" class="btn btn-info btn-sm">
+                                                <i class="fas fa-eye"></i> Ver
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Nenhuma ordem de serviço associada a este técnico.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmação de exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o técnico <strong>{{ technician.name }}</strong>?</p>
+                    <p class="text-danger">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('technician.technician_delete', technician_id=technician.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .avatar-circle {
+        width: 120px;
+        height: 120px;
+        background-color: #007bff;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto;
+    }
+    
+    .avatar-initials {
+        color: white;
+        font-size: 48px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}Caixa Atual{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-cash-register"></i> Caixa Atual - {{ register.register_number }}</h1>
+                    <p class="text-muted">
+                        Aberto em: {{ register.opened_at.strftime('%d/%m/%Y às %H:%M') }} | 
+                        Operador: <strong>{{ register.cashier_name }}</strong>
+                    </p>
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('venda.venda_pdv_moderna') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i> Nova Venda
+                    </a>
+                    
+                    <!-- Dropdown Movimentações -->
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-warning btn-lg dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-exchange-alt"></i> Movimentações
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="abrirModalMovimentacao('sangria')">
+                                <i class="fas fa-arrow-down text-danger"></i> Sangria (Retirada)
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="abrirModalMovimentacao('suprimento')">
+                                <i class="fas fa-arrow-up text-success"></i> Suprimento (Entrada)
+                            </a></li>
+                        </ul>
+                    </div>
+                    
+                    <a href="{{ url_for('cash_register.cash_register_list') }}" class="btn btn-info btn-lg">
+                        <i class="fas fa-history"></i> Ver Histórico
+                    </a>
+                    
+                    <a href="{{ url_for('cash_register.cash_register_close', register_id=register.id) }}" 
+                       class="btn btn-danger btn-lg">
+                        <i class="fas fa-door-closed"></i> Fechar Caixa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small">Dinheiro Esperado</div>
+                            <h3 class="mb-0">R$ {{ "%.2f"|format(expected_cash)|replace('.', ',') }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-money-bill-wave fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                    <small>Abertura: R$ {{ "%.2f"|format(register.opening_balance)|replace('.', ',') }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small">Cartões</div>
+                            <h3 class="mb-0">R$ {{ "%.2f"|format(totals.card_total)|replace('.', ',') }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-credit-card fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                    <small>Débito + Crédito</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small">PIX</div>
+                            <h3 class="mb-0">R$ {{ "%.2f"|format(totals.pix_total)|replace('.', ',') }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-qrcode fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                    <small>Transferências PIX</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-dark text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="small">Total de Vendas</div>
+                            <h3 class="mb-0">R$ {{ "%.2f"|format(totals.grand_total)|replace('.', ',') }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                    <small>{{ totals.total_count }} venda(s)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Vendas do Caixa</h5>
+                </div>
+                <div class="card-body">
+                    {% if sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="10%">Data/Hora</th>
+                                    <th width="25%">Cliente</th>
+                                    <th width="15%">Forma Pagamento</th>
+                                    <th width="10%">Valor</th>
+                                    <th width="10%">Status</th>
+                                    <th width="10%">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td><strong>{{ sale.id }}</strong></td>
+                                    <td>{{ sale.sale_date }}</td>
+                                    <td>{{ sale.customer_name or 'N/A' }}</td>
+                                    <td>
+                                        {% if sale.payment_method_name %}
+                                            <span class="badge badge-info">{{ sale.payment_method_name }}</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">{{ sale.payment_method }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>R$ {{ "%.2f"|format(sale.net_total)|replace('.', ',') }}</strong></td>
+                                    <td>
+                                        {% if sale.status == 'confirmed' %}
+                                            <span class="badge badge-success">Confirmada</span>
+                                        {% elif sale.status == 'pending' %}
+                                            <span class="badge badge-warning">Pendente</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">{{ sale.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('venda.venda_detalhe', sale_id=sale.id) }}" class="btn btn-sm btn-info" title="Ver detalhes" target="_blank">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-active">
+                                    <th colspan="4" class="text-end">TOTAL:</th>
+                                    <th colspan="3"><strong>R$ {{ "%.2f"|format(totals.grand_total)|replace('.', ',') }}</strong></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle fa-3x mb-3"></i>
+                        <h4>Nenhuma venda registrada ainda</h4>
+                        <p>Clique em "Nova Venda" para começar.</p>
+                        <a href="{{ url_for('venda.venda_pdv_moderna') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Nova Venda
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Movimentação (Sangria/Suprimento) -->
+<div class="modal fade" id="modalMovimentacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <h5 class="modal-title" id="modalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMovimentacao">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Movimentação</label>
+                        <input type="text" class="form-control" id="tipoMovimentacao" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select class="form-select" id="formaPagamento" required>
+                            <option value="dinheiro">💵 Dinheiro</option>
+                            <option value="debito">💳 Cartão Débito</option>
+                            <option value="credito">💳 Cartão Crédito</option>
+                            <option value="pix">📱 PIX</option>
+                            <option value="cheque">📝 Cheque</option>
+                            <option value="outro">🔹 Outro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor (R$)</label>
+                        <input type="number" class="form-control" id="valorMovimentacao" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo / Descrição</label>
+                        <textarea class="form-control" id="motivoMovimentacao" rows="3" required 
+                                  placeholder="Ex: Pagamento fornecedor, Troco, Reforço de caixa..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmar" onclick="confirmarMovimentacao()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-refresh a cada 30 segundos
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+    
+    // Variável global para tipo de movimentação
+    let tipoMovimentacaoAtual = '';
+    
+    // Função para abrir modal de movimentação
+    function abrirModalMovimentacao(tipo) {
+        tipoMovimentacaoAtual = tipo;
+        const modal = new bootstrap.Modal(document.getElementById('modalMovimentacao'));
+        const modalHeader = document.getElementById('modalHeader');
+        const modalTitle = document.getElementById('modalTitle');
+        const tipoInput = document.getElementById('tipoMovimentacao');
+        const btnConfirmar = document.getElementById('btnConfirmar');
+        
+        // Limpar campos
+        document.getElementById('formaPagamento').value = 'dinheiro';
+        document.getElementById('valorMovimentacao').value = '';
+        document.getElementById('motivoMovimentacao').value = '';
+        
+        if (tipo === 'sangria') {
+            modalHeader.className = 'modal-header bg-danger text-white';
+            modalTitle.innerHTML = '<i class="fas fa-arrow-down"></i> Sangria (Retirada)';
+            tipoInput.value = 'Sangria - Retirada do Caixa';
+            btnConfirmar.className = 'btn btn-danger';
+        } else {
+            modalHeader.className = 'modal-header bg-success text-white';
+            modalTitle.innerHTML = '<i class="fas fa-arrow-up"></i> Suprimento (Entrada)';
+            tipoInput.value = 'Suprimento - Entrada no Caixa';
+            btnConfirmar.className = 'btn btn-success';
+        }
+        
+        modal.show();
+        setTimeout(() => document.getElementById('valorMovimentacao').focus(), 500);
+    }
+    
+    // Função para confirmar movimentação
+    function confirmarMovimentacao() {
+        const valor = parseFloat(document.getElementById('valorMovimentacao').value);
+        const motivo = document.getElementById('motivoMovimentacao').value.trim();
+        const formaPagamento = document.getElementById('formaPagamento').value;
+        
+        if (!valor || valor <= 0) {
+            alert('❌ Valor inválido! Deve ser maior que zero.');
+            return;
+        }
+        
+        if (!motivo) {
+            alert('❌ Motivo é obrigatório!');
+            return;
+        }
+        
+        const endpoint = tipoMovimentacaoAtual === 'sangria' ? '/caixa/sangria' : '/caixa/suprimento';
+        const descricao = `${motivo} [${formaPagamento.toUpperCase()}]`;
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                valor: valor, 
+                motivo: descricao,
+                forma_pagamento: formaPagamento 
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ' + data.mensagem);
+                location.reload();
+            } else {
+                alert('❌ ' + data.erro);
+            }
+        })
+        .catch(err => {
+            console.error('Erro:', err);
+            alert('❌ Erro ao processar movimentação: ' + err);
+        });
+    }
+</script>
+{% endblock %}

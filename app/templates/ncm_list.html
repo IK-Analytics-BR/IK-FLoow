@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}NCMs - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Nomenclatura Comum do Mercosul (NCM)</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">NCMs</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-list me-1"></i> Lista de NCMs
+                </div>
+                <div>
+                    <form class="d-flex" id="searchForm">
+                        <input class="form-control me-2" type="search" id="searchInput" placeholder="Buscar por código ou descrição" aria-label="Buscar">
+                        <button class="btn btn-outline-primary" type="submit">Buscar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="ncmTable">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descrição</th>
+                            <th>Data Início</th>
+                            <th>Data Fim</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ncm in ncms %}
+                        <tr>
+                            <td>{{ ncm.codigo }}</td>
+                            <td>{{ ncm.descricao }}</td>
+                            <td>{{ ncm.data_inicio.strftime('%d/%m/%Y') if ncm.data_inicio else '' }}</td>
+                            <td>{{ ncm.data_fim.strftime('%d/%m/%Y') if ncm.data_fim else '' }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary select-ncm" data-codigo="{{ ncm.codigo }}" data-descricao="{{ ncm.descricao }}">
+                                    <i class="fas fa-check"></i> Selecionar
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">Nenhum NCM encontrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializar DataTables
+        var table = $('#ncmTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Portuguese-Brasil.json'
+            },
+            pageLength: 25
+        });
+        
+        // Busca personalizada
+        $('#searchForm').on('submit', function(e) {
+            e.preventDefault();
+            var searchTerm = $('#searchInput').val();
+            
+            if (searchTerm.length < 3) {
+                alert('Digite pelo menos 3 caracteres para buscar.');
+                return;
+            }
+            
+            // Limpar a tabela
+            table.clear().draw();
+            
+            // Buscar NCMs via API
+            $.ajax({
+                url: '/api/ncms/search',
+                data: { term: searchTerm },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.results.length > 0) {
+                        // Adicionar resultados à tabela
+                        data.results.forEach(function(item) {
+                            var parts = item.text.split(' - ');
+                            var codigo = parts[0];
+                            var descricao = parts.slice(1).join(' - ');
+                            
+                            // Obter detalhes do NCM
+                            $.ajax({
+                                url: '/api/ncms/' + codigo,
+                                dataType: 'json',
+                                success: function(detailData) {
+                                    if (detailData.success) {
+                                        var ncm = detailData.ncm;
+                                        table.row.add([
+                                            ncm.codigo,
+                                            ncm.descricao,
+                                            ncm.data_inicio,
+                                            ncm.data_fim,
+                                            '<button class="btn btn-sm btn-primary select-ncm" data-codigo="' + ncm.codigo + '" data-descricao="' + ncm.descricao + '"><i class="fas fa-check"></i> Selecionar</button>'
+                                        ]).draw();
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        table.row.add(['', 'Nenhum NCM encontrado para "' + searchTerm + '"', '', '', '']).draw();
+                    }
+                }
+            });
+        });
+        
+        // Selecionar NCM (quando usado em um modal)
+        $(document).on('click', '.select-ncm', function() {
+            var codigo = $(this).data('codigo');
+            var descricao = $(this).data('descricao');
+            
+            // Verificar se estamos em um modal
+            if (window.opener && !window.opener.closed) {
+                // Estamos em uma janela popup
+                window.opener.setSelectedNCM(codigo, descricao);
+                window.close();
+            } else {
+                // Estamos na página principal
+                alert('Código NCM: ' + codigo + '\nDescrição: ' + descricao);
+            }
+        });
+    });
+</script>
+{% endblock %}

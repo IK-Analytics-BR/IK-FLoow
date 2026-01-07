@@ -1,0 +1,174 @@
+<!-- ABA 7: CRM / HISTÓRICO -->
+<div class="row">
+    <div class="col-md-8">
+        <!-- GRADE: Historico Completo -->
+        <div class="grade">
+            <div class="grade-header azul"><i class="fas fa-history"></i>Historico Completo do Orcamento</div>
+            <div class="grade-body p-0">
+                <table class="table table-compact table-hover table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:140px">Data/Hora</th>
+                            <th style="width:120px">Acao</th>
+                            <th>Descricao</th>
+                            <th style="width:100px">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyCRM">
+                        {% if historico %}
+                            {% for h in historico %}
+                            <tr>
+                                <td class="small text-muted">
+                                    {{ h.created_at.strftime('%d/%m/%Y %H:%M') if h.created_at else '-' }}
+                                </td>
+                                <td>
+                                    {% if h.acao == 'CRIACAO' %}
+                                    <span class="badge bg-success">Criacao</span>
+                                    {% elif h.acao == 'EDICAO' %}
+                                    <span class="badge bg-info">Edicao</span>
+                                    {% elif h.acao == 'APROVACAO' %}
+                                    <span class="badge bg-primary">Aprovado</span>
+                                    {% elif h.acao == 'REJEICAO' %}
+                                    <span class="badge bg-danger">Rejeitado</span>
+                                    {% elif h.acao == 'STATUS_ALTERADO' %}
+                                    <span class="badge bg-warning text-dark">Status</span>
+                                    {% elif h.acao == 'CONVERSAO' %}
+                                    <span class="badge bg-success">Convertido</span>
+                                    {% elif h.acao == 'ENVIO_EMAIL' %}
+                                    <span class="badge bg-secondary">Email</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">{{ h.acao }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ h.descricao or '-' }}</td>
+                                <td class="small">{{ h.nome_usuario or h.usuario_nome or 'Sistema' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                <i class="fas fa-info-circle me-1"></i> Nenhum historico registrado ainda
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer text-muted small">
+                Total: {{ historico|length if historico else 0 }} registro(s)
+            </div>
+        </div>
+
+        <!-- GRADE: Observacoes do Evento -->
+        <div class="grade">
+            <div class="grade-header cinza"><i class="fas fa-comment-alt"></i>Observacoes do Evento</div>
+            <div class="grade-body">
+                <textarea class="form-control" id="crm_observacoes" rows="3" readonly 
+                          placeholder="Selecione um evento para ver as observacoes"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- GRADE: Acoes -->
+        <div class="grade">
+            <div class="grade-header verde"><i class="fas fa-cog"></i>Acoes</div>
+            <div class="grade-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-edit me-1"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoHistorico">
+                        <i class="fas fa-plus me-1"></i> Novo Historico
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRADE: Dados do Contato -->
+        <div class="grade">
+            <div class="grade-header laranja"><i class="fas fa-phone"></i>Dados do Contato</div>
+            <div class="grade-body">
+                <div class="mb-2">
+                    <label class="form-label">E-Mail Contatado</label>
+                    <input type="email" class="form-control form-control-sm" id="crm_email" readonly>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Telefone Contatado</label>
+                    <input type="text" class="form-control form-control-sm" id="crm_telefone" readonly>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Motivo da Perda</label>
+                    <input type="text" class="form-control form-control-sm" id="crm_motivo_perda" readonly>
+                </div>
+                <div>
+                    <label class="form-label">Concorrente</label>
+                    <input type="text" class="form-control form-control-sm" id="crm_concorrente" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Historico -->
+<div class="modal fade" id="modalNovoHistorico" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Novo Historico CRM</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Posicao</label>
+                        <select class="form-select" id="novo_crm_posicao">
+                            <option value="aberto">Orcamento ABERTO</option>
+                            <option value="aguardando">Aguardando Retorno</option>
+                            <option value="negociacao">Em Negociacao</option>
+                            <option value="aprovado">APROVADO</option>
+                            <option value="reprovado">REPROVADO</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Prox. Acao</label>
+                        <input type="date" class="form-control" id="novo_crm_proxima_acao">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="novo_crm_email">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="novo_crm_telefone">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Motivo Perda</label>
+                        <select class="form-select" id="novo_crm_motivo_perda">
+                            <option value="">--</option>
+                            <option value="preco">Preco</option>
+                            <option value="prazo">Prazo</option>
+                            <option value="concorrencia">Concorrencia</option>
+                            <option value="desistencia">Desistencia</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Concorrente</label>
+                        <input type="text" class="form-control" id="novo_crm_concorrente">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observacoes</label>
+                        <textarea class="form-control" id="novo_crm_observacoes" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="salvarHistoricoCRM()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>

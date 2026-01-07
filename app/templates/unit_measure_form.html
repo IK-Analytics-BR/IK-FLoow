@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{% if unidade %}Editar{% else %}Cadastrar{% endif %} Unidade de Medida - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{% if unidade %}Editar{% else %}Cadastrar{% endif %} Unidade de Medida</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('unit_measure.unidades') }}">Unidades de Medida</a></li>
+        <li class="breadcrumb-item active">{% if unidade %}Editar{% else %}Cadastrar{% endif %} Unidade</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-ruler me-1"></i>
+            {% if unidade %}Editar Unidade: {{ unidade.code }}{% else %}Nova Unidade de Medida{% endif %}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('unit_measure.unidade_editar', id=unidade.id) if unidade and unidade.id else url_for('unit_measure.unidade_cadastrar') }}">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="code" name="code" placeholder="Código" value="{{ unidade.code if unidade else '' }}" required maxlength="10">
+                            <label for="code" class="required-field">Código</label>
+                            <div class="form-text">Ex.: UN, KG, M, L (máximo 10 caracteres)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="name" name="name" placeholder="Nome" value="{{ unidade.name if unidade else '' }}" required maxlength="50">
+                            <label for="name" class="required-field">Nome</label>
+                            <div class="form-text">Ex.: Unidade, Quilograma, Metro, Litro</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="description" name="description" placeholder="Descrição" style="height: 100px">{{ unidade.description if unidade else '' }}</textarea>
+                            <label for="description">Descrição</label>
+                            <div class="form-text">Descrição detalhada da unidade de medida</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 mb-0">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{{ url_for('unit_measure.unidades') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Voltar
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar
+                            </button>
+                            {% if unidade and unidade.id %}
+                            <a href="{{ url_for('unit_measure.unidade_excluir', id=unidade.id) }}" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja excluir esta unidade de medida?');">
+                                <i class="fas fa-trash me-1"></i> Excluir
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

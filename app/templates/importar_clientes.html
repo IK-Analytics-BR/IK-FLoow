@@ -1,0 +1,1041 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Leads - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Importar Leads</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Importar Leads</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-import me-1"></i>
+            1. Configurar Importação de Leads
+        </div>
+        <div class="card-body">
+            <form id="importForm" method="post" action="/admin/importar-clientes/buscar-cnae">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">UF (Estados)</label>
+                        <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#modalUF">
+                            <i class="fas fa-map-marked-alt me-2"></i>
+                            <span id="ufButtonText">Selecionar Estados (0)</span>
+                        </button>
+                        <div id="ufSelectedList" class="mt-2">
+                            <!-- Lista de UFs selecionadas -->
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <label class="form-label">CNAE (Código ou Descrição)</label>
+                        <button type="button" class="btn btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#modalCNAE">
+                            <i class="fas fa-industry me-2"></i>
+                            <span id="cnaeButtonText">Selecionar CNAEs (0)</span>
+                        </button>
+                        <div id="cnaeSelectedList" class="mt-2">
+                            <!-- Lista de CNAEs selecionados -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Instruções:</strong> Clique nos botões acima para selecionar estados (UFs) e CNAEs. Depois clique em "Aplicar Seleção" e inicie a importação.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="limparTabela" value="true">
+                            <label class="form-check-label" for="limparTabela">
+                                <i class="fas fa-exclamation-triangle text-warning"></i> 
+                                <strong>Limpar tabela antes de importar</strong> (apaga todos os registros anteriores)
+                            </label>
+                            <small class="form-text text-muted d-block ms-4">
+                                Deixe desmarcado para adicionar mais CNAEs aos dados existentes.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-secondary" id="btnCriarImportar" disabled>
+                            <i class="fas fa-database me-1"></i> Criar Tabela e Importar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="btnLimpar">
+                            <i class="fas fa-eraser me-1"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Card de Progresso - Importação -->
+    <div class="card mb-4" id="resultadosCard" style="display: none;">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-chart-line me-2"></i> Progresso da Importação
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <span id="statusEtapa">Iniciando...</span>
+                    <span id="statusPercentual">0%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%">0%</div>
+                </div>
+            </div>
+            
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Arquivos</h6>
+                            <h4 id="statusArquivos">0 / 0</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Arquivo Atual</h6>
+                            <small id="statusArquivoNome">-</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Registros Lidos</h6>
+                            <h4 id="statusLidos">0</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Registros Inseridos</h6>
+                            <h4 id="statusInseridos">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 2️⃣ Card de Progresso - Geocodificação -->
+    <div class="card mb-4" id="geocodificacaoCard">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-map-marked-alt me-2"></i> 2. Geocodificação de Endereços
+        </div>
+        <div class="card-body">
+            <!-- Info de registros pendentes -->
+            <div class="alert alert-info mb-3" id="geoPendingInfo">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Verificando registros pendentes...</strong>
+            </div>
+            
+            <button type="button" class="btn btn-success mb-3" id="btnIniciarGeocodificacao">
+                <i class="fas fa-play me-1"></i> Iniciar Geocodificação
+            </button>
+            
+            <div id="geoStatusEtapa" class="mb-2">Aguardando início...</div>
+            <div class="progress mb-3" style="height: 25px;">
+                <div id="geoProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                     role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <div id="geoStatusDetalhes">
+                <small class="text-muted">
+                    <strong>Total:</strong> <span id="geoTotal">0</span> | 
+                    <strong>Processados:</strong> <span id="geoProcessados">0</span> | 
+                    <strong>Sucesso:</strong> <span id="geoSucesso">0</span> | 
+                    <strong>Falhas:</strong> <span id="geoFalhas">0</span>
+                </small>
+            </div>
+            
+            <!-- Contador de requisições API -->
+            <div class="alert alert-info mt-3 mb-0" id="geoApiCounter">
+                <small>
+                    <strong>🛡️ Proteção de Custos:</strong> 
+                    <span id="geoRequisicoes">0</span> / <span id="geoLimite">200.000</span> requisições usadas
+                    | <strong>Limite FREE restante:</strong> <span id="geoRestante">250.000</span><br>
+                    <strong>💰 Economia por filtro:</strong> <span id="geoEconomizadas">0</span> endereços inválidos filtrados<br>
+                    <strong>🔄 Economia por duplicados:</strong> <span id="geoCacheHits">0</span> endereços duplicados (cache)
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 3️⃣ Card de Importação para Sistema -->
+    <div class="card mb-4" id="importacaoSistemaCard">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-upload me-2"></i> 3. Importar para Sistema de Clientes
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Importar dados da Receita Federal para a tabela de Clientes do sistema</strong>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Substituir:</strong> Apaga clientes da Receita Federal e importa novos</li>
+                    <li><strong>Mesclar:</strong> Adiciona aos clientes existentes (ignora duplicados)</li>
+                    <li><strong>Filtro:</strong> Importa apenas empresas ATIVAS (situação cadastral = 2)</li>
+                </ul>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-warning btn-lg w-100" id="btnImportarSubstituir">
+                        <i class="fas fa-sync-alt me-2"></i> Substituir Clientes
+                        <br><small>(Apaga clientes da RF e reimporta)</small>
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-success btn-lg w-100" id="btnImportarMesclar">
+                        <i class="fas fa-plus-circle me-2"></i> Mesclar Clientes
+                        <br><small>(Adiciona sem apagar existentes)</small>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="importacaoStatusEtapa" class="mb-2">Aguardando...</div>
+            <div class="progress mb-3" style="height: 25px;">
+                <div id="importacaoProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                     role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <div id="importacaoStatusDetalhes">
+                <small class="text-muted">
+                    <strong>Total:</strong> <span id="importacaoTotal">0</span> | 
+                    <strong>Processados:</strong> <span id="importacaoProcessados">0</span> | 
+                    <strong>Importados:</strong> <span id="importacaoImportados">0</span> | 
+                    <strong>Duplicados:</strong> <span id="importacaoDuplicados">0</span> | 
+                    <strong>Erros:</strong> <span id="importacaoErros">0</span>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Variáveis locais
+    const btnImportar = document.getElementById("btnCriarImportar");
+    let statusInterval = null;
+    
+    // Verificar registros pendentes ao carregar a página
+    verificarRegistrosPendentes();
+    
+    // Criar tabela e importar
+    $('#btnCriarImportar').on('click', function(){
+        const ufs = selectedUFs;  // Array de UFs do modal
+        const limpar = $('#limparTabela').is(':checked');
+        
+        if (!ufs || ufs.length === 0 || cnaesSelected.length === 0) {
+            alert('Por favor, selecione pelo menos um estado (UF) e um CNAE.');
+            return;
+        }
+        
+        // Montar lista de CNAEs e UFs para exibir
+        const cnaesList = cnaesSelected.map(c => c.codigo).join(', ');
+        const ufsList = ufs.join(', ');
+        
+        let mensagem = `Confirma a importação de empresas?\n\nUFs: ${ufsList} (${ufs.length} estado${ufs.length > 1 ? 's' : ''})\nCNAEs: ${cnaesList} (${cnaesSelected.length} CNAE${cnaesSelected.length > 1 ? 's' : ''})`;
+        if (limpar) {
+            mensagem += '\n\n⚠️ ATENÇÃO: Todos os registros anteriores serão APAGADOS!';
+        } else {
+            mensagem += '\n\n✓ Os novos registros serão ADICIONADOS aos existentes.';
+        }
+        mensagem += '\n\nEsta operação pode levar vários minutos.';
+        
+        if (!confirm(mensagem)) {
+            return;
+        }
+        
+        // Desabilitar botão
+        $('#btnCriarImportar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Iniciando...');
+        
+        // Extrair apenas os códigos dos CNAEs
+        const cnaeCodigos = cnaesSelected.map(c => c.codigo);
+        
+        // Iniciar importação
+        $.ajax({
+            url: '/admin/importar-clientes/processar',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                ufs: ufs,  // Array de UFs
+                cnae_codigos: cnaeCodigos,  // Array de códigos
+                limpar_tabela: limpar
+            }),
+            success: function(response){
+                if (response.success) {
+                    // Mostrar área de progresso
+                    $('#resultadosContent').html(`
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-sync fa-spin me-2"></i>Importação iniciada com sucesso!</h5>
+                            <hr>
+                            <p><strong>UFs:</strong> ${ufsList}</p>
+                            <p><strong>CNAEs:</strong> ${cnaesList}</p>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white">
+                                <i class="fas fa-chart-line me-2"></i>Progresso da Importação
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span id="statusEtapa">Iniciando...</span>
+                                        <span id="statusPercentual">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 25px;">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%">0%</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Arquivos</h6>
+                                                <h4 id="statusArquivos">0 / 0</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Arquivo Atual</h6>
+                                                <small id="statusArquivoNome">-</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-info text-white">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Registros Lidos</h6>
+                                                <h4 id="statusLidos">0</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Registros Inseridos</h6>
+                                                <h4 id="statusInseridos">0</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                    $('#resultadosCard').show();
+                    
+                    // Iniciar polling de status
+                    startStatusPolling();
+                } else {
+                    alert('Erro ao iniciar importação: ' + response.message);
+                    $('#btnCriarImportar').prop('disabled', false).html('<i class="fas fa-database me-1"></i> Criar Tabela e Importar');
+                }
+            },
+            error: function(xhr, status, error){
+                alert('Erro ao iniciar importação: ' + error);
+                $('#btnCriarImportar').prop('disabled', false).html('<i class="fas fa-database me-1"></i> Criar Tabela e Importar');
+            }
+        });
+    });
+    
+    // Polling de status
+    function startStatusPolling() {
+        if (statusInterval) {
+            clearInterval(statusInterval);
+        }
+        
+        statusInterval = setInterval(function(){
+            $.ajax({
+                url: '/admin/importar-clientes/status',
+                type: 'GET',
+                success: function(status){
+                    updateStatusDisplay(status);
+                    
+                    // Parar polling se concluído ou erro
+                    if (status.status === 'concluido' || status.status === 'erro') {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        
+                        if (status.status === 'concluido') {
+                            $('#btnCriarImportar').html('<i class="fas fa-check me-1"></i> Concluído');
+                            
+                            // ✅ HABILITAR BOTÃO DE GEOCODIFICAÇÃO AUTOMATICAMENTE
+                            $('#btnIniciarGeocodificacao').prop('disabled', false);
+                            
+                            // Verificar registros pendentes
+                            verificarRegistrosPendentes();
+                            
+                            // Scroll suave para o card de geocodificação
+                            $('html, body').animate({
+                                scrollTop: $('#geocodificacaoCard').offset().top - 100
+                            }, 1000);
+                        } else {
+                            $('#btnCriarImportar').prop('disabled', false).html('<i class="fas fa-database me-1"></i> Criar Tabela e Importar');
+                        }
+                    }
+                }
+            });
+        }, 2000); // Atualizar a cada 2 segundos
+    }
+    
+    function updateStatusDisplay(status) {
+        $('#statusEtapa').text(status.etapa || 'Processando...');
+        $('#statusPercentual').text(status.percentual + '%');
+        $('#progressBar').css('width', status.percentual + '%').text(status.percentual + '%');
+        
+        $('#statusArquivos').text(status.arquivo_atual + ' / ' + status.arquivos_total);
+        $('#statusArquivoNome').text(status.arquivo_nome || '-');
+        $('#statusLidos').text(status.registros_lidos.toLocaleString('pt-BR'));
+        $('#statusInseridos').text(status.registros_inseridos.toLocaleString('pt-BR'));
+        
+        // Mudar cor da barra conforme status
+        const progressBar = $('#progressBar');
+        progressBar.removeClass('bg-success bg-danger bg-warning');
+        
+        if (status.status === 'concluido') {
+            progressBar.addClass('bg-success').removeClass('progress-bar-animated progress-bar-striped');
+            $('#statusEtapa').html('<i class="fas fa-check-circle text-success"></i> Importação concluída com sucesso!');
+        } else if (status.status === 'erro') {
+            progressBar.addClass('bg-danger').removeClass('progress-bar-animated progress-bar-striped');
+            $('#statusEtapa').html('<i class="fas fa-exclamation-circle text-danger"></i> ' + (status.erro || 'Erro na importação'));
+        }
+    }
+    
+    // =========================================
+    // IMPORTAÇÃO PARA SISTEMA
+    // =========================================
+    
+    // Botão Substituir
+    $('#btnImportarSubstituir').on('click', function(){
+        if (!confirm('⚠️ ATENÇÃO!\n\nEsta ação irá APAGAR todos os clientes importados da Receita Federal e reimportar.\n\nClientes cadastrados manualmente NÃO serão afetados.\n\nDeseja continuar?')) {
+            return;
+        }
+        
+        iniciarImportacao('substituir');
+    });
+    
+    // Botão Mesclar
+    $('#btnImportarMesclar').on('click', function(){
+        if (!confirm('Iniciar importação?\n\nOs dados serão ADICIONADOS aos clientes existentes.\nDuplicados (mesmo CNPJ) serão ignorados.\n\nDeseja continuar?')) {
+            return;
+        }
+        
+        iniciarImportacao('mesclar');
+    });
+    
+    function iniciarImportacao(modo) {
+        $('#btnImportarSubstituir').prop('disabled', true);
+        $('#btnImportarMesclar').prop('disabled', true);
+        
+        $.ajax({
+            url: '/admin/importar-clientes/importar-sistema',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                modo: modo,
+                apenas_ativas: true
+            }),
+            success: function(response){
+                if (response.success) {
+                    // Iniciar polling de status
+                    startImportacaoPolling();
+                } else {
+                    alert('Erro ao iniciar importação: ' + response.erro);
+                    $('#btnImportarSubstituir').prop('disabled', false);
+                    $('#btnImportarMesclar').prop('disabled', false);
+                }
+            },
+            error: function(xhr, status, error){
+                alert('Erro ao iniciar importação: ' + error);
+                $('#btnImportarSubstituir').prop('disabled', false);
+                $('#btnImportarMesclar').prop('disabled', false);
+            }
+        });
+    }
+    
+    // Polling de status da IMPORTAÇÃO
+    let importacaoStatusInterval = null;
+    function startImportacaoPolling() {
+        if (importacaoStatusInterval) {
+            clearInterval(importacaoStatusInterval);
+        }
+        
+        importacaoStatusInterval = setInterval(function(){
+            $.ajax({
+                url: '/admin/importar-clientes/importacao-status',
+                type: 'GET',
+                success: function(status){
+                    updateImportacaoStatusDisplay(status);
+                    
+                    // Parar polling se concluído ou erro
+                    if (status.status === 'concluido' || status.status === 'erro') {
+                        clearInterval(importacaoStatusInterval);
+                        importacaoStatusInterval = null;
+                        $('#btnImportarSubstituir').prop('disabled', false);
+                        $('#btnImportarMesclar').prop('disabled', false);
+                    }
+                }
+            });
+        }, 2000); // Verificar a cada 2 segundos
+    }
+    
+    // Atualizar display do status de IMPORTAÇÃO
+    function updateImportacaoStatusDisplay(status) {
+        $('#importacaoStatusEtapa').text(status.etapa || 'Processando...');
+        $('#importacaoProgressBar').css('width', status.percentual + '%').text(status.percentual + '%');
+        $('#importacaoTotal').text((status.total_registros || 0).toLocaleString('pt-BR'));
+        $('#importacaoProcessados').text((status.registros_processados || 0).toLocaleString('pt-BR'));
+        $('#importacaoImportados').text((status.registros_importados || 0).toLocaleString('pt-BR'));
+        $('#importacaoDuplicados').text((status.registros_duplicados || 0).toLocaleString('pt-BR'));
+        $('#importacaoErros').text((status.registros_erro || 0).toLocaleString('pt-BR'));
+        
+        // Mudar cor da barra se concluído ou erro
+        const progressBar = $('#importacaoProgressBar');
+        if (status.status === 'concluido') {
+            progressBar.removeClass('progress-bar-animated progress-bar-striped').addClass('bg-success');
+            $('#importacaoStatusEtapa').html('<i class="fas fa-check-circle text-success"></i> ' + status.etapa);
+        } else if (status.status === 'erro') {
+            progressBar.removeClass('progress-bar-animated progress-bar-striped').addClass('bg-danger');
+            $('#importacaoStatusEtapa').html('<i class="fas fa-exclamation-circle text-danger"></i> ' + (status.erro || 'Erro na importação'));
+        }
+    }
+    
+    // =========================================
+    // VERIFICAR REGISTROS PENDENTES
+    // =========================================
+    
+    function verificarRegistrosPendentes() {
+        $.ajax({
+            url: '/admin/importar-clientes/verificar-pendentes',
+            type: 'GET',
+            success: function(data){
+                if (data.success) {
+                    const pendentes = data.pendentes;
+                    const total = data.total;
+                    const geocodificados = data.geocodificados;
+                    
+                    if (total === 0) {
+                        $('#geoPendingInfo').html(`
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Nenhum registro na base de dados.</strong> 
+                            Importe empresas primeiro.
+                        `).removeClass('alert-info').addClass('alert-secondary');
+                        $('#btnIniciarGeocodificacao').prop('disabled', true);
+                    } else if (pendentes === 0) {
+                        $('#geoPendingInfo').html(`
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Todos os ${total.toLocaleString('pt-BR')} registros já estão geocodificados!</strong> 
+                            (100% concluído)
+                        `).removeClass('alert-info').addClass('alert-success');
+                        $('#btnIniciarGeocodificacao').prop('disabled', true).html('<i class="fas fa-check me-1"></i> Geocodificação Completa');
+                    } else {
+                        const tempoEstimadoHoras = Math.round(pendentes / 72000);  // ~20 req/seg = 72k/hora
+                        $('#geoPendingInfo').html(`
+                            <i class="fas fa-database me-2"></i>
+                            <strong>Registros pendentes de geocodificação:</strong><br>
+                            📊 <strong>${pendentes.toLocaleString('pt-BR')}</strong> de ${total.toLocaleString('pt-BR')} sem lat/lng 
+                            (${geocodificados.toLocaleString('pt-BR')} já geocodificados)<br>
+                            ⏱️ Tempo estimado: <strong>~${tempoEstimadoHoras} horas</strong> (Here Maps API - alta taxa de sucesso)
+                        `).removeClass('alert-secondary alert-success').addClass('alert-info');
+                        $('#btnIniciarGeocodificacao').prop('disabled', false);
+                    }
+                } else {
+                    $('#geoPendingInfo').html(`
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Erro ao verificar registros:</strong> ${data.erro}
+                    `).removeClass('alert-info').addClass('alert-danger');
+                }
+            },
+            error: function(){
+                $('#geoPendingInfo').html(`
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Erro ao conectar ao servidor.</strong>
+                `).removeClass('alert-info').addClass('alert-danger');
+            }
+        });
+    }
+    
+    // =========================================
+    // GEOCODIFICAÇÃO
+    // =========================================
+    
+    // Botão de iniciar geocodificação
+    $('#btnIniciarGeocodificacao').on('click', function(){
+        if (!confirm('Iniciar geocodificação?\n\nEste processo pode levar vários minutos (aproximadamente 1 segundo por endereço único).')) {
+            return;
+        }
+        
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Geocodificando...');
+        
+        $.ajax({
+            url: '/admin/importar-clientes/geocodificar',
+            type: 'POST',
+            success: function(response){
+                if (response.success) {
+                    // Iniciar polling de status da geocodificação
+                    startGeoCodingPolling();
+                } else {
+                    alert('Erro ao iniciar geocodificação');
+                    $('#btnIniciarGeocodificacao').prop('disabled', false).html('<i class="fas fa-play me-1"></i> Iniciar Geocodificação');
+                }
+            },
+            error: function(xhr, status, error){
+                alert('Erro ao iniciar geocodificação: ' + error);
+                $('#btnIniciarGeocodificacao').prop('disabled', false).html('<i class="fas fa-play me-1"></i> Iniciar Geocodificação');
+            }
+        });
+    });
+    
+    // Polling de status da GEOCODIFICAÇÃO
+    let geoStatusInterval = null;
+    function startGeoCodingPolling() {
+        if (geoStatusInterval) {
+            clearInterval(geoStatusInterval);
+        }
+        
+        geoStatusInterval = setInterval(function(){
+            $.ajax({
+                url: '/admin/importar-clientes/geocodificacao-status',
+                type: 'GET',
+                success: function(status){
+                    updateGeoStatusDisplay(status);
+                    
+                    // Parar polling se concluído ou erro
+                    if (status.status === 'concluido' || status.status === 'erro') {
+                        clearInterval(geoStatusInterval);
+                        geoStatusInterval = null;
+                        $('#btnIniciarGeocodificacao').html('<i class="fas fa-check me-1"></i> Concluído');
+                        // Atualizar contador de pendentes
+                        verificarRegistrosPendentes();
+                    }
+                }
+            });
+        }, 2000); // Verificar a cada 2 segundos
+    }
+    
+    // Atualizar display do status de GEOCODIFICAÇÃO
+    function updateGeoStatusDisplay(status) {
+        $('#geoStatusEtapa').text(status.etapa || 'Processando...');
+        $('#geoProgressBar').css('width', status.percentual + '%').text(status.percentual + '%');
+        $('#geoTotal').text(status.total_registros || 0);
+        $('#geoProcessados').text(status.registros_processados || 0);
+        $('#geoSucesso').text(status.registros_geocodificados || 0);
+        $('#geoFalhas').text(status.registros_falha || 0);
+        
+        // Atualizar contador de requisições API
+        const requisicoes = status.requisicoes_api || 0;
+        const limite = status.limite_maximo || 200000;
+        const restante = 250000 - requisicoes;
+        const economizadas = status.requisicoes_economizadas || 0;
+        const cacheHits = status.cache_hits || 0;
+        $('#geoRequisicoes').text(requisicoes.toLocaleString('pt-BR'));
+        $('#geoLimite').text(limite.toLocaleString('pt-BR'));
+        $('#geoRestante').text(restante.toLocaleString('pt-BR'));
+        $('#geoEconomizadas').text(economizadas.toLocaleString('pt-BR'));
+        $('#geoCacheHits').text(cacheHits.toLocaleString('pt-BR'));
+        
+        // Mudar cor do alerta conforme proximidade do limite
+        const percentualLimite = (requisicoes / limite) * 100;
+        const apiCounter = $('#geoApiCounter');
+        apiCounter.removeClass('alert-info alert-warning alert-danger alert-success');
+        
+        if (percentualLimite >= 95) {
+            apiCounter.addClass('alert-danger');
+        } else if (percentualLimite >= 80) {
+            apiCounter.addClass('alert-warning');
+        } else if (status.status === 'limite_atingido') {
+            apiCounter.addClass('alert-danger');
+        } else {
+            apiCounter.addClass('alert-info');
+        }
+        
+        // Mudar cor da barra se concluído, erro ou limite atingido
+        const progressBar = $('#geoProgressBar');
+        if (status.status === 'concluido') {
+            progressBar.removeClass('progress-bar-animated progress-bar-striped').addClass('bg-success');
+            $('#geoStatusEtapa').html('<i class="fas fa-check-circle text-success"></i> ' + status.etapa);
+        } else if (status.status === 'limite_atingido') {
+            progressBar.removeClass('progress-bar-animated progress-bar-striped').addClass('bg-warning');
+            $('#geoStatusEtapa').html('<i class="fas fa-hand-paper text-warning"></i> ' + status.etapa);
+        } else if (status.status === 'erro') {
+            progressBar.removeClass('progress-bar-animated progress-bar-striped').addClass('bg-danger');
+            $('#geoStatusEtapa').html('<i class="fas fa-exclamation-circle text-danger"></i> ' + (status.erro || 'Erro na geocodificação'));
+        }
+    }
+    
+    // Limpar formulário
+    $('#btnLimpar').on('click', function(){
+        $('#resultadosCard').hide();
+        
+        // Limpar UFs
+        selectedUFs = [];
+        document.querySelectorAll('.uf-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('ufButtonText').textContent = 'Selecionar Estados (0)';
+        document.getElementById('ufSelectedList').innerHTML = '';
+        
+        // Limpar CNAEs
+        cnaesSelected = [];
+        tempSelectedCNAEs = [];
+        document.getElementById('cnaeButtonText').textContent = 'Selecionar CNAEs (0)';
+        document.getElementById('cnaeSelectedList').innerHTML = '';
+        
+        // Desabilitar botão de importar
+        checkEnableImportButton();
+        
+        // Parar polling se estiver ativo
+        if (statusInterval) {
+            clearInterval(statusInterval);
+            statusInterval = null;
+        }
+    });
+    
+    // Verificar se há parâmetros na URL (voltar da página)
+    const urlParams = new URLSearchParams(window.location.search);
+    const ufParam = urlParams.get('uf');
+    const cnaeParam = urlParams.get('cnae_search');
+    
+    if (ufParam) {
+        $('#uf').val(ufParam);
+    }
+    if (cnaeParam) {
+        $('#cnae_search').val(cnaeParam);
+    }
+});
+</script>
+
+<!-- Modal de Seleção de UFs -->
+<div class="modal fade" id="modalUF" tabindex="-1" aria-labelledby="modalUFLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalUFLabel"><i class="fas fa-map-marked-alt me-2"></i>Selecionar Estados (UF)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllUFs()">
+                        <i class="fas fa-check-double"></i> Marcar Todos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllUFs()">
+                        <i class="fas fa-times"></i> Desmarcar Todos
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="AC" id="uf_AC"><label class="form-check-label" for="uf_AC">Acre (AC)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="AL" id="uf_AL"><label class="form-check-label" for="uf_AL">Alagoas (AL)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="AP" id="uf_AP"><label class="form-check-label" for="uf_AP">Amapá (AP)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="AM" id="uf_AM"><label class="form-check-label" for="uf_AM">Amazonas (AM)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="BA" id="uf_BA"><label class="form-check-label" for="uf_BA">Bahia (BA)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="CE" id="uf_CE"><label class="form-check-label" for="uf_CE">Ceará (CE)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="DF" id="uf_DF"><label class="form-check-label" for="uf_DF">Distrito Federal (DF)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="ES" id="uf_ES"><label class="form-check-label" for="uf_ES">Espírito Santo (ES)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="GO" id="uf_GO"><label class="form-check-label" for="uf_GO">Goiás (GO)</label></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="MA" id="uf_MA"><label class="form-check-label" for="uf_MA">Maranhão (MA)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="MT" id="uf_MT"><label class="form-check-label" for="uf_MT">Mato Grosso (MT)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="MS" id="uf_MS"><label class="form-check-label" for="uf_MS">Mato Grosso do Sul (MS)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="MG" id="uf_MG"><label class="form-check-label" for="uf_MG">Minas Gerais (MG)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="PA" id="uf_PA"><label class="form-check-label" for="uf_PA">Pará (PA)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="PB" id="uf_PB"><label class="form-check-label" for="uf_PB">Paraíba (PB)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="PR" id="uf_PR"><label class="form-check-label" for="uf_PR">Paraná (PR)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="PE" id="uf_PE"><label class="form-check-label" for="uf_PE">Pernambuco (PE)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="PI" id="uf_PI"><label class="form-check-label" for="uf_PI">Piauí (PI)</label></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="RJ" id="uf_RJ"><label class="form-check-label" for="uf_RJ">Rio de Janeiro (RJ)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="RN" id="uf_RN"><label class="form-check-label" for="uf_RN">Rio Grande do Norte (RN)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="RS" id="uf_RS"><label class="form-check-label" for="uf_RS">Rio Grande do Sul (RS)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="RO" id="uf_RO"><label class="form-check-label" for="uf_RO">Rondônia (RO)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="RR" id="uf_RR"><label class="form-check-label" for="uf_RR">Roraima (RR)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="SC" id="uf_SC"><label class="form-check-label" for="uf_SC">Santa Catarina (SC)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="SP" id="uf_SP"><label class="form-check-label" for="uf_SP">São Paulo (SP)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="SE" id="uf_SE"><label class="form-check-label" for="uf_SE">Sergipe (SE)</label></div>
+                        <div class="form-check"><input class="form-check-input uf-checkbox" type="checkbox" value="TO" id="uf_TO"><label class="form-check-label" for="uf_TO">Tocantins (TO)</label></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="applyUFSelection()" data-bs-dismiss="modal">
+                    <i class="fas fa-check"></i> Aplicar Seleção
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais
+let selectedUFs = [];
+let cnaesSelected = [];
+let tempSelectedCNAEs = [];
+
+// Marcar todos os estados
+function selectAllUFs() {
+    document.querySelectorAll('.uf-checkbox').forEach(cb => cb.checked = true);
+}
+
+// Desmarcar todos os estados
+function deselectAllUFs() {
+    document.querySelectorAll('.uf-checkbox').forEach(cb => cb.checked = false);
+}
+
+// Aplicar seleção de UFs
+function applyUFSelection() {
+    selectedUFs = [];
+    document.querySelectorAll('.uf-checkbox:checked').forEach(cb => {
+        selectedUFs.push(cb.value);
+    });
+    
+    // Atualizar texto do botão
+    document.getElementById('ufButtonText').textContent = 
+        selectedUFs.length > 0 
+            ? `Estados Selecionados (${selectedUFs.length})` 
+            : 'Selecionar Estados (0)';
+    
+    // Atualizar lista de badges
+    const listDiv = document.getElementById('ufSelectedList');
+    if (selectedUFs.length > 0) {
+        listDiv.innerHTML = selectedUFs.map(uf => 
+            `<span class="badge bg-primary me-1 mb-1">${uf}</span>`
+        ).join('');
+    } else {
+        listDiv.innerHTML = '';
+    }
+    
+    // Verificar se pode habilitar botão importar
+    checkEnableImportButton();
+}
+
+// Verificar e habilitar/desabilitar botão de importação
+function checkEnableImportButton() {
+    const btnImportar = document.getElementById('btnCriarImportar');
+    
+    if (selectedUFs.length > 0 && cnaesSelected.length > 0) {
+        // Habilitar botão
+        btnImportar.disabled = false;
+        btnImportar.classList.remove('btn-secondary');
+        btnImportar.classList.add('btn-success');
+    } else {
+        // Desabilitar botão
+        btnImportar.disabled = true;
+        btnImportar.classList.remove('btn-success');
+        btnImportar.classList.add('btn-secondary');
+    }
+}
+</script>
+
+<!-- Modal de Seleção de CNAEs -->
+<div class="modal fade" id="modalCNAE" tabindex="-1" aria-labelledby="modalCNAELabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCNAELabel"><i class="fas fa-industry me-2"></i>Buscar e Selecionar CNAEs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Campo de busca -->
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="cnaeSearchInput" placeholder="Digite código ou parte da descrição do CNAE (ex: 4711-3/01 ou 'supermercado')">
+                        <button class="btn btn-primary" type="button" onclick="searchCNAEModal()">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Resultados da busca -->
+                <div id="cnaeSearchResults" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <p>Digite um termo e clique em "Buscar" para encontrar CNAEs</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- CNAEs selecionados -->
+                <div>
+                    <h6><i class="fas fa-check-circle text-success me-2"></i>CNAEs Selecionados (<span id="cnaeSelectedCount">0</span>)</h6>
+                    <div id="cnaeModalSelectedList" class="border rounded p-2" style="min-height: 60px; max-height: 150px; overflow-y: auto;">
+                        <span class="text-muted">Nenhum CNAE selecionado</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger" onclick="clearAllCNAEs()">
+                    <i class="fas fa-trash"></i> Limpar Todos
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="applyCNAESelection()" data-bs-dismiss="modal">
+                    <i class="fas fa-check"></i> Aplicar Seleção
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Buscar CNAEs no modal
+function searchCNAEModal() {
+    const searchTerm = document.getElementById('cnaeSearchInput').value.trim();
+    const resultsDiv = document.getElementById('cnaeSearchResults');
+    
+    if (!searchTerm) {
+        alert('Digite um termo para buscar');
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Buscando...</p></div>';
+    
+    fetch('/admin/importar-clientes/buscar-cnae', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({search_term: searchTerm})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.results.length > 0) {
+            let html = '<div class="list-group">';
+            data.results.forEach(cnae => {
+                const codigo = cnae.subclasse_codigo || cnae.classe_codigo || cnae.grupo_codigo;
+                const descricao = cnae.subclasse_descricao || cnae.classe_descricao || cnae.grupo_descricao;
+                const isChecked = tempSelectedCNAEs.some(c => c.codigo === codigo);
+                
+                html += `
+                    <div class="list-group-item">
+                        <div class="form-check">
+                            <input class="form-check-input cnae-modal-checkbox" type="checkbox" 
+                                value="${codigo}" 
+                                id="cnae_modal_${codigo.replace(/[^a-zA-Z0-9]/g, '_')}"
+                                data-descricao="${descricao}"
+                                ${isChecked ? 'checked' : ''}
+                                onchange="toggleCNAEInModal('${codigo}', '${descricao}')">
+                            <label class="form-check-label w-100" for="cnae_modal_${codigo.replace(/[^a-zA-Z0-9]/g, '_')}">
+                                <strong>${codigo}</strong> - ${descricao.substring(0, 100)}${descricao.length > 100 ? '...' : ''}
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = '<div class="alert alert-warning">Nenhum CNAE encontrado</div>';
+        }
+    })
+    .catch(error => {
+        resultsDiv.innerHTML = '<div class="alert alert-danger">Erro ao buscar CNAEs</div>';
+    });
+}
+
+// Toggle CNAE no modal
+function toggleCNAEInModal(codigo, descricao) {
+    const index = tempSelectedCNAEs.findIndex(c => c.codigo === codigo);
+    if (index > -1) {
+        tempSelectedCNAEs.splice(index, 1);
+    } else {
+        tempSelectedCNAEs.push({codigo, descricao});
+    }
+    updateCNAEModalList();
+}
+
+// Atualizar lista de CNAEs selecionados no modal
+function updateCNAEModalList() {
+    const listDiv = document.getElementById('cnaeModalSelectedList');
+    const countSpan = document.getElementById('cnaeSelectedCount');
+    
+    countSpan.textContent = tempSelectedCNAEs.length;
+    
+    if (tempSelectedCNAEs.length > 0) {
+        listDiv.innerHTML = tempSelectedCNAEs.map(cnae => `
+            <div class="badge bg-success me-1 mb-1" style="font-size: 0.9em;">
+                ${cnae.codigo}
+                <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6em;" 
+                    onclick="removeCNAEFromModal('${cnae.codigo}')"></button>
+            </div>
+        `).join('');
+    } else {
+        listDiv.innerHTML = '<span class="text-muted">Nenhum CNAE selecionado</span>';
+    }
+}
+
+// Remover CNAE do modal
+function removeCNAEFromModal(codigo) {
+    tempSelectedCNAEs = tempSelectedCNAEs.filter(c => c.codigo !== codigo);
+    updateCNAEModalList();
+    
+    // Desmarcar checkbox se existir
+    const checkbox = document.getElementById(`cnae_modal_${codigo.replace(/[^a-zA-Z0-9]/g, '_')}`);
+    if (checkbox) checkbox.checked = false;
+}
+
+// Limpar todos os CNAEs
+function clearAllCNAEs() {
+    tempSelectedCNAEs = [];
+    updateCNAEModalList();
+    document.querySelectorAll('.cnae-modal-checkbox').forEach(cb => cb.checked = false);
+}
+
+// Aplicar seleção de CNAEs (ao fechar modal)
+function applyCNAESelection() {
+    cnaesSelected = [...tempSelectedCNAEs];
+    
+    // Atualizar botão
+    document.getElementById('cnaeButtonText').textContent = 
+        cnaesSelected.length > 0 
+            ? `CNAEs Selecionados (${cnaesSelected.length})` 
+            : 'Selecionar CNAEs (0)';
+    
+    // Atualizar lista de badges
+    const listDiv = document.getElementById('cnaeSelectedList');
+    if (cnaesSelected.length > 0) {
+        listDiv.innerHTML = cnaesSelected.map(cnae => 
+            `<span class="badge bg-success me-1 mb-1">${cnae.codigo}</span>`
+        ).join('');
+    } else {
+        listDiv.innerHTML = '';
+    }
+    
+    // Verificar se pode habilitar botão importar (precisa de UFs E CNAEs)
+    checkEnableImportButton();
+}
+
+// Abrir modal e sincronizar seleções
+document.getElementById('modalCNAE').addEventListener('show.bs.modal', function () {
+    tempSelectedCNAEs = [...cnaesSelected];
+    updateCNAEModalList();
+});
+
+// Permitir busca com Enter
+document.getElementById('cnaeSearchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchCNAEModal();
+    }
+});
+</script>
+
+{% endblock %}

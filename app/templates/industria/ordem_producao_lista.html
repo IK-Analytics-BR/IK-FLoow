@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Ordens de Produção - Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-industry"></i> Ordens de Produção
+                        </h4>
+                        <a href="{{ url_for('ordem_producao.nova_op') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus"></i> Nova OP
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Filtros -->
+                    <form method="get" class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="pendente" {% if status_filtro == 'pendente' %}selected{% endif %}>Pendente</option>
+                                <option value="em_producao" {% if status_filtro == 'em_producao' %}selected{% endif %}>Em Produção</option>
+                                <option value="concluida" {% if status_filtro == 'concluida' %}selected{% endif %}>Concluída</option>
+                                <option value="cancelada" {% if status_filtro == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Cliente</label>
+                            <input type="text" name="cliente" class="form-control" placeholder="Nome do cliente..." value="{{ cliente_filtro }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <a href="{{ url_for('ordem_producao.listar_ops') }}" class="btn btn-secondary w-100">
+                                <i class="fas fa-times"></i> Limpar
+                            </a>
+                        </div>
+                    </form>
+
+                    <!-- Tabela -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nº OP</th>
+                                    <th>Orçamento</th>
+                                    <th>Cliente</th>
+                                    <th>Produto</th>
+                                    <th>Qtd</th>
+                                    <th>Data Solicitação</th>
+                                    <th>Data Prevista</th>
+                                    <th>Status</th>
+                                    <th>Custo Total</th>
+                                    <th>Ficha Técnica</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if ops %}
+                                    {% for op in ops %}
+                                    <tr>
+                                        <td><strong>{{ op.numero_op }}</strong></td>
+                                        <td>
+                                            {% if op.orcamento_id %}
+                                                <a href="{{ url_for('ordem_producao.grupo_orcamento', orcamento_id=op.orcamento_id) }}" class="text-decoration-none">
+                                                    {{ op.orcamento_numero or ('Orcamento #' ~ op.orcamento_id) }}
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ op.cliente_nome }}</td>
+                                        <td>{{ op.produto_nome }}</td>
+                                        <td>{{ op.quantidade }}</td>
+                                        <td>{{ op.data_solicitacao.strftime('%d/%m/%Y') if op.data_solicitacao else '-' }}</td>
+                                        <td>{{ op.data_prevista.strftime('%d/%m/%Y') if op.data_prevista else '-' }}</td>
+                                        <td>
+                                            {% if op.status == 'pendente' %}
+                                            <span class="badge bg-secondary">⚪ Pendente</span>
+                                            {% elif op.status == 'em_producao' %}
+                                            <span class="badge bg-warning text-dark">🟡 Em Produção</span>
+                                            {% elif op.status == 'concluida' %}
+                                            <span class="badge bg-success">🟢 Concluída</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">🔴 Cancelada</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>R$ {{ "%.2f"|format(op.custo_total_atual or 0) }}</strong>
+                                            {% if op.variacao_custo_percentual and op.variacao_custo_percentual != 0 %}
+                                            <br>
+                                            <small class="{% if op.variacao_custo_percentual > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                ({{ "%.1f"|format(op.variacao_custo_percentual) }}%)
+                                            </small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if op.usou_template %}
+                                            <span class="badge bg-info">{{ op.template_info }}</span>
+                                            {% else %}
+                                            <span class="badge bg-light text-dark">Manual</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                {% if op.orcamento_id %}
+                                                <a href="{{ url_for('ordem_producao.grupo_orcamento', orcamento_id=op.orcamento_id) }}"
+                                                   class="btn btn-sm btn-secondary" title="Romaneio de Produção">
+                                                    <i class="fas fa-layer-group"></i>
+                                                </a>
+                                                {% endif %}
+                                                <a href="{{ url_for('ordem_producao.visualizar_op', id=op.id) }}" 
+                                                   class="btn btn-sm btn-info" title="Visualizar">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if op.status == 'pendente' %}
+                                                <a href="{{ url_for('ordem_producao.editar_op', id=op.id) }}" 
+                                                   class="btn btn-sm btn-primary" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-sm btn-warning btn-alterar-status"
+                                                        data-op-id="{{ op.id }}"
+                                                        data-status-atual="{{ op.status }}"
+                                                        title="Alterar Status">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                </button>
+                                                {% if op.status == 'pendente' %}
+                                                <form method="post" action="{{ url_for('ordem_producao.excluir_op', id=op.id) }}" 
+                                                      style="display: inline;" 
+                                                      onsubmit="return confirm('Tem certeza que deseja excluir esta OP?');">
+                                                    <button type="submit" class="btn btn-sm btn-danger" title="Excluir">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="10" class="text-center py-4">
+                                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">Nenhuma ordem de produção encontrada.</p>
+                                            <a href="{{ url_for('ordem_producao.nova_op') }}" class="btn btn-primary">
+                                                <i class="fas fa-plus"></i> Criar Primeira OP
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Resumo -->
+                    {% if ops %}
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> 
+                                <strong>Total:</strong> {{ ops|length }} ordem(ns) de produção
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Alterar Status -->
+<div class="modal fade" id="modalAlterarStatus" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alterar Status da OP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAlterarStatus">
+                    <input type="hidden" id="op_id" name="op_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Novo Status</label>
+                        <select class="form-select" id="novo_status" name="status" required>
+                            <option value="pendente">⚪ Pendente</option>
+                            <option value="em_producao">🟡 Em Produção</option>
+                            <option value="concluida">🟢 Concluída</option>
+                            <option value="cancelada">🔴 Cancelada</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="div_motivo_cancelamento" style="display: none;">
+                        <label class="form-label">Motivo do Cancelamento</label>
+                        <textarea class="form-control" id="motivo_cancelamento" name="motivo_cancelamento" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarAlteracaoStatus()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let modalAlterarStatus;
+
+document.addEventListener('DOMContentLoaded', function() {
+    modalAlterarStatus = new bootstrap.Modal(document.getElementById('modalAlterarStatus'));
+    
+    // Mostrar/ocultar campo de motivo ao selecionar cancelada
+    document.getElementById('novo_status').addEventListener('change', function() {
+        const divMotivo = document.getElementById('div_motivo_cancelamento');
+        if (this.value === 'cancelada') {
+            divMotivo.style.display = 'block';
+            document.getElementById('motivo_cancelamento').required = true;
+        } else {
+            divMotivo.style.display = 'none';
+            document.getElementById('motivo_cancelamento').required = false;
+        }
+    });
+
+    document.querySelectorAll('.btn-alterar-status').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const opId = this.getAttribute('data-op-id');
+            const statusAtual = this.getAttribute('data-status-atual');
+            alterarStatus(opId, statusAtual);
+        });
+    });
+});
+
+function alterarStatus(opId, statusAtual) {
+    document.getElementById('op_id').value = opId;
+    document.getElementById('novo_status').value = statusAtual;
+    modalAlterarStatus.show();
+}
+
+function confirmarAlteracaoStatus() {
+    const opId = document.getElementById('op_id').value;
+    const novoStatus = document.getElementById('novo_status').value;
+    const motivoCancelamento = document.getElementById('motivo_cancelamento').value;
+    
+    const formData = new FormData();
+    formData.append('status', novoStatus);
+    if (novoStatus === 'cancelada') {
+        formData.append('motivo_cancelamento', motivoCancelamento);
+    }
+    
+    fetch(`/industria/ordem-producao/alterar-status/${opId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.sucesso) {
+            location.reload();
+        } else {
+            alert('Erro ao alterar status: ' + (data.erro || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao alterar status: ' + error);
+    });
+}
+</script>
+
+<style>
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.85em;
+    padding: 5px 10px;
+}
+
+.btn-group .btn {
+    margin: 0 2px;
+}
+</style>
+{% endblock %}

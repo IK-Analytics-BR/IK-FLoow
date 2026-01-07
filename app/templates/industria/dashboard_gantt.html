@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Gargalos - Gantt{% endblock %}
+{% block extra_css %}
+<style>
+.gantt-wrapper { width: 100%; overflow-x: auto; }
+.gantt-table { width: 100%; min-width: 1200px; border-collapse: collapse; }
+.gantt-table th, .gantt-table td { padding: 0; margin: 0; }
+.gantt-table thead th { background: #343a40; color: #fff; font-size: 10px; font-weight: 600; text-align: center; padding: 8px 2px; border: 1px solid #555; }
+.gantt-table thead th.op-col { width: 130px; min-width: 130px; text-align: left; padding-left: 10px; position: sticky; left: 0; z-index: 10; }
+.gantt-table thead th.hoje { background: #d97706 !important; }
+.gantt-table tbody td { border-bottom: 1px solid #eee; height: 42px; vertical-align: middle; }
+.gantt-table tbody td.op-col { background: #fff; font-size: 11px; padding: 5px 10px; position: sticky; left: 0; z-index: 5; border-right: 2px solid #343a40; }
+.gantt-table tbody td.op-col a { color: #2563eb; font-weight: bold; text-decoration: none; }
+.gantt-table tbody td.timeline-col { position: relative; padding: 0; }
+.gantt-table tbody tr:hover td { background: #f8fafc; }
+.gantt-table tbody tr:hover td.op-col { background: #f1f5f9; }
+.gantt-line { position: absolute; height: 3px; background: #1e293b; top: 50%; transform: translateY(-50%); left: 0; }
+.gantt-bar { position: absolute; height: 26px; top: 50%; transform: translateY(-50%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: 600; text-shadow: 0 1px 1px rgba(0,0,0,0.3); box-shadow: 1px 1px 3px rgba(0,0,0,0.2); padding: 0 6px; white-space: nowrap; overflow: hidden; cursor: pointer; z-index: 2; }
+.gantt-bar.normal { background: linear-gradient(135deg, #f97316, #ea580c); }
+.gantt-bar.atrasado { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.gantt-bar.atencao { background: linear-gradient(135deg, #eab308, #a16207); }
+.hoje-marker { position: absolute; width: 2px; background: #dc2626; top: 0; bottom: 0; z-index: 3; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3">
+    <!-- Cards de Resumo -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-3"><div class="card border-0 shadow-sm" style="border-left:4px solid #f59e0b!important;"><div class="card-body py-2 text-center"><div class="fs-4 fw-bold" style="color:#f59e0b;">{{ total_aguardando }}</div><small class="text-muted">Aguardando</small></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm" style="border-left:4px solid #22c55e!important;"><div class="card-body py-2 text-center"><div class="fs-4 fw-bold" style="color:#22c55e;">{{ total_em_producao }}</div><small class="text-muted">Em Produção</small></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm" style="border-left:4px solid #3b82f6!important;"><div class="card-body py-2 text-center"><div class="fs-4 fw-bold" style="color:#3b82f6;">{{ total_lotes }}</div><small class="text-muted">Total Lotes</small></div></div></div>
+        <div class="col-md-3"><div class="card border-0 shadow-sm" style="border-left:4px solid #ef4444!important;"><div class="card-body py-2 text-center"><div class="fs-4 fw-bold" style="color:#ef4444;">{{ gargalos_criticos }}</div><small class="text-muted">Atrasados</small></div></div></div>
+    </div>
+
+    <!-- Gantt Chart -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-chart-gantt me-2"></i>Ordens de Produção Ativas</span>
+            <button class="btn btn-sm btn-outline-light" onclick="location.reload()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div class="card-body p-0">
+            <div class="gantt-wrapper">
+                <table class="gantt-table" id="ganttTable">
+                    <thead>
+                        <tr id="ganttHeader"><th class="op-col">Nº OP</th></tr>
+                    </thead>
+                    <tbody id="ganttBody">
+                    {% for op in ops_ativas %}
+                        <tr data-inicio="{{ (op.data_inicio_producao or op.created_at).isoformat() if (op.data_inicio_producao or op.created_at) else '' }}"
+                            data-fim="{{ op.data_prevista.isoformat() if op.data_prevista else '' }}"
+                            data-etapa="{{ op.etapa_atual or 'Aguardando' }}"
+                            data-op="{{ op.numero_op }}"
+                            data-id="{{ op.id }}">
+                            <td class="op-col"><a href="{{ url_for('ordem_producao.visualizar_op', id=op.id) }}">{{ op.numero_op }}</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="22" class="text-center text-muted py-4"><i class="fas fa-inbox me-2"></i>Nenhuma OP ativa</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const agora = new Date();
+    const NUM_DIAS = 21;
+    const dias = [];
+    
+    for (let d = -7; d <= 13; d++) {
+        const dt = new Date(agora);
+        dt.setDate(dt.getDate() + d);
+        dt.setHours(0, 0, 0, 0);
+        dias.push({ date: dt, isHoje: d === 0, label: dt.getDate() + '/' + (dt.getMonth() + 1) });
+    }
+    
+    // Criar colunas de datas no header
+    const headerRow = document.getElementById('ganttHeader');
+    dias.forEach(dia => {
+        const th = document.createElement('th');
+        th.textContent = dia.label;
+        th.style.minWidth = '50px';
+        if (dia.isHoje) th.classList.add('hoje');
+        headerRow.appendChild(th);
+    });
+    
+    const primeiroDia = dias[0].date;
+    const ultimoDia = new Date(dias[dias.length - 1].date);
+    ultimoDia.setDate(ultimoDia.getDate() + 1);
+    const totalMs = ultimoDia.getTime() - primeiroDia.getTime();
+    const hojeIdx = 7; // índice do dia de hoje
+    
+    // Processar cada linha
+    document.querySelectorAll('#ganttBody tr[data-op]').forEach(function(row) {
+        const inicioStr = row.dataset.inicio;
+        const fimStr = row.dataset.fim;
+        const etapa = row.dataset.etapa || 'Aguardando';
+        const numOp = row.dataset.op;
+        
+        // Criar células para cada dia
+        dias.forEach((dia, idx) => {
+            const td = document.createElement('td');
+            td.classList.add('timeline-col');
+            td.style.minWidth = '50px';
+            td.style.borderLeft = '1px dashed #e2e8f0';
+            if (dia.isHoje) td.style.background = '#fef9c3';
+            row.appendChild(td);
+        });
+        
+        if (!inicioStr || !fimStr) return;
+        
+        const inicio = new Date(inicioStr);
+        const fim = new Date(fimStr);
+        const atrasado = agora > fim;
+        const atencao = !atrasado && (fim.getTime() - agora.getTime()) < (2 * 24 * 60 * 60 * 1000);
+        
+        // Calcular índices dos dias
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const inicioIdx = Math.floor((inicio.getTime() - primeiroDia.getTime()) / msPerDay);
+        const fimIdx = Math.floor((fim.getTime() - primeiroDia.getTime()) / msPerDay);
+        
+        // Encontrar células para desenhar
+        const cells = row.querySelectorAll('td.timeline-col');
+        const startIdx = Math.max(0, inicioIdx);
+        const endIdx = Math.min(dias.length - 1, fimIdx);
+        
+        if (startIdx <= endIdx && cells.length > 0) {
+            // Primeira célula da barra - adicionar a barra
+            const firstCell = cells[startIdx];
+            if (firstCell) {
+                const numCells = endIdx - startIdx + 1;
+                const barWidth = numCells * 50 - 4;
+                const classBarra = atrasado ? 'atrasado' : (atencao ? 'atencao' : 'normal');
+                const etapaShort = etapa.length > 15 ? etapa.substring(0, 15) + '..' : etapa;
+                
+                // Linha preta antes
+                if (startIdx > 0) {
+                    const lineWidth = startIdx * 50;
+                    cells[0].innerHTML = `<div class="gantt-line" style="width:${lineWidth}px;"></div>`;
+                }
+                
+                firstCell.innerHTML = `<div class="gantt-bar ${classBarra}" style="width:${barWidth}px;left:2px;" title="${numOp}&#10;Início: ${inicio.toLocaleDateString()}&#10;Fim: ${fim.toLocaleDateString()}&#10;Etapa: ${etapa}">${etapaShort}</div>`;
+            }
+        }
+    });
+});
+setTimeout(function() { location.reload(); }, 60000);
+</script>
+{% endblock %}

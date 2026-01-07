@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório de Manutenções - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Relatório de Manutenções</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.cmms_dashboard') }}">Dashboard CMMS</a></li>
+        <li class="breadcrumb-item active">Relatório de Manutenções</li>
+    </ol>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('dashboard.maintenance_report') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Data Inicial</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">Data Final</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="customer_id" class="form-label">Cliente</label>
+                    <select class="form-select" id="customer_id" name="customer_id">
+                        <option value="">Todos os clientes</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if customer_id|int == customer.id %}selected{% endif %}>
+                            {{ customer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="equipment_id" class="form-label">Equipamento</label>
+                    <select class="form-select" id="equipment_id" name="equipment_id">
+                        <option value="">Todos os equipamentos</option>
+                        {% for equipment in equipments %}
+                        <option value="{{ equipment.id }}" data-customer="{{ equipment.customer_id }}" class="equipment-option" {% if equipment_id|int == equipment.id %}selected{% endif %}>
+                            {{ equipment.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="technician_id" class="form-label">Técnico</label>
+                    <select class="form-select" id="technician_id" name="technician_id">
+                        <option value="">Todos os técnicos</option>
+                        {% for technician in technicians %}
+                        <option value="{{ technician.id }}" {% if technician_id|int == technician.id %}selected{% endif %}>
+                            {{ technician.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Todos os status</option>
+                        <option value="open" {% if status == 'open' %}selected{% endif %}>Aberta</option>
+                        <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>Em Andamento</option>
+                        <option value="completed" {% if status == 'completed' %}selected{% endif %}>Concluída</option>
+                        <option value="canceled" {% if status == 'canceled' %}selected{% endif %}>Cancelada</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{{ url_for('dashboard.maintenance_report') }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-undo me-1"></i> Limpar
+                    </a>
+                    <a href="{{ url_for('dashboard.export_report', report_type='maintenance') }}" class="btn btn-success">
+                        <i class="fas fa-file-csv me-1"></i> Exportar CSV
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Resumo -->
+    <div class="row">
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Total de Ordens</div>
+                            <div class="display-6">{{ total_orders }}</div>
+                        </div>
+                        <i class="fas fa-tools fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Custo Total</div>
+                            <div class="display-6">R$ {{ "%.2f"|format(total_cost) }}</div>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-white-50">Tempo de Parada</div>
+                            <div class="display-6">{{ total_downtime }} min</div>
+                        </div>
+                        <i class="fas fa-clock fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabela de Ordens de Serviço -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            Ordens de Serviço
+        </div>
+        <div class="card-body">
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Equipamento</th>
+                            <th>Tipo</th>
+                            <th>Data Abertura</th>
+                            <th>Data Conclusão</th>
+                            <th>Técnico</th>
+                            <th>Status</th>
+                            <th>Tempo Parada</th>
+                            <th>Custo Peças</th>
+                            <th>Custo MO</th>
+                            <th>Custo Total</th>
+                            <th>Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>{{ order.order_number }}</td>
+                            <td>{{ order.customer_name }}</td>
+                            <td>{{ order.equipment_name }}</td>
+                            <td>
+                                {% if order.type == 'preventive' %}
+                                <span class="badge bg-success">Preventiva</span>
+                                {% elif order.type == 'corrective' %}
+                                <span class="badge bg-danger">Corretiva</span>
+                                {% elif order.type == 'predictive' %}
+                                <span class="badge bg-info">Preditiva</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.open_date.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                {% if order.completion_date %}
+                                {{ order.completion_date.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.technician_name or 'Não atribuído' }}</td>
+                            <td>
+                                {% if order.status == 'open' %}
+                                <span class="badge bg-primary">Aberta</span>
+                                {% elif order.status == 'in_progress' %}
+                                <span class="badge bg-warning">Em Andamento</span>
+                                {% elif order.status == 'completed' %}
+                                <span class="badge bg-success">Concluída</span>
+                                {% elif order.status == 'canceled' %}
+                                <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.downtime_minutes or 0 }} min</td>
+                            <td>R$ {{ "%.2f"|format(order.items_cost) }}</td>
+                            <td>R$ {{ "%.2f"|format(order.labor_cost) }}</td>
+                            <td>R$ {{ "%.2f"|format(order.total_cost) }}</td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal{{ order.id }}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Modal de Detalhes -->
+                        <div class="modal fade" id="detailsModal{{ order.id }}" tabindex="-1" aria-labelledby="detailsModalLabel{{ order.id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="detailsModalLabel{{ order.id }}">Detalhes da OS: {{ order.order_number }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Informações Gerais</h6>
+                                                <table class="table table-bordered">
+                                                    <tr>
+                                                        <th>Cliente:</th>
+                                                        <td>{{ order.customer_name }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Equipamento:</th>
+                                                        <td>{{ order.equipment_name }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Componente:</th>
+                                                        <td>{{ order.supply_name or 'N/A' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Plano de Manutenção:</th>
+                                                        <td>{{ order.maintenance_plan_task or 'N/A' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Observações:</th>
+                                                        <td>{{ order.observations or 'Nenhuma observação' }}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Peças Utilizadas</h6>
+                                                {% if order.items %}
+                                                <table class="table table-bordered table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Peça</th>
+                                                            <th>Qtd</th>
+                                                            <th>Custo Unit.</th>
+                                                            <th>Subtotal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for item in order.items %}
+                                                        <tr>
+                                                            <td>{{ item.supply_name }}</td>
+                                                            <td>{{ item.quantity }}</td>
+                                                            <td>R$ {{ "%.2f"|format(item.unit_cost) }}</td>
+                                                            <td>R$ {{ "%.2f"|format(item.quantity * item.unit_cost) }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr>
+                                                            <th colspan="3" class="text-end">Total:</th>
+                                                            <th>R$ {{ "%.2f"|format(order.items_cost) }}</th>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                                {% else %}
+                                                <p class="text-muted">Nenhuma peça utilizada.</p>
+                                                {% endif %}
+                                                
+                                                <h6 class="mt-3">Horas Trabalhadas</h6>
+                                                {% if order.labor %}
+                                                <table class="table table-bordered table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Técnico</th>
+                                                            <th>Horas</th>
+                                                            <th>Taxa/Hora</th>
+                                                            <th>Subtotal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for l in order.labor %}
+                                                        <tr>
+                                                            <td>{{ l.technician_name }}</td>
+                                                            <td>{{ l.hours_worked }}</td>
+                                                            <td>R$ {{ "%.2f"|format(l.hourly_rate) }}</td>
+                                                            <td>R$ {{ "%.2f"|format(l.hours_worked * l.hourly_rate) }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr>
+                                                            <th colspan="3" class="text-end">Total:</th>
+                                                            <th>R$ {{ "%.2f"|format(order.labor_cost) }}</th>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                                {% else %}
+                                                <p class="text-muted">Nenhuma hora trabalhada registrada.</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                        <a href="{{ url_for('service_order.service_order_view', order_id=order.id) }}" class="btn btn-primary">
+                                            <i class="fas fa-eye me-1"></i> Ver OS Completa
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhuma ordem de serviço encontrada para os filtros selecionados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[4, 'desc']],
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ]
+        });
+        
+        // Filtrar equipamentos por cliente
+        $('#customer_id').change(function() {
+            var customerId = $(this).val();
+            
+            // Esconder todos os equipamentos
+            $('.equipment-option').hide();
+            
+            if (customerId) {
+                // Mostrar apenas os equipamentos do cliente selecionado
+                $('.equipment-option[data-customer="' + customerId + '"]').show();
+            } else {
+                // Se nenhum cliente selecionado, mostrar todos
+                $('.equipment-option').show();
+            }
+            
+            // Limpar a seleção atual
+            $('#equipment_id').val('');
+        });
+    });
+</script>
+{% endblock %}

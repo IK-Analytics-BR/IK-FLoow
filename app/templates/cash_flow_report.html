@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Fluxo de Caixa - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Relatórios de Fluxo de Caixa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cash_flow.cash_flow_dashboard') }}">Fluxo de Caixa</a></li>
+        <li class="breadcrumb-item active">Relatórios</li>
+    </ol>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-filter me-1"></i>
+                    Filtros
+                </div>
+                <div class="card-body">
+                    <form id="filterForm" method="get" action="{{ url_for('cash_flow.cash_flow_report') }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="type" class="form-label">Tipo de Relatório</label>
+                                <select class="form-select" id="type" name="type">
+                                    <option value="monthly" {% if report_type == 'monthly' %}selected{% endif %}>Mensal</option>
+                                    <option value="quarterly" {% if report_type == 'quarterly' %}selected{% endif %}>Trimestral</option>
+                                    <option value="yearly" {% if report_type == 'yearly' %}selected{% endif %}>Anual</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="year" class="form-label">Ano</label>
+                                <select class="form-select" id="year" name="year">
+                                    {% for y in range(2020, now().year + 1) %}
+                                    <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="bank_account_id" class="form-label">Conta Bancária</label>
+                                <select class="form-select" id="bank_account_id" name="bank_account_id">
+                                    <option value="">Todas as contas</option>
+                                    {% for account in bank_accounts %}
+                                    <option value="{{ account.id }}" {% if bank_account_id|int == account.id %}selected{% endif %}>
+                                        {{ account.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-1"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{{ url_for('cash_flow.cash_flow_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar para Dashboard
+                    </a>
+                    <div>
+                        <a href="{{ url_for('cash_flow.cash_flow_projection') }}" class="btn btn-info">
+                            <i class="fas fa-chart-line"></i> Projeção
+                        </a>
+                        <a href="{{ url_for('cash_flow.cash_flow_simulation') }}" class="btn btn-info">
+                            <i class="fas fa-calculator"></i> Simulação
+                        </a>
+                        <button type="button" class="btn btn-success" onclick="exportToPDF()">
+                            <i class="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="exportToExcel()">
+                            <i class="fas fa-file-excel"></i> Exportar Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Entradas</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(total_income) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Total de receitas no período</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Saídas</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(total_expense) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Total de despesas no período</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card {{ 'bg-primary' if total_balance >= 0 else 'bg-warning' }} text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Saldo</h5>
+                    <h2 class="card-text">R$ {{ "%.2f"|format(total_balance) }}</h2>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="small text-white">Saldo do período (Entradas - Saídas)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Relatório de Fluxo de Caixa
+                </div>
+                <div class="card-body">
+                    <canvas id="reportChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-table me-1"></i>
+                    Dados do Relatório
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="reportTable">
+                            <thead>
+                                <tr>
+                                    <th>Período</th>
+                                    <th>Entradas</th>
+                                    <th>Saídas</th>
+                                    <th>Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(labels|length) %}
+                                <tr>
+                                    <td>{{ labels[i] }}</td>
+                                    <td class="text-success">R$ {{ "%.2f"|format(income_data[i]) }}</td>
+                                    <td class="text-danger">R$ {{ "%.2f"|format(expense_data[i]) }}</td>
+                                    <td class="{{ 'text-success' if balance_data[i] >= 0 else 'text-danger' }}">
+                                        R$ {{ "%.2f"|format(balance_data[i]) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    <th>Total</th>
+                                    <th class="text-success">R$ {{ "%.2f"|format(total_income) }}</th>
+                                    <th class="text-danger">R$ {{ "%.2f"|format(total_expense) }}</th>
+                                    <th class="{{ 'text-success' if total_balance >= 0 else 'text-danger' }}">
+                                        R$ {{ "%.2f"|format(total_balance) }}
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Preparar dados para o gráfico
+        var labels = {{ labels|tojson }};
+        var incomeData = {{ income_data|tojson }};
+        var expenseData = {{ expense_data|tojson }};
+        var balanceData = {{ balance_data|tojson }};
+        
+        // Gráfico de relatório
+        var ctx = document.getElementById("reportChart");
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Entradas',
+                            backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 1,
+                            data: incomeData
+                        },
+                        {
+                            label: 'Saídas',
+                            backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 1,
+                            data: expenseData
+                        },
+                        {
+                            label: 'Saldo',
+                            type: 'line',
+                            backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                            borderColor: 'rgba(13, 110, 253, 1)',
+                            borderWidth: 2,
+                            pointRadius: 5,
+                            pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverRadius: 7,
+                            fill: false,
+                            data: balanceData
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Período'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Valor (R$)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    var value = context.raw || 0;
+                                    return label + ': R$ ' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+    
+    // Função para exportar para PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // Criar novo documento PDF
+        const doc = new jsPDF();
+        
+        // Título
+        doc.setFontSize(18);
+        doc.text('Relatório de Fluxo de Caixa', 14, 22);
+        
+        // Subtítulo
+        doc.setFontSize(12);
+        doc.text('Período: {{ year }} - {{ report_type }}', 14, 30);
+        
+        // Resumo
+        doc.setFontSize(14);
+        doc.text('Resumo Financeiro', 14, 40);
+        
+        doc.setFontSize(10);
+        doc.text('Total de Entradas: R$ {{ "%.2f"|format(total_income) }}', 14, 50);
+        doc.text('Total de Saídas: R$ {{ "%.2f"|format(total_expense) }}', 14, 55);
+        doc.text('Saldo: R$ {{ "%.2f"|format(total_balance) }}', 14, 60);
+        
+        // Tabela de dados
+        doc.autoTable({
+            html: '#reportTable',
+            startY: 70,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            footStyles: { fillColor: [52, 152, 219], textColor: 255 },
+            styles: { fontSize: 10 }
+        });
+        
+        // Salvar o PDF
+        doc.save('relatorio_fluxo_caixa_{{ year }}.pdf');
+    }
+    
+    // Função para exportar para Excel
+    function exportToExcel() {
+        // Criar uma nova planilha
+        const wb = XLSX.utils.book_new();
+        
+        // Converter a tabela para uma planilha
+        const ws = XLSX.utils.table_to_sheet(document.getElementById('reportTable'));
+        
+        // Adicionar a planilha ao livro
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+        
+        // Salvar o arquivo
+        XLSX.writeFile(wb, 'relatorio_fluxo_caixa_{{ year }}.xlsx');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Cenário de Simulação{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">{{ scenario.name }}</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('simulator.simulator_dashboard') }}" class="btn btn-sm btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            <a href="{{ url_for('simulator.export_scenario', scenario_id=scenario.id) }}" class="btn btn-sm btn-success" id="exportButton">
+                <i class="fas fa-download"></i> Exportar Dados
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Detalhes do Cenário
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Equipamento:</strong> {{ scenario.equipment.name }}</p>
+                            <p><strong>Período de Simulação:</strong> {{ scenario.simulation_period }} meses</p>
+                            <p><strong>Criado em:</strong> {{ scenario.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Padrão de Uso:</strong> 
+                                {% if scenario.usage_pattern == 'light' %}
+                                    Leve (4h/dia em média)
+                                {% elif scenario.usage_pattern == 'moderate' %}
+                                    Moderado (8h/dia em média)
+                                {% elif scenario.usage_pattern == 'heavy' %}
+                                    Pesado (16h/dia em média)
+                                {% endif %}
+                            </p>
+                            <p><strong>Estratégia de Manutenção:</strong> 
+                                {% if scenario.maintenance_strategy == 'reactive' %}
+                                    Reativa (apenas quando falhar)
+                                {% elif scenario.maintenance_strategy == 'preventive' %}
+                                    Preventiva (baseada em intervalos)
+                                {% elif scenario.maintenance_strategy == 'predictive' %}
+                                    Preditiva (baseada em condição)
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if scenario.description %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <p><strong>Descrição:</strong></p>
+                            <p>{{ scenario.description }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Resumo da Simulação
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Disponibilidade:</span>
+                        <span class="badge bg-success">{{ "%.2f"|format(results.availability) }}%</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ results.availability }}%" 
+                            aria-valuenow="{{ results.availability }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <p><strong>MTBF:</strong> {{ "%.1f"|format(results.mtbf) }} horas</p>
+                        </div>
+                        <div class="col-6">
+                            <p><strong>MTTR:</strong> {{ "%.1f"|format(results.mttr) }} horas</p>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mt-3">Custos Estimados:</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Preventiva:</td>
+                            <td class="text-end">R$ {{ "%.2f"|format(results.costs.preventive) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Corretiva:</td>
+                            <td class="text-end">R$ {{ "%.2f"|format(results.costs.corrective) }}</td>
+                        </tr>
+                        <tr class="table-active">
+                            <td><strong>Total:</strong></td>
+                            <td class="text-end"><strong>R$ {{ "%.2f"|format(results.costs.total) }}</strong></td>
+                        </tr>
+                    </table>
+                    
+                    <h6 class="mt-3">Tempo de Inatividade:</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Preventiva:</td>
+                            <td class="text-end">{{ results.downtime.preventive }} horas</td>
+                        </tr>
+                        <tr>
+                            <td>Corretiva:</td>
+                            <td class="text-end">{{ results.downtime.corrective }} horas</td>
+                        </tr>
+                        <tr class="table-active">
+                            <td><strong>Total:</strong></td>
+                            <td class="text-end"><strong>{{ results.downtime.total }} horas</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Desgaste de Componentes ao Longo do Tempo
+                </div>
+                <div class="card-body">
+                    <canvas id="wearChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Eventos de Manutenção
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenanceChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Eventos de Manutenção
+                </div>
+                <div class="card-body">
+                    {% if results.maintenance_events %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Componente</th>
+                                        <th>Tipo</th>
+                                        <th>Custo</th>
+                                        <th>Tempo de Inatividade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in results.maintenance_events %}
+                                    <tr>
+                                        <td>{{ event.date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ event.component }}</td>
+                                        <td>
+                                            {% if event.type == 'preventive' %}
+                                                <span class="badge bg-primary">Preventiva</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Corretiva</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>R$ {{ "%.2f"|format(event.cost) }}</td>
+                                        <td>{{ event.downtime }} horas</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Nenhum evento de manutenção foi gerado na simulação.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dados para o gráfico de desgaste
+        var timelineData = {{ results.timeline|tojson }};
+        var dates = timelineData.map(item => item.date);
+        var components = {};
+        
+        // Extrair dados de componentes
+        if (timelineData.length > 0 && timelineData[0].components) {
+            timelineData[0].components.forEach(comp => {
+                components[comp.name] = {
+                    name: comp.name,
+                    data: []
+                };
+            });
+            
+            // Preencher dados de desgaste para cada componente
+            timelineData.forEach(day => {
+                day.components.forEach(comp => {
+                    if (components[comp.name]) {
+                        components[comp.name].data.push(comp.wear);
+                    }
+                });
+            });
+        }
+        
+        // Configurar gráfico de desgaste
+        var wearCtx = document.getElementById('wearChart');
+        if (wearCtx) {
+            var wearChart = new Chart(wearCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: Object.values(components).map((comp, index) => {
+                        const colors = [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ];
+                        return {
+                            label: comp.name,
+                            data: comp.data,
+                            borderColor: colors[index % colors.length],
+                            backgroundColor: colors[index % colors.length].replace('1)', '0.1)'),
+                            tension: 0.1
+                        };
+                    })
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Desgaste de Componentes ao Longo do Tempo'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Desgaste (%)'
+                            },
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                stepSize: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Dados para o gráfico de eventos de manutenção
+        var maintenanceEvents = {{ results.maintenance_events|tojson }};
+        var preventiveCount = maintenanceEvents.filter(event => event.type === 'preventive').length;
+        var correctiveCount = maintenanceEvents.filter(event => event.type === 'corrective').length;
+        
+        // Configurar gráfico de eventos de manutenção
+        var maintenanceCtx = document.getElementById('maintenanceChart');
+        if (maintenanceCtx) {
+            var maintenanceChart = new Chart(maintenanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Preventiva', 'Corretiva'],
+                    datasets: [{
+                        label: 'Eventos de Manutenção',
+                        data: [preventiveCount, correctiveCount],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 99, 132, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Distribuição de Eventos de Manutenção'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Configurar botão de exportação
+        document.getElementById('exportButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            var url = this.getAttribute('href');
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Criar um elemento <a> para download
+                    var element = document.createElement('a');
+                    element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(data.data));
+                    element.setAttribute('download', data.filename);
+                    element.style.display = 'none';
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                })
+                .catch(error => {
+                    console.error('Erro ao exportar dados:', error);
+                    alert('Erro ao exportar dados. Por favor, tente novamente.');
+                });
+        });
+    });
+</script>
+{% endblock %}

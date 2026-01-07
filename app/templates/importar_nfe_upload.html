@@ -1,0 +1,1005 @@
+{% extends "base.html" %}
+
+{% block title %}Importar NFe - Upload{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">
+        <i class="fas fa-file-upload"></i> Importar NFe - Upload de Arquivos
+    </h1>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                NFe Entrada Pendentes
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="entrada-pendentes">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-inbox fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                NFe Entrada Processadas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="entrada-processadas">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                NFe Saída Total
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="saida-total">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Valor Total Vendas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="saida-valor">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORTAR DE PASTA DO SERVIDOR -->
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-info">
+                    <h6 class="m-0 font-weight-bold text-white">
+                        <i class="fas fa-folder-open"></i> Importar de Pasta do Servidor (Busca Recursiva Automática)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Busca automática em TODAS as subpastas!</strong> 
+                        Selecione a pasta pai e o sistema buscará recursivamente todos os XMLs em todas as subpastas.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="pasta-servidor" class="form-label">Pasta do Servidor</label>
+                                <input type="text" class="form-control" id="pasta-servidor" 
+                                       placeholder="Ex: C:\XMLs\2025 ou C:\XMLs" 
+                                       value="C:\Users\arita\Desktop\XML de Entrada">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-search"></i> O sistema buscará automaticamente em TODAS as subpastas (recursivo)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="tipo-nfe" class="form-label">Tipo de NFe</label>
+                                <select class="form-control" id="tipo-nfe">
+                                    <option value="entrada">📥 Entrada (Compras)</option>
+                                    <option value="saida">📤 Saída (Vendas)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="limpar-antes" value="1">
+                        <label class="form-check-label" for="limpar-antes">
+                            <strong style="color: #dc3545;">
+                                <i class="fas fa-trash-alt"></i> Limpar dados anteriores antes de importar
+                            </strong>
+                            <br>
+                            <small class="text-muted">
+                                ⚠️ Esta opção apagará TODOS os dados de NFe já importados (staging, fornecedores, produtos, pedidos, estoque).
+                                Use apenas se os dados antigos estiverem incompletos.
+                            </small>
+                        </label>
+                    </div>
+
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-info" id="btn-buscar-pasta">
+                            <i class="fas fa-search"></i> Buscar XMLs
+                        </button>
+                        <button class="btn btn-success" id="btn-processar-pasta" disabled>
+                            <i class="fas fa-play"></i> Processar Todos
+                        </button>
+                        <button class="btn btn-danger" id="btn-limpar-dados" title="Limpar dados sem importar">
+                            <i class="fas fa-trash-alt"></i> Limpar Dados
+                        </button>
+                    </div>
+
+                    <div id="resultado-busca" class="mt-3"></div>
+                    
+                    <div id="progress-pasta" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar bg-info progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <p class="text-center mt-2 mb-0">Processando todos os XMLs...</p>
+                    </div>
+
+                    <div id="result-pasta" class="mt-3"></div>
+                    
+                    <!-- SEÇÃO DE PROGRESSO EM TEMPO REAL -->
+                    <div id="progress-section" class="mt-4" style="display: none;">
+                        <div class="card border-left-primary">
+                            <div class="card-header bg-gradient-primary text-white">
+                                <h6 class="m-0">
+                                    <i class="fas fa-spinner fa-spin"></i> Processamento em Andamento
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <!-- BARRA DE PROGRESSO -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span id="progress-text">Processando...</span>
+                                        <span id="progress-percent">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 25px;">
+                                        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress-arquivo">Aguardando...</small>
+                                </div>
+                                
+                                <!-- ESTATÍSTICAS EM TEMPO REAL -->
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <div class="card bg-light border-success">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-check-circle text-success"></i>
+                                                <h4 class="mb-0" id="stat-sucesso">0</h4>
+                                                <small>Sucesso</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light border-warning">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-copy text-warning"></i>
+                                                <h4 class="mb-0" id="stat-duplicados">0</h4>
+                                                <small>Duplicados</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light border-danger">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-times-circle text-danger"></i>
+                                                <h4 class="mb-0" id="stat-erros">0</h4>
+                                                <small>Erros</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light border-info">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-file-alt text-info"></i>
+                                                <h4 class="mb-0" id="stat-total">0</h4>
+                                                <small>Total</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- ESTATÍSTICAS DETALHADAS POR TIPO -->
+                                <div class="row mb-3" id="stats-detalhadas">
+                                    <!-- Para ENTRADA -->
+                                    <div class="col-md-4" id="stat-fornecedores-card" style="display:none;">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-truck text-primary"></i>
+                                                <h5 class="mb-0" id="stat-fornecedores">0</h5>
+                                                <small>Fornecedores</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4" id="stat-pedidos-card" style="display:none;">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-shopping-cart text-primary"></i>
+                                                <h5 class="mb-0" id="stat-pedidos">0</h5>
+                                                <small>Pedidos</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Para SAÍDA -->
+                                    <div class="col-md-4" id="stat-clientes-card" style="display:none;">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-users text-success"></i>
+                                                <h5 class="mb-0" id="stat-clientes">0</h5>
+                                                <small>Clientes</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4" id="stat-vendas-card" style="display:none;">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-dollar-sign text-success"></i>
+                                                <h5 class="mb-0" id="stat-vendas">0</h5>
+                                                <small>Vendas</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Comum -->
+                                    <div class="col-md-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center p-2">
+                                                <i class="fas fa-box text-info"></i>
+                                                <h5 class="mb-0" id="stat-produtos">0</h5>
+                                                <small>Produtos</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- LOGS EM TEMPO REAL -->
+                                <div class="card bg-dark text-white">
+                                    <div class="card-header p-2">
+                                        <small><i class="fas fa-terminal"></i> Logs</small>
+                                    </div>
+                                    <div class="card-body p-2" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;" id="logs-container">
+                                        <div id="logs-content">Aguardando início...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RESUMO FINAL -->
+                    <div id="resumo-final" class="mt-4" style="display: none;">
+                        <div class="card border-left-success">
+                            <div class="card-header bg-gradient-success text-white">
+                                <h5 class="m-0">
+                                    <i class="fas fa-check-circle"></i> Importação Concluída!
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Estatísticas</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-file-alt text-info"></i> Total de arquivos: <strong id="resumo-total">0</strong></li>
+                                            <li><i class="fas fa-check-circle text-success"></i> Sucesso: <strong id="resumo-sucesso">0</strong></li>
+                                            <li><i class="fas fa-copy text-warning"></i> Duplicados: <strong id="resumo-duplicados">0</strong></li>
+                                            <li><i class="fas fa-times-circle text-danger"></i> Erros: <strong id="resumo-erros">0</strong></li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6" id="resumo-detalhes">
+                                        <!-- Preenchido dinamicamente -->
+                                    </div>
+                                </div>
+                                
+                                <div id="resumo-erros-detalhes" class="mt-3" style="display: none;">
+                                    <h6 class="text-danger">Erros Encontrados:</h6>
+                                    <div class="alert alert-danger">
+                                        <ul id="resumo-erros-lista" class="mb-0"></ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-primary" onclick="location.reload()">
+                                        <i class="fas fa-redo"></i> Nova Importação
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- NFe de ENTRADA (Compras) -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-primary">
+                    <h6 class="m-0 font-weight-bold text-white">
+                        <i class="fas fa-shopping-cart"></i> Upload Manual - NFe ENTRADA
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Arraste e solte arquivos XML individuais (sem busca em pasta).
+                    </p>
+
+                    <div class="upload-area mb-3" id="upload-area-entrada" style="border: 2px dashed #4e73df; padding: 40px; text-align: center; cursor: pointer; border-radius: 5px;">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <p class="mb-0">Clique ou arraste arquivos XML aqui</p>
+                        <small class="text-muted">Múltiplos arquivos são permitidos</small>
+                        <input type="file" id="file-input-entrada" multiple accept=".xml" style="display: none;">
+                    </div>
+
+                    <div id="files-list-entrada" class="mb-3"></div>
+
+                    <button class="btn btn-primary btn-block" id="btn-importar-entrada" disabled>
+                        <i class="fas fa-upload"></i> Importar NFe de Entrada
+                    </button>
+
+                    <div id="progress-entrada" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <p class="text-center mt-2 mb-0">Processando...</p>
+                    </div>
+
+                    <div id="result-entrada" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NFe de SAÍDA (Vendas) -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-success">
+                    <h6 class="m-0 font-weight-bold text-white">
+                        <i class="fas fa-cash-register"></i> NFe de SAÍDA (Vendas)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Faça upload de arquivos XML de NFe de saída para importar automaticamente:
+                        clientes, produtos e vendas realizadas.
+                    </p>
+
+                    <div class="upload-area mb-3" id="upload-area-saida" style="border: 2px dashed #1cc88a; padding: 40px; text-align: center; cursor: pointer; border-radius: 5px;">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-success mb-3"></i>
+                        <p class="mb-0">Clique ou arraste arquivos XML aqui</p>
+                        <small class="text-muted">Múltiplos arquivos são permitidos</small>
+                        <input type="file" id="file-input-saida" multiple accept=".xml" style="display: none;">
+                    </div>
+
+                    <div id="files-list-saida" class="mb-3"></div>
+
+                    <button class="btn btn-success btn-block" id="btn-importar-saida" disabled>
+                        <i class="fas fa-upload"></i> Importar NFe de Saída
+                    </button>
+
+                    <div id="progress-saida" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <p class="text-center mt-2 mb-0">Processando...</p>
+                    </div>
+
+                    <div id="result-saida" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais
+let filesEntrada = [];
+let filesSaida = [];
+
+// Carregar estatísticas ao iniciar
+carregarEstatisticas();
+
+// =====================================================
+// NFe de ENTRADA
+// =====================================================
+
+const uploadAreaEntrada = document.getElementById('upload-area-entrada');
+const fileInputEntrada = document.getElementById('file-input-entrada');
+const filesListEntrada = document.getElementById('files-list-entrada');
+const btnImportarEntrada = document.getElementById('btn-importar-entrada');
+
+// Click na área de upload
+uploadAreaEntrada.addEventListener('click', () => fileInputEntrada.click());
+
+// Drag and drop
+uploadAreaEntrada.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadAreaEntrada.style.backgroundColor = '#f0f0f0';
+});
+
+uploadAreaEntrada.addEventListener('dragleave', () => {
+    uploadAreaEntrada.style.backgroundColor = '';
+});
+
+uploadAreaEntrada.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadAreaEntrada.style.backgroundColor = '';
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xml'));
+    adicionarArquivosEntrada(files);
+});
+
+// Seleção de arquivos
+fileInputEntrada.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    adicionarArquivosEntrada(files);
+});
+
+function adicionarArquivosEntrada(files) {
+    filesEntrada = [...filesEntrada, ...files];
+    atualizarListaArquivosEntrada();
+    btnImportarEntrada.disabled = filesEntrada.length === 0;
+}
+
+function atualizarListaArquivosEntrada() {
+    if (filesEntrada.length === 0) {
+        filesListEntrada.innerHTML = '';
+        return;
+    }
+
+    filesListEntrada.innerHTML = `
+        <div class="alert alert-info">
+            <strong>${filesEntrada.length}</strong> arquivo(s) selecionado(s)
+            <button class="btn btn-sm btn-link float-right" onclick="limparArquivosEntrada()">Limpar</button>
+        </div>
+    `;
+}
+
+function limparArquivosEntrada() {
+    filesEntrada = [];
+    fileInputEntrada.value = '';
+    atualizarListaArquivosEntrada();
+    btnImportarEntrada.disabled = true;
+}
+
+// Importar NFe de Entrada
+btnImportarEntrada.addEventListener('click', async () => {
+    if (filesEntrada.length === 0) return;
+
+    btnImportarEntrada.disabled = true;
+    document.getElementById('progress-entrada').style.display = 'block';
+    document.getElementById('result-entrada').innerHTML = '';
+
+    const formData = new FormData();
+    filesEntrada.forEach(file => formData.append('files[]', file));
+
+    try {
+        const response = await fetch('/importar-nfe-upload/entrada', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        document.getElementById('progress-entrada').style.display = 'none';
+
+        if (result.success) {
+            document.getElementById('result-entrada').innerHTML = `
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle"></i> Importação Concluída!</h5>
+                    <ul class="mb-0">
+                        <li>Total: ${result.stats.total} arquivo(s)</li>
+                        <li>✅ Sucesso: ${result.stats.sucesso}</li>
+                        <li>⚠️ Duplicados: ${result.stats.duplicados}</li>
+                        <li>❌ Erros: ${result.stats.erros}</li>
+                    </ul>
+                    ${result.stats.erros > 0 ? `
+                        <details class="mt-2">
+                            <summary>Ver erros</summary>
+                            <ul class="mt-2">
+                                ${result.stats.erros_detalhes.map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                        </details>
+                    ` : ''}
+                </div>
+            `;
+            limparArquivosEntrada();
+            carregarEstatisticas();
+        } else {
+            document.getElementById('result-entrada').innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Erro:</strong> ${result.message}
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        document.getElementById('progress-entrada').style.display = 'none';
+        document.getElementById('result-entrada').innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Erro:</strong> ${error.message}
+            </div>
+        `;
+    }
+
+    btnImportarEntrada.disabled = false;
+});
+
+// =====================================================
+// NFe de SAÍDA
+// =====================================================
+
+const uploadAreaSaida = document.getElementById('upload-area-saida');
+const fileInputSaida = document.getElementById('file-input-saida');
+const filesListSaida = document.getElementById('files-list-saida');
+const btnImportarSaida = document.getElementById('btn-importar-saida');
+
+// Click na área de upload
+uploadAreaSaida.addEventListener('click', () => fileInputSaida.click());
+
+// Drag and drop
+uploadAreaSaida.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadAreaSaida.style.backgroundColor = '#f0f0f0';
+});
+
+uploadAreaSaida.addEventListener('dragleave', () => {
+    uploadAreaSaida.style.backgroundColor = '';
+});
+
+uploadAreaSaida.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadAreaSaida.style.backgroundColor = '';
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xml'));
+    adicionarArquivosSaida(files);
+});
+
+// Seleção de arquivos
+fileInputSaida.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    adicionarArquivosSaida(files);
+});
+
+function adicionarArquivosSaida(files) {
+    filesSaida = [...filesSaida, ...files];
+    atualizarListaArquivosSaida();
+    btnImportarSaida.disabled = filesSaida.length === 0;
+}
+
+function atualizarListaArquivosSaida() {
+    if (filesSaida.length === 0) {
+        filesListSaida.innerHTML = '';
+        return;
+    }
+
+    filesListSaida.innerHTML = `
+        <div class="alert alert-success">
+            <strong>${filesSaida.length}</strong> arquivo(s) selecionado(s)
+            <button class="btn btn-sm btn-link float-right" onclick="limparArquivosSaida()">Limpar</button>
+        </div>
+    `;
+}
+
+function limparArquivosSaida() {
+    filesSaida = [];
+    fileInputSaida.value = '';
+    atualizarListaArquivosSaida();
+    btnImportarSaida.disabled = true;
+}
+
+// Importar NFe de Saída
+btnImportarSaida.addEventListener('click', async () => {
+    if (filesSaida.length === 0) return;
+
+    btnImportarSaida.disabled = true;
+    document.getElementById('progress-saida').style.display = 'block';
+    document.getElementById('result-saida').innerHTML = '';
+
+    const formData = new FormData();
+    filesSaida.forEach(file => formData.append('files[]', file));
+
+    try {
+        const response = await fetch('/importar-nfe-upload/saida', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        document.getElementById('progress-saida').style.display = 'none';
+
+        if (result.success) {
+            document.getElementById('result-saida').innerHTML = `
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle"></i> Importação Concluída!</h5>
+                    <ul class="mb-0">
+                        <li>Total: ${result.stats.total} arquivo(s)</li>
+                        <li>✅ Sucesso: ${result.stats.sucesso}</li>
+                        <li>⚠️ Duplicados: ${result.stats.duplicados}</li>
+                        <li>❌ Erros: ${result.stats.erros}</li>
+                    </ul>
+                    ${result.stats.erros > 0 ? `
+                        <details class="mt-2">
+                            <summary>Ver erros</summary>
+                            <ul class="mt-2">
+                                ${result.stats.erros_detalhes.map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                        </details>
+                    ` : ''}
+                </div>
+            `;
+            limparArquivosSaida();
+            carregarEstatisticas();
+        } else {
+            document.getElementById('result-saida').innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Erro:</strong> ${result.message}
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        document.getElementById('progress-saida').style.display = 'none';
+        document.getElementById('result-saida').innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Erro:</strong> ${error.message}
+            </div>
+        `;
+    }
+
+    btnImportarSaida.disabled = false;
+});
+
+// =====================================================
+// ESTATÍSTICAS
+// =====================================================
+
+async function carregarEstatisticas() {
+    try {
+        // Pegar tipo selecionado (entrada ou saida)
+        const tipo = document.getElementById('tipo-nfe') ? document.getElementById('tipo-nfe').value : 'saida';
+        
+        // Enviar tipo como parâmetro GET para consultar apenas a tabela correta
+        const response = await fetch(`/importar-nfe-upload/status?tipo=${tipo}`);
+        const result = await response.json();
+
+        if (result.success) {
+            document.getElementById('entrada-pendentes').textContent = result.entrada.pendentes;
+            document.getElementById('entrada-processadas').textContent = result.entrada.processadas;
+            document.getElementById('saida-total').textContent = result.saida.total_vendas;
+            document.getElementById('saida-valor').textContent = 'R$ ' + result.saida.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        }
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+    }
+}
+
+// Atualizar estatísticas a cada 30 segundos
+setInterval(carregarEstatisticas, 30000);
+
+// =====================================================
+// BUSCA E PROCESSAMENTO DE PASTA (RECURSIVO)
+// =====================================================
+
+const btnBuscarPasta = document.getElementById('btn-buscar-pasta');
+const btnProcessarPasta = document.getElementById('btn-processar-pasta');
+const pastaServidor = document.getElementById('pasta-servidor');
+const tipoNfe = document.getElementById('tipo-nfe');
+
+// Buscar XMLs na pasta
+btnBuscarPasta.addEventListener('click', async () => {
+    const pasta = pastaServidor.value.trim();
+    const tipo = tipoNfe.value;
+
+    if (!pasta) {
+        alert('Por favor, informe a pasta do servidor');
+        return;
+    }
+
+    btnBuscarPasta.disabled = true;
+    btnBuscarPasta.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+    document.getElementById('resultado-busca').innerHTML = '';
+
+    try {
+        const response = await fetch('/importar-nfe-upload/buscar-pasta', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pasta, tipo })
+        });
+
+        const result = await response.json();
+        btnBuscarPasta.disabled = false;
+        btnBuscarPasta.innerHTML = '<i class="fas fa-search"></i> Buscar XMLs';
+
+        if (result.success) {
+            // Habilitar botão de processar
+            btnProcessarPasta.disabled = result.total === 0;
+
+            // Criar tabela de pastas encontradas
+            let pastasHtml = '';
+            if (Object.keys(result.pastas).length > 0) {
+                pastasHtml = '<table class="table table-sm table-bordered mt-2"><thead><tr><th>Subpasta</th><th>XMLs</th></tr></thead><tbody>';
+                for (const [pasta, count] of Object.entries(result.pastas)) {
+                    pastasHtml += `<tr><td>${pasta}</td><td><span class="badge badge-info">${count}</span></td></tr>`;
+                }
+                pastasHtml += '</tbody></table>';
+            }
+
+            document.getElementById('resultado-busca').innerHTML = `
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle"></i> Busca Concluída!</h5>
+                    <p class="mb-0"><strong>${result.total} arquivo(s) XML</strong> encontrado(s) em <strong>${Object.keys(result.pastas).length} pasta(s)</strong></p>
+                    ${pastasHtml}
+                    ${result.total > 0 ? '<p class="mt-2 mb-0 text-info"><i class="fas fa-info-circle"></i> Clique em "Processar Todos" para importar todos os XMLs encontrados.</p>' : ''}
+                </div>
+            `;
+        } else {
+            document.getElementById('resultado-busca').innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Erro:</strong> ${result.message}
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        btnBuscarPasta.disabled = false;
+        btnBuscarPasta.innerHTML = '<i class="fas fa-search"></i> Buscar XMLs';
+        document.getElementById('resultado-busca').innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Erro:</strong> ${error.message}
+            </div>
+        `;
+    }
+});
+
+// Limpar dados manualmente
+const btnLimparDados = document.getElementById('btn-limpar-dados');
+btnLimparDados.addEventListener('click', async () => {
+    const tipo = tipoNfe.value;
+    
+    if (!confirm(`⚠️ ATENÇÃO! Esta ação apagará TODOS os dados de NFe de ${tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'} já importados:\n\n` +
+                 `- Staging (notas e itens)\n` +
+                 `- ${tipo === 'entrada' ? 'Fornecedores, produtos, pedidos e estoque' : 'Vendas e itens'}\n` +
+                 `- Log de importação\n\n` +
+                 `Esta ação NÃO PODE SER DESFEITA!\n\n` +
+                 `Deseja continuar?`)) {
+        return;
+    }
+    
+    btnLimparDados.disabled = true;
+    btnLimparDados.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando...';
+    
+    try {
+        const response = await fetch('/importar-nfe-upload/limpar-dados', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tipo })
+        });
+        
+        const result = await response.json();
+        btnLimparDados.disabled = false;
+        btnLimparDados.innerHTML = '<i class="fas fa-trash-alt"></i> Limpar Dados';
+        
+        if (result.success) {
+            alert(`✅ Dados limpos com sucesso!\n\nRegistros apagados:\n${JSON.stringify(result.registros_apagados, null, 2)}`);
+            carregarEstatisticas();
+        } else {
+            alert(`❌ Erro ao limpar dados:\n${result.message}`);
+        }
+        
+    } catch (error) {
+        btnLimparDados.disabled = false;
+        btnLimparDados.innerHTML = '<i class="fas fa-trash-alt"></i> Limpar Dados';
+        alert(`❌ Erro ao limpar dados:\n${error.message}`);
+    }
+});
+
+// Variável global para controlar intervalo de atualização
+let intervaloProgresso = null;
+
+// Processar todos os XMLs da pasta COM PROGRESSO EM TEMPO REAL
+btnProcessarPasta.addEventListener('click', async () => {
+    const pasta = pastaServidor.value.trim();
+    const tipo = tipoNfe.value;
+    const limparAntes = document.getElementById('limpar-antes').checked;
+
+    if (!pasta) {
+        alert('Por favor, informe a pasta do servidor');
+        return;
+    }
+
+    let confirmMsg = `Confirma o processamento de TODOS os XMLs de ${tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'} encontrados na pasta e subpastas?\n\nPasta: ${pasta}`;
+    
+    if (limparAntes) {
+        confirmMsg += '\n\n⚠️ ATENÇÃO: Dados anteriores serão APAGADOS antes da importação!';
+    }
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    // Desabilitar botões
+    btnProcessarPasta.disabled = true;
+    btnBuscarPasta.disabled = true;
+    btnLimparDados.disabled = true;
+    
+    // Ocultar resultados anteriores e mostrar seção de progresso
+    document.getElementById('resultado-busca').innerHTML = '';
+    document.getElementById('result-pasta').innerHTML = '';
+    document.getElementById('resumo-final').style.display = 'none';
+    document.getElementById('progress-section').style.display = 'block';
+    
+    // Mostrar/ocultar cards de estatísticas por tipo
+    if (tipo === 'entrada') {
+        document.getElementById('stat-fornecedores-card').style.display = 'block';
+        document.getElementById('stat-pedidos-card').style.display = 'block';
+        document.getElementById('stat-clientes-card').style.display = 'none';
+        document.getElementById('stat-vendas-card').style.display = 'none';
+    } else {
+        document.getElementById('stat-fornecedores-card').style.display = 'none';
+        document.getElementById('stat-pedidos-card').style.display = 'none';
+        document.getElementById('stat-clientes-card').style.display = 'block';
+        document.getElementById('stat-vendas-card').style.display = 'block';
+    }
+
+    try {
+        // Iniciar processamento
+        const response = await fetch('/importar-nfe-upload/processar-pasta', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pasta, tipo, limpar_antes: limparAntes })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Iniciar consulta de progresso a cada 1 segundo
+            intervaloProgresso = setInterval(consultarProgresso, 1000);
+        } else {
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('result-pasta').innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Erro:</strong> ${result.message}
+                </div>
+            `;
+            btnProcessarPasta.disabled = false;
+            btnBuscarPasta.disabled = false;
+            btnLimparDados.disabled = false;
+        }
+
+    } catch (error) {
+        document.getElementById('progress-section').style.display = 'none';
+        document.getElementById('result-pasta').innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Erro:</strong> ${error.message}
+            </div>
+        `;
+        btnProcessarPasta.disabled = false;
+        btnBuscarPasta.disabled = false;
+        btnLimparDados.disabled = false;
+    }
+});
+
+// Consultar progresso em tempo real
+async function consultarProgresso() {
+    try {
+        const response = await fetch('/importar-nfe-upload/progresso');
+        const result = await response.json();
+        
+        if (result.success && result.progresso) {
+            const p = result.progresso;
+            
+            // Atualizar barra de progresso
+            document.getElementById('progress-bar').style.width = p.percentual + '%';
+            document.getElementById('progress-percent').textContent = p.percentual + '%';
+            document.getElementById('progress-text').textContent = `Processando ${p.processados} de ${p.total} arquivos`;
+            document.getElementById('progress-arquivo').textContent = `Arquivo atual: ${p.arquivo_atual}`;
+            
+            // Atualizar estatísticas
+            document.getElementById('stat-sucesso').textContent = p.sucesso;
+            document.getElementById('stat-duplicados').textContent = p.duplicados;
+            document.getElementById('stat-erros').textContent = p.erros;
+            document.getElementById('stat-total').textContent = p.total;
+            
+            // Atualizar estatísticas detalhadas
+            document.getElementById('stat-produtos').textContent = p.produtos_novos;
+            if (p.tipo === 'entrada') {
+                document.getElementById('stat-fornecedores').textContent = p.fornecedores_novos;
+                document.getElementById('stat-pedidos').textContent = p.pedidos_criados;
+            } else {
+                // Mostrar total de clientes (novos + existentes)
+                const totalClientes = (p.clientes_novos || 0) + (p.clientes_existentes || 0);
+                document.getElementById('stat-clientes').textContent = totalClientes;
+                document.getElementById('stat-vendas').textContent = p.vendas_criadas || 0;
+            }
+            
+            // Atualizar logs
+            if (p.logs && p.logs.length > 0) {
+                const logsHTML = p.logs.map(log => `<div>${log}</div>`).join('');
+                document.getElementById('logs-content').innerHTML = logsHTML;
+                // Auto-scroll para o final
+                const logsContainer = document.getElementById('logs-container');
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            }
+            
+            // Se concluído, parar consulta e mostrar resumo
+            if (p.status === 'concluido' || p.status === 'erro') {
+                clearInterval(intervaloProgresso);
+                mostrarResumoFinal(p);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao consultar progresso:', error);
+    }
+}
+
+// Mostrar resumo final
+function mostrarResumoFinal(progresso) {
+    // Ocultar seção de progresso
+    document.getElementById('progress-section').style.display = 'none';
+    
+    // Mostrar resumo
+    document.getElementById('resumo-final').style.display = 'block';
+    
+    // Preencher estatísticas
+    document.getElementById('resumo-total').textContent = progresso.total;
+    document.getElementById('resumo-sucesso').textContent = progresso.sucesso;
+    document.getElementById('resumo-duplicados').textContent = progresso.duplicados;
+    document.getElementById('resumo-erros').textContent = progresso.erros;
+    
+    // Detalhes por tipo
+    let detalhesHTML = '<h6>Detalhes</h6><ul class="list-unstyled">';
+    detalhesHTML += `<li><i class="fas fa-box text-info"></i> Produtos: <strong>${progresso.produtos_novos}</strong></li>`;
+    if (progresso.tipo === 'entrada') {
+        detalhesHTML += `<li><i class="fas fa-truck text-primary"></i> Fornecedores: <strong>${progresso.fornecedores_novos}</strong></li>`;
+        detalhesHTML += `<li><i class="fas fa-shopping-cart text-primary"></i> Pedidos: <strong>${progresso.pedidos_criados}</strong></li>`;
+    } else {
+        const totalClientes = (progresso.clientes_novos || 0) + (progresso.clientes_existentes || 0);
+        detalhesHTML += `<li><i class="fas fa-users text-success"></i> Clientes: <strong>${totalClientes}</strong></li>`;
+        detalhesHTML += `<li><i class="fas fa-dollar-sign text-success"></i> Vendas: <strong>${progresso.vendas_criadas || 0}</strong></li>`;
+    }
+    detalhesHTML += '</ul>';
+    document.getElementById('resumo-detalhes').innerHTML = detalhesHTML;
+    
+    // Mostrar erros se houver
+    if (progresso.erros > 0 && progresso.erros_detalhes && progresso.erros_detalhes.length > 0) {
+        document.getElementById('resumo-erros-detalhes').style.display = 'block';
+        const errosHTML = progresso.erros_detalhes.map(erro => `<li>${erro}</li>`).join('');
+        document.getElementById('resumo-erros-lista').innerHTML = errosHTML;
+    }
+    
+    // Reabilitar botões
+    btnProcessarPasta.disabled = true;  // Manter desabilitado para evitar reprocessar
+    btnBuscarPasta.disabled = false;
+    btnLimparDados.disabled = false;
+    
+    // Atualizar estatísticas gerais
+    carregarEstatisticas();
+}
+</script>
+{% endblock %}

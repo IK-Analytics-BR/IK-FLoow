@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Bem-vindo{% endblock %}
+
+{% block page_title %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-column align-items-center justify-content-center mb-4" style="min-height: 40vh;">
+        <h2 class="text-muted mb-4">Bem-vindo</h2>
+
+        <img src="{{ url_for('static', filename='img/logo_ikflow.png') }}" 
+             alt="IKFlow" 
+             style="max-width: 500px; width: 100%; height: auto;">
+    </div>
+
+    {% if fx_currencies %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-coins me-2"></i>Cotações do dia</span>
+            <small class="text-muted">Base: {{ fx_base_currency }} | Data: {{ fx_date.strftime('%d/%m/%Y') if fx_date else '-' }}</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:90px">Moeda</th>
+                            <th>Nome</th>
+                            <th style="width:120px" class="text-end">1 {{ fx_base_currency }} =&gt;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in fx_currencies %}
+                        {% if m.code != fx_base_currency %}
+                        <tr>
+                            <td><strong>{{ m.code }}</strong></td>
+                            <td>{{ m.name }}</td>
+                            <td class="text-end">
+                                {% if m.rate %}
+                                    {{ m.rate|to_float|round(4) }} {{ m.code }}
+                                {% else %}
+                                    <span class="text-muted">sem cotação</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Feriados{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-calendar-times text-danger me-2"></i>
+                Feriados e Folgas
+            </h1>
+            <p class="text-muted mb-0">Configure dias não úteis para cálculo de previsão</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" onclick="abrirModalFeriado()">
+                <i class="fas fa-plus me-1"></i>Novo Feriado
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtro de Ano -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small">Ano</label>
+                    <select name="ano" class="form-select" onchange="this.form.submit()">
+                        {% for a in range(2024, 2030) %}
+                        <option value="{{ a }}" {{ 'selected' if a|string == ano|string }}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Feriados -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if feriados %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Recorrente</th>
+                            <th class="text-center">Empresa</th>
+                            <th class="text-center" width="100">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in feriados %}
+                        <tr>
+                            <td>
+                                <strong>{{ f.data.strftime('%d/%m/%Y') if f.data else '-' }}</strong>
+                                <br><small class="text-muted">
+                                    {% set dia_semana = f.data.weekday() if f.data else 0 %}
+                                    {% set dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] %}
+                                    {{ dias[dia_semana] }}
+                                </small>
+                            </td>
+                            <td>{{ f.descricao }}</td>
+                            <td class="text-center">
+                                {% if f.tipo == 'feriado' %}
+                                <span class="badge bg-danger">Feriado</span>
+                                {% elif f.tipo == 'folga' %}
+                                <span class="badge bg-warning text-dark">Folga</span>
+                                {% elif f.tipo == 'manutencao' %}
+                                <span class="badge bg-info">Manutenção</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ f.tipo }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if f.recorrente_anual %}
+                                <i class="fas fa-check-circle text-success" title="Repete todo ano"></i>
+                                {% else %}
+                                <i class="fas fa-times-circle text-muted" title="Apenas este ano"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <small>{{ f.empresa_nome if f.empresa_nome else 'Todas' }}</small>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                        onclick="editarFeriado({{ f.id }}, '{{ f.data.strftime('%Y-%m-%d') }}', '{{ f.descricao }}', '{{ f.tipo }}', {{ f.recorrente_anual }}, '{{ f.empresa_id or '' }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="excluirFeriado({{ f.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Nenhum feriado cadastrado para {{ ano }}.</p>
+                <button type="button" class="btn btn-primary" onclick="abrirModalFeriado()">
+                    <i class="fas fa-plus me-1"></i>Adicionar Feriado
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Feriado -->
+<div class="modal fade" id="modalFeriado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-calendar-plus me-2"></i>Feriado/Folga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formFeriado">
+                    <input type="hidden" id="feriado-id" name="id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Data *</label>
+                        <input type="date" class="form-control" name="data" id="feriado-data" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Descrição *</label>
+                        <input type="text" class="form-control" name="descricao" id="feriado-descricao" 
+                               placeholder="Ex: Natal, Folga coletiva..." required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" name="tipo" id="feriado-tipo">
+                                <option value="feriado">Feriado</option>
+                                <option value="folga">Folga</option>
+                                <option value="manutencao">Manutenção</option>
+                                <option value="outro">Outro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Empresa</label>
+                            <select class="form-select" name="empresa_id" id="feriado-empresa">
+                                <option value="">Todas</option>
+                                {% for emp in empresas %}
+                                <option value="{{ emp.id }}">{{ emp.razao_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="recorrente_anual" 
+                               id="feriado-recorrente" value="1">
+                        <label class="form-check-label" for="feriado-recorrente">
+                            Repete todo ano (ex: Natal, Ano Novo)
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarFeriado()">
+                    <i class="fas fa-save me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const modalFeriado = new bootstrap.Modal(document.getElementById('modalFeriado'));
+
+function abrirModalFeriado() {
+    document.getElementById('formFeriado').reset();
+    document.getElementById('feriado-id').value = '';
+    modalFeriado.show();
+}
+
+function editarFeriado(id, data, descricao, tipo, recorrente, empresaId) {
+    document.getElementById('feriado-id').value = id;
+    document.getElementById('feriado-data').value = data;
+    document.getElementById('feriado-descricao').value = descricao;
+    document.getElementById('feriado-tipo').value = tipo;
+    document.getElementById('feriado-recorrente').checked = recorrente;
+    document.getElementById('feriado-empresa').value = empresaId;
+    modalFeriado.show();
+}
+
+function salvarFeriado() {
+    const form = document.getElementById('formFeriado');
+    const formData = new FormData(form);
+    
+    fetch('{{ url_for("config_producao.salvar_feriado") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modalFeriado.hide();
+            location.reload();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Erro ao salvar feriado');
+    });
+}
+
+function excluirFeriado(id) {
+    if (!confirm('Confirma exclusão deste feriado?')) return;
+    
+    fetch('{{ url_for("config_producao.excluir_feriado") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `id=${id}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}

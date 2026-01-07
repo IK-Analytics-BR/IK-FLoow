@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Logs de Auditoria - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Logs de Auditoria</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('hardening.export_audit_logs', 
+                event_type=filters.event_type, 
+                user_id=filters.user_id, 
+                resource_type=filters.resource_type, 
+                action=filters.action, 
+                start_date=filters.start_date, 
+                end_date=filters.end_date) }}" 
+                class="btn btn-sm btn-success me-2">
+                <i class="fas fa-download"></i> Exportar CSV
+            </a>
+            <a href="{{ url_for('hardening.backups') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-database"></i> Gerenciar Backups
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-filter me-1"></i>
+                    Filtros
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ url_for('hardening.audit_logs') }}" id="filterForm">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="event_type" class="form-label">Tipo de Evento</label>
+                                <select class="form-select" id="event_type" name="event_type">
+                                    <option value="">Todos</option>
+                                    <option value="authentication" {% if filters.event_type == 'authentication' %}selected{% endif %}>Autenticação</option>
+                                    <option value="data_modification" {% if filters.event_type == 'data_modification' %}selected{% endif %}>Modificação de Dados</option>
+                                    <option value="data_access" {% if filters.event_type == 'data_access' %}selected{% endif %}>Acesso a Dados</option>
+                                    <option value="data_export" {% if filters.event_type == 'data_export' %}selected{% endif %}>Exportação de Dados</option>
+                                    <option value="system_error" {% if filters.event_type == 'system_error' %}selected{% endif %}>Erro do Sistema</option>
+                                    <option value="system_maintenance" {% if filters.event_type == 'system_maintenance' %}selected{% endif %}>Manutenção do Sistema</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="user_id" class="form-label">Usuário</label>
+                                <select class="form-select" id="user_id" name="user_id">
+                                    <option value="">Todos</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if filters.user_id|string == user.id|string %}selected{% endif %}>{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="resource_type" class="form-label">Tipo de Recurso</label>
+                                <select class="form-select" id="resource_type" name="resource_type">
+                                    <option value="">Todos</option>
+                                    <option value="user" {% if filters.resource_type == 'user' %}selected{% endif %}>Usuário</option>
+                                    <option value="equipment" {% if filters.resource_type == 'equipment' %}selected{% endif %}>Equipamento</option>
+                                    <option value="maintenance_plan" {% if filters.resource_type == 'maintenance_plan' %}selected{% endif %}>Plano de Manutenção</option>
+                                    <option value="service_order" {% if filters.resource_type == 'service_order' %}selected{% endif %}>Ordem de Serviço</option>
+                                    <option value="component" {% if filters.resource_type == 'component' %}selected{% endif %}>Componente</option>
+                                    <option value="backup" {% if filters.resource_type == 'backup' %}selected{% endif %}>Backup</option>
+                                    <option value="error" {% if filters.resource_type == 'error' %}selected{% endif %}>Erro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="action" class="form-label">Ação</label>
+                                <select class="form-select" id="action" name="action">
+                                    <option value="">Todas</option>
+                                    <option value="login" {% if filters.action == 'login' %}selected{% endif %}>Login</option>
+                                    <option value="logout" {% if filters.action == 'logout' %}selected{% endif %}>Logout</option>
+                                    <option value="create" {% if filters.action == 'create' %}selected{% endif %}>Criar</option>
+                                    <option value="update" {% if filters.action == 'update' %}selected{% endif %}>Atualizar</option>
+                                    <option value="delete" {% if filters.action == 'delete' %}selected{% endif %}>Excluir</option>
+                                    <option value="view" {% if filters.action == 'view' %}selected{% endif %}>Visualizar</option>
+                                    <option value="export" {% if filters.action == 'export' %}selected{% endif %}>Exportar</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="start_date" class="form-label">Data Inicial</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ filters.start_date }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="end_date" class="form-label">Data Final</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ filters.end_date }}">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end mb-3">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="fas fa-search"></i> Filtrar
+                                </button>
+                                <a href="{{ url_for('hardening.audit_logs') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Limpar Filtros
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list me-1"></i>
+                    Logs de Auditoria
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Usuário</th>
+                                        <th>Recurso</th>
+                                        <th>Ação</th>
+                                        <th>Status</th>
+                                        <th>IP</th>
+                                        <th>Detalhes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs %}
+                                    <tr>
+                                        <td>{{ log.timestamp }}</td>
+                                        <td>
+                                            {% if log.event_type == 'authentication' %}
+                                                <span class="badge bg-primary">Autenticação</span>
+                                            {% elif log.event_type == 'data_modification' %}
+                                                <span class="badge bg-warning">Modificação</span>
+                                            {% elif log.event_type == 'data_access' %}
+                                                <span class="badge bg-info">Acesso</span>
+                                            {% elif log.event_type == 'data_export' %}
+                                                <span class="badge bg-success">Exportação</span>
+                                            {% elif log.event_type == 'system_error' %}
+                                                <span class="badge bg-danger">Erro</span>
+                                            {% elif log.event_type == 'system_maintenance' %}
+                                                <span class="badge bg-secondary">Manutenção</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ log.event_type }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% for user in users %}
+                                                {% if user.id|string == log.user_id|string %}
+                                                    {{ user.username }}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if log.user_id == 0 %}
+                                                Sistema
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ log.resource_type }} {% if log.resource_id %} #{{ log.resource_id }}{% endif %}</td>
+                                        <td>{{ log.action }}</td>
+                                        <td>
+                                            {% if log.status == 'success' %}
+                                                <span class="badge bg-success">Sucesso</span>
+                                            {% elif log.status == 'failure' %}
+                                                <span class="badge bg-danger">Falha</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ log.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ log.ip_address }}</td>
+                                        <td>
+                                            {% if log.details %}
+                                                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal" 
+                                                    data-details="{{ log.details|tojson }}">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Nenhum log de auditoria encontrado com os filtros selecionados.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para exibir detalhes -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Detalhes do Log</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detailsContent" class="bg-light p-3 rounded"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar modal de detalhes
+        var detailsModal = document.getElementById('detailsModal');
+        if (detailsModal) {
+            detailsModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                var details = button.getAttribute('data-details');
+                var detailsContent = document.getElementById('detailsContent');
+                
+                try {
+                    // Formatar JSON
+                    var formattedDetails = JSON.stringify(JSON.parse(details), null, 2);
+                    detailsContent.textContent = formattedDetails;
+                } catch (e) {
+                    detailsContent.textContent = details;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Leitura de Horímetro' if not reading else 'Editar Leitura de Horímetro' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">{{ 'Nova Leitura de Horímetro' if not reading else 'Editar Leitura de Horímetro' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('hour_meter.hour_meter_list') }}">Horímetro</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Leitura' if not reading else 'Editar Leitura' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-clock me-1"></i>
+            {{ 'Nova Leitura de Horímetro' if not reading else 'Editar Leitura de Horímetro' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('hour_meter.hour_meter_add') if not reading else url_for('hour_meter.hour_meter_edit', reading_id=reading.id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="equipment_id" class="form-label">Equipamento <span class="text-danger">*</span></label>
+                        <select class="form-select" id="equipment_id" name="equipment_id" required>
+                            <option value="">Selecione um equipamento</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}" {% if reading and reading.equipment_id == equipment.id %}selected{% endif %}>
+                                {{ equipment.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="reading_date" class="form-label">Data da Leitura <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="reading_date" name="reading_date" 
+                               value="{{ reading.reading_date if reading else '' }}" required>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="hours" class="form-label">Horas <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="hours" name="hours" 
+                               value="{{ reading.hours if reading else '' }}" min="0" required>
+                        <div class="form-text">Informe o valor total do horímetro (não o incremento).</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="reading_type" class="form-label">Tipo de Leitura</label>
+                        <select class="form-select" id="reading_type" name="reading_type" disabled>
+                            <option value="manual" selected>Manual</option>
+                            <option value="iot" disabled>IoT (Indisponível)</option>
+                        </select>
+                        <div class="form-text">Leituras automáticas via IoT serão implementadas em versões futuras.</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Atenção:</strong> Ao registrar uma nova leitura, o sistema irá:
+                            <ul>
+                                <li>Atualizar as horas acumuladas do equipamento</li>
+                                <li>Recalcular o desgaste do equipamento e seus componentes</li>
+                                <li>Gerar alertas e ordens de serviço preventivas, se necessário</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('hour_meter.hour_meter_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Definir a data atual como padrão se for um novo registro
+        if (!$('#reading_date').val()) {
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+            var yyyy = today.getFullYear();
+            
+            today = yyyy + '-' + mm + '-' + dd;
+            $('#reading_date').val(today);
+        }
+        
+        // Buscar a última leitura do equipamento selecionado
+        $('#equipment_id').change(function() {
+            var equipmentId = $(this).val();
+            if (equipmentId) {
+                // Esta funcionalidade seria implementada com AJAX para buscar a última leitura
+                // e sugerir um valor para o campo de horas
+                console.log('Buscando última leitura para o equipamento ' + equipmentId);
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Produção{% endblock %}
+{% block extra_css %}
+<style>
+.op-table { font-size: 11px; }
+.op-table th { background: #1e3a5f; color: #fff; position: sticky; top: 0; z-index: 10; }
+.op-table td, .op-table th { padding: 6px 8px; vertical-align: middle; }
+.badge-status { font-size: 9px; padding: 3px 6px; }
+.progress-bar-custom { height: 18px; border-radius: 9px; position: relative; }
+.progress-fill { height: 100%; border-radius: 9px; transition: width 0.3s; }
+.progress-fill.ok { background: linear-gradient(90deg, #10b981, #059669); }
+.progress-fill.warn { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.progress-fill.crit { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.progress-text { position: absolute; right: 8px; top: 0; line-height: 18px; font-size: 9px; color: #333; }
+.etapa-badge { font-size: 9px; padding: 2px 6px; border-radius: 10px; background: #e2e8f0; color: #475569; }
+.date-cell { font-size: 10px; white-space: nowrap; }
+.date-cell.atrasado { color: #dc2626; font-weight: bold; }
+.date-cell.atencao { color: #d97706; }
+.row-atrasado { background: #fef2f2 !important; }
+.row-atencao { background: #fffbeb !important; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid p-3">
+    <!-- Cards de Resumo -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <div class="card border-start border-warning border-4 h-100">
+                <div class="card-body py-2 text-center">
+                    <div class="fs-4 fw-bold text-warning">{{ total_aguardando }}</div>
+                    <small class="text-muted">Aguardando</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-success border-4 h-100">
+                <div class="card-body py-2 text-center">
+                    <div class="fs-4 fw-bold text-success">{{ total_em_producao }}</div>
+                    <small class="text-muted">Em Produção</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-primary border-4 h-100">
+                <div class="card-body py-2 text-center">
+                    <div class="fs-4 fw-bold text-primary">{{ total_lotes }}</div>
+                    <small class="text-muted">Total Lotes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-danger border-4 h-100">
+                <div class="card-body py-2 text-center">
+                    <div class="fs-4 fw-bold text-danger">{{ gargalos_criticos }}</div>
+                    <small class="text-muted">Atrasados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de OPs -->
+    <div class="card">
+        <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-industry me-2"></i>Ordens de Produção Ativas</span>
+            <button class="btn btn-sm btn-outline-light" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div class="card-body p-0" style="max-height: calc(100vh - 280px); overflow-y: auto;">
+            <table class="table table-hover table-sm op-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Nº OP</th>
+                        <th style="width: 80px;">Status</th>
+                        <th>Produto</th>
+                        <th style="width: 80px;">Qtd</th>
+                        <th style="width: 90px;">Início</th>
+                        <th style="width: 90px;">Previsão</th>
+                        <th style="width: 180px;">Etapa Atual</th>
+                        <th style="width: 150px;">Progresso</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for op in ops_ativas %}
+                    {% set dias_restantes = (op.data_prevista - now()).days if op.data_prevista else 999 %}
+                    {% set atrasado = dias_restantes < 0 %}
+                    {% set atencao = dias_restantes >= 0 and dias_restantes <= 2 %}
+                    {% set progresso = ((op.qtd_concluida or 0) / (op.quantidade or 1) * 100)|round|int %}
+                    <tr class="{{ 'row-atrasado' if atrasado else ('row-atencao' if atencao else '') }}">
+                        <td>
+                            <a href="{{ url_for('ordem_producao.visualizar_op', id=op.id) }}" class="fw-bold text-primary text-decoration-none">
+                                {{ op.numero_op }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if op.status == 'em_producao' %}
+                                <span class="badge bg-success badge-status">Em Produção</span>
+                            {% elif op.status == 'pendente' %}
+                                <span class="badge bg-warning text-dark badge-status">Pendente</span>
+                            {% elif op.status == 'concluida' %}
+                                <span class="badge bg-primary badge-status">Concluída</span>
+                            {% else %}
+                                <span class="badge bg-secondary badge-status">{{ op.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td title="{{ op.produto_nome }}">
+                            {{ op.produto_nome[:30] if op.produto_nome else '-' }}{{ '...' if op.produto_nome and op.produto_nome|length > 30 else '' }}
+                        </td>
+                        <td class="text-center">{{ op.quantidade|round(0)|int }}</td>
+                        <td class="date-cell">
+                            {{ op.data_inicio_producao.strftime('%d/%m/%Y') if op.data_inicio_producao else '-' }}
+                        </td>
+                        <td class="date-cell {{ 'atrasado' if atrasado else ('atencao' if atencao else '') }}">
+                            {{ op.data_prevista.strftime('%d/%m/%Y') if op.data_prevista else '-' }}
+                            {% if atrasado %}
+                                <i class="fas fa-exclamation-triangle text-danger ms-1" title="Atrasado {{ (-dias_restantes) }} dias"></i>
+                            {% elif atencao %}
+                                <i class="fas fa-clock text-warning ms-1" title="Faltam {{ dias_restantes }} dias"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="etapa-badge">
+                                <i class="fas fa-cog me-1"></i>{{ op.etapa_atual[:25] if op.etapa_atual else 'Aguardando' }}{{ '...' if op.etapa_atual and op.etapa_atual|length > 25 else '' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress-bar-custom bg-light border">
+                                <div class="progress-fill {{ 'crit' if atrasado else ('warn' if atencao else 'ok') }}" style="width: {{ progresso }}%;"></div>
+                                <span class="progress-text">{{ progresso }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                            Nenhuma OP ativa no momento
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer py-2 d-flex gap-4" style="font-size: 11px;">
+            <span><span class="badge bg-success">&nbsp;</span> No Prazo</span>
+            <span><span class="badge bg-warning">&nbsp;</span> Atenção (≤2 dias)</span>
+            <span><span class="badge bg-danger">&nbsp;</span> Atrasado</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Auto-refresh a cada 60 segundos
+setTimeout(function() { location.reload(); }, 60000);
+</script>
+{% endblock %}

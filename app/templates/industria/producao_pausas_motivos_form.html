@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if motivo else 'Novo' }} Motivo de Pausa{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-{{ 'pencil' if motivo else 'plus-lg' }} me-2"></i>
+                        {{ 'Editar' if motivo else 'Novo' }} Motivo de Pausa
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <input type="text" name="nome" class="form-control" required
+                                   value="{{ motivo.nome if motivo else '' }}"
+                                   placeholder="Ex: Setup de Máquina">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Descrição</label>
+                            <textarea name="descricao" class="form-control" rows="2"
+                                      placeholder="Descrição opcional">{{ motivo.descricao if motivo else '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tipo" 
+                                           id="tipoProdutivo" value="produtivo"
+                                           {{ 'checked' if motivo and motivo.tipo == 'produtivo' }}>
+                                    <label class="form-check-label text-success" for="tipoProdutivo">
+                                        <i class="bi bi-check-circle me-1"></i> Produtivo
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tipo" 
+                                           id="tipoImprodutivo" value="improdutivo"
+                                           {{ 'checked' if not motivo or motivo.tipo == 'improdutivo' }}>
+                                    <label class="form-check-label text-danger" for="tipoImprodutivo">
+                                        <i class="bi bi-x-circle me-1"></i> Improdutivo
+                                    </label>
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                Produtivo: conta como tempo de produção. Improdutivo: descontado do tempo.
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ícone</label>
+                                <select name="icone" class="form-select" id="selectIcone">
+                                    {% set icones = [
+                                        ('bi-pause-circle', 'Pausa'),
+                                        ('bi-sunrise', 'Nascer do Sol'),
+                                        ('bi-sunset', 'Pôr do Sol'),
+                                        ('bi-cup-hot', 'Café/Almoço'),
+                                        ('bi-cup', 'Lanche'),
+                                        ('bi-door-open', 'Porta'),
+                                        ('bi-box-seam', 'Caixa'),
+                                        ('bi-lightning', 'Energia'),
+                                        ('bi-gear', 'Engrenagem'),
+                                        ('bi-tools', 'Ferramentas'),
+                                        ('bi-wrench', 'Chave'),
+                                        ('bi-exclamation-triangle', 'Alerta'),
+                                        ('bi-check2-square', 'Checklist'),
+                                        ('bi-droplet', 'Gota'),
+                                        ('bi-clock', 'Relógio'),
+                                        ('bi-person', 'Pessoa'),
+                                        ('bi-truck', 'Caminhão'),
+                                        ('bi-hammer', 'Martelo')
+                                    ] %}
+                                    {% for ic, nome in icones %}
+                                    <option value="{{ ic }}" {{ 'selected' if motivo and motivo.icone == ic }}>
+                                        {{ nome }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cor</label>
+                                <input type="color" name="cor_hex" class="form-control form-control-color w-100"
+                                       value="{{ motivo.cor_hex if motivo else '#6c757d' }}" id="inputCor">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Prévia</label>
+                            <div class="border rounded p-3 d-flex align-items-center" id="previewArea">
+                                <span id="previewIcone" class="me-3" style="font-size: 2rem;">
+                                    <i class="bi {{ motivo.icone if motivo else 'bi-pause-circle' }}"></i>
+                                </span>
+                                <span id="previewNome" class="fw-bold">{{ motivo.nome if motivo else 'Nome do motivo' }}</span>
+                            </div>
+                        </div>
+
+                        {% if motivo %}
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ativo" 
+                                       id="checkAtivo" {{ 'checked' if motivo.ativo }}>
+                                <label class="form-check-label" for="checkAtivo">Ativo</label>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Salvar
+                            </button>
+                            <a href="{{ url_for('producao_pausas.listar_motivos') }}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectIcone = document.getElementById('selectIcone');
+    const inputCor = document.getElementById('inputCor');
+    const inputNome = document.querySelector('input[name="nome"]');
+    const previewIcone = document.getElementById('previewIcone');
+    const previewNome = document.getElementById('previewNome');
+
+    function atualizarPrevia() {
+        const icone = selectIcone.value;
+        const cor = inputCor.value;
+        const nome = inputNome.value || 'Nome do motivo';
+        
+        previewIcone.innerHTML = `<i class="bi ${icone}"></i>`;
+        previewIcone.style.color = cor;
+        previewNome.textContent = nome;
+    }
+
+    selectIcone.addEventListener('change', atualizarPrevia);
+    inputCor.addEventListener('input', atualizarPrevia);
+    inputNome.addEventListener('input', atualizarPrevia);
+    
+    atualizarPrevia();
+});
+</script>
+{% endblock %}

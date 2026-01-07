@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Simulação de Fluxo de Caixa - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Simulação de Fluxo de Caixa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cash_flow.cash_flow_dashboard') }}">Fluxo de Caixa</a></li>
+        <li class="breadcrumb-item active">Simulação</li>
+    </ol>
+    
+    <div class="row mb-4">
+        <div class="col-xl-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calculator me-1"></i>
+                    Simulação de Cenários
+                </div>
+                <div class="card-body">
+                    <form id="simulationForm" method="post" action="{{ url_for('cash_flow.cash_flow_simulation') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="simulation_name" class="form-label">Nome da Simulação</label>
+                                <input type="text" class="form-control" id="simulation_name" name="simulation_name" placeholder="Ex: Cenário de Expansão" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="start_balance" class="form-label">Saldo Inicial</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control money" id="start_balance" name="start_balance" value="{{ "%.2f"|format(current_balance) }}" required>
+                                </div>
+                                <div class="form-text">Saldo atual: R$ {{ "%.2f"|format(current_balance) }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <i class="fas fa-list me-1"></i>
+                                Itens da Simulação
+                                <button type="button" class="btn btn-primary btn-sm float-end" id="addItemButton">
+                                    <i class="fas fa-plus"></i> Adicionar Item
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered" id="simulationItemsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Descrição</th>
+                                                <th>Valor</th>
+                                                <th>Tipo</th>
+                                                <th>Data</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <input type="text" class="form-control" name="description[]" placeholder="Descrição do item" required>
+                                                </td>
+                                                <td>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">R$</span>
+                                                        <input type="text" class="form-control money" name="amount[]" required>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select" name="type[]" required>
+                                                        <option value="income">Entrada</option>
+                                                        <option value="expense">Saída</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="date" class="form-control" name="date[]" value="{{ now().strftime('%Y-%m-%d') }}" required>
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-danger btn-sm removeItemButton">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play me-1"></i> Executar Simulação
+                                </button>
+                                <a href="{{ url_for('cash_flow.cash_flow_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <div>
+                        <p class="mb-0"><small>Simule diferentes cenários financeiros para tomar decisões mais informadas.</small></p>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('cash_flow.cash_flow_projection') }}" class="btn btn-info">
+                            <i class="fas fa-chart-line"></i> Projeção
+                        </a>
+                        <a href="{{ url_for('cash_flow.cash_flow_report') }}" class="btn btn-info">
+                            <i class="fas fa-chart-bar"></i> Relatórios
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-xl-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    Dicas para Simulação
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Cenário Conservador</h5>
+                                    <p class="card-text">Simule um cenário com menor crescimento de receitas e possíveis atrasos em recebimentos.</p>
+                                    <ul>
+                                        <li>Reduza receitas em 10-20%</li>
+                                        <li>Aumente despesas em 5-10%</li>
+                                        <li>Adie recebimentos em 15-30 dias</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Cenário Realista</h5>
+                                    <p class="card-text">Simule um cenário baseado nas projeções atuais e histórico recente.</p>
+                                    <ul>
+                                        <li>Mantenha receitas conforme projetado</li>
+                                        <li>Mantenha despesas conforme orçamento</li>
+                                        <li>Use prazos médios de pagamento e recebimento</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Cenário Otimista</h5>
+                                    <p class="card-text">Simule um cenário com crescimento acelerado e antecipação de recebimentos.</p>
+                                    <ul>
+                                        <li>Aumente receitas em 10-20%</li>
+                                        <li>Mantenha despesas conforme orçamento</li>
+                                        <li>Antecipe recebimentos em 7-15 dias</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-maskmoney/3.0.2/jquery.maskMoney.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Inicializar máscara para valores monetários
+        $('.money').maskMoney({
+            prefix: '',
+            allowNegative: false,
+            thousands: '.',
+            decimal: ',',
+            affixesStay: false
+        });
+        
+        // Adicionar novo item à simulação
+        $('#addItemButton').click(function() {
+            var newRow = `
+                <tr>
+                    <td>
+                        <input type="text" class="form-control" name="description[]" placeholder="Descrição do item" required>
+                    </td>
+                    <td>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control money" name="amount[]" required>
+                        </div>
+                    </td>
+                    <td>
+                        <select class="form-select" name="type[]" required>
+                            <option value="income">Entrada</option>
+                            <option value="expense">Saída</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="date" class="form-control" name="date[]" value="${new Date().toISOString().split('T')[0]}" required>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm removeItemButton">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            $('#simulationItemsTable tbody').append(newRow);
+            
+            // Reinicializar máscara para o novo campo
+            $('.money').maskMoney({
+                prefix: '',
+                allowNegative: false,
+                thousands: '.',
+                decimal: ',',
+                affixesStay: false
+            });
+        });
+        
+        // Remover item da simulação
+        $(document).on('click', '.removeItemButton', function() {
+            // Não remover se for a única linha
+            if ($('#simulationItemsTable tbody tr').length > 1) {
+                $(this).closest('tr').remove();
+            } else {
+                alert('É necessário pelo menos um item na simulação.');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if jornada else 'Nova' }} Jornada de Trabalho{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-clock"></i> 
+                        {{ 'Editar' if jornada else 'Nova' }} Jornada de Trabalho
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('jornada_trabalho.salvar_jornada') }}" id="formJornada">
+                        {% if jornada %}
+                        <input type="hidden" name="jornada_id" value="{{ jornada.id }}">
+                        {% endif %}
+                        
+                        <!-- Informações Básicas -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="empresa_id" class="form-label">
+                                    <i class="fas fa-building"></i> Empresa *
+                                </label>
+                                <select class="form-select" id="empresa_id" name="empresa_id" required>
+                                    <option value="">Selecione uma empresa...</option>
+                                    {% for empresa in empresas %}
+                                    <option value="{{ empresa.id }}" 
+                                        {% if jornada and jornada.empresa_id == empresa.id %}selected{% endif %}>
+                                        {{ empresa.nome_fantasia }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="nome" class="form-label">
+                                    <i class="fas fa-tag"></i> Nome da Jornada *
+                                </label>
+                                <input type="text" class="form-control" id="nome" name="nome" 
+                                       value="{{ jornada.nome if jornada else '' }}" 
+                                       placeholder="Ex: Jornada Padrão 8h"
+                                       required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-10">
+                                <label for="descricao" class="form-label">
+                                    <i class="fas fa-align-left"></i> Descrição
+                                </label>
+                                <textarea class="form-control" id="descricao" name="descricao" 
+                                          rows="2" 
+                                          placeholder="Descrição da jornada...">{{ jornada.descricao if jornada else '' }}</textarea>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label class="form-label">
+                                    <i class="fas fa-toggle-on"></i> Status
+                                </label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="ativo" name="ativo" 
+                                           {% if not jornada or jornada.ativo %}checked{% endif %}>
+                                    <label class="form-check-label" for="ativo">
+                                        Ativo
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <!-- Horários por Dia e Turno -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-calendar-alt"></i> Horários por Dia da Semana e Turno
+                                </h5>
+                                <button type="button" class="btn btn-success btn-sm" onclick="adicionarHorario()">
+                                    <i class="fas fa-plus"></i> Adicionar Horário
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="tabelaHorarios">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="20%">Dia da Semana</th>
+                                            <th width="20%">Turno</th>
+                                            <th width="20%">Hora Início</th>
+                                            <th width="20%">Hora Fim</th>
+                                            <th width="15%">Total Horas</th>
+                                            <th width="5%">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="horariosContainer">
+                                        {% if horarios %}
+                                            {% for horario in horarios %}
+                                            <tr>
+                                                <td>
+                                                    <select class="form-select" name="dia_semana[]" required>
+                                                        <option value="">Selecione...</option>
+                                                        <option value="Segunda" {% if horario.dia_semana == 'Segunda' %}selected{% endif %}>Segunda-feira</option>
+                                                        <option value="Terça" {% if horario.dia_semana == 'Terça' %}selected{% endif %}>Terça-feira</option>
+                                                        <option value="Quarta" {% if horario.dia_semana == 'Quarta' %}selected{% endif %}>Quarta-feira</option>
+                                                        <option value="Quinta" {% if horario.dia_semana == 'Quinta' %}selected{% endif %}>Quinta-feira</option>
+                                                        <option value="Sexta" {% if horario.dia_semana == 'Sexta' %}selected{% endif %}>Sexta-feira</option>
+                                                        <option value="Sábado" {% if horario.dia_semana == 'Sábado' %}selected{% endif %}>Sábado</option>
+                                                        <option value="Domingo" {% if horario.dia_semana == 'Domingo' %}selected{% endif %}>Domingo</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select" name="turno[]" required>
+                                                        <option value="">Selecione...</option>
+                                                        <option value="Manhã" {% if horario.turno == 'Manhã' %}selected{% endif %}>Manhã</option>
+                                                        <option value="Tarde" {% if horario.turno == 'Tarde' %}selected{% endif %}>Tarde</option>
+                                                        <option value="Noite" {% if horario.turno == 'Noite' %}selected{% endif %}>Noite</option>
+                                                        <option value="Integral" {% if horario.turno == 'Integral' %}selected{% endif %}>Integral</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="time" class="form-control hora-inicio" name="hora_inicio[]" 
+                                                           value="{% if horario.hora_inicio %}{% set s = horario.hora_inicio.total_seconds()|int %}{{ '%02d' % (s // 3600) }}:{{ '%02d' % ((s % 3600) // 60) }}{% endif %}" required onchange="calcularHoras(this)">
+                                                </td>
+                                                <td>
+                                                    <input type="time" class="form-control hora-fim" name="hora_fim[]" 
+                                                           value="{% if horario.hora_fim %}{% set s = horario.hora_fim.total_seconds()|int %}{{ '%02d' % (s // 3600) }}:{{ '%02d' % ((s % 3600) // 60) }}{% endif %}" required onchange="calcularHoras(this)">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control total-horas" readonly>
+                                                </td>
+                                                <td class="text-center">
+                                                    <button type="button" class="btn btn-danger btn-sm" onclick="removerHorario(this)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">
+                                                    <i class="fas fa-info-circle"></i> Nenhum horário cadastrado. Clique em "Adicionar Horário" para começar.
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Botões de Ação -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('jornada_trabalho.listar_jornadas') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Salvar Jornada
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Adicionar nova linha de horário
+function adicionarHorario() {
+    const container = document.getElementById('horariosContainer');
+    
+    // Remover mensagem de "nenhum horário" se existir
+    const msgVazia = container.querySelector('td[colspan="6"]');
+    if (msgVazia) {
+        msgVazia.parentElement.remove();
+    }
+    
+    const novaLinha = `
+        <tr>
+            <td>
+                <select class="form-select" name="dia_semana[]" required>
+                    <option value="">Selecione...</option>
+                    <option value="Segunda">Segunda-feira</option>
+                    <option value="Terça">Terça-feira</option>
+                    <option value="Quarta">Quarta-feira</option>
+                    <option value="Quinta">Quinta-feira</option>
+                    <option value="Sexta">Sexta-feira</option>
+                    <option value="Sábado">Sábado</option>
+                    <option value="Domingo">Domingo</option>
+                </select>
+            </td>
+            <td>
+                <select class="form-select" name="turno[]" required>
+                    <option value="">Selecione...</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                    <option value="Integral">Integral</option>
+                </select>
+            </td>
+            <td>
+                <input type="time" class="form-control hora-inicio" name="hora_inicio[]" 
+                       required onchange="calcularHoras(this)">
+            </td>
+            <td>
+                <input type="time" class="form-control hora-fim" name="hora_fim[]" 
+                       required onchange="calcularHoras(this)">
+            </td>
+            <td>
+                <input type="text" class="form-control total-horas" readonly>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removerHorario(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', novaLinha);
+}
+
+// Remover linha de horário
+function removerHorario(btn) {
+    const linha = btn.closest('tr');
+    const container = document.getElementById('horariosContainer');
+    
+    linha.remove();
+    
+    // Se não houver mais linhas, adicionar mensagem
+    if (container.querySelectorAll('tr').length === 0) {
+        container.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    <i class="fas fa-info-circle"></i> Nenhum horário cadastrado. Clique em "Adicionar Horário" para começar.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Calcular total de horas
+function calcularHoras(input) {
+    const linha = input.closest('tr');
+    const horaInicio = linha.querySelector('.hora-inicio').value;
+    const horaFim = linha.querySelector('.hora-fim').value;
+    const totalHoras = linha.querySelector('.total-horas');
+    
+    if (horaInicio && horaFim) {
+        const [hI, mI] = horaInicio.split(':').map(Number);
+        const [hF, mF] = horaFim.split(':').map(Number);
+        
+        let minutosInicio = hI * 60 + mI;
+        let minutosFim = hF * 60 + mF;
+        
+        // Se hora fim for menor que início, assume que passou da meia-noite
+        if (minutosFim < minutosInicio) {
+            minutosFim += 24 * 60;
+        }
+        
+        const totalMinutos = minutosFim - minutosInicio;
+        const horas = Math.floor(totalMinutos / 60);
+        const minutos = totalMinutos % 60;
+        
+        totalHoras.value = `${horas}h ${minutos.toString().padStart(2, '0')}min`;
+    }
+}
+
+// Calcular horas ao carregar a página (para edição)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.hora-inicio').forEach(input => {
+        calcularHoras(input);
+    });
+});
+
+// Validação do formulário
+document.getElementById('formJornada').addEventListener('submit', function(e) {
+    const horarios = document.querySelectorAll('#horariosContainer tr');
+    const temHorarios = Array.from(horarios).some(tr => !tr.querySelector('td[colspan="6"]'));
+    
+    if (!temHorarios) {
+        e.preventDefault();
+        alert('É necessário adicionar pelo menos um horário à jornada!');
+        return false;
+    }
+});
+</script>
+
+<style>
+    .table-bordered td, .table-bordered th {
+        vertical-align: middle;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #00A99D;
+        box-shadow: 0 0 0 0.2rem rgba(0, 169, 157, 0.25);
+    }
+    
+    .total-horas {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #00A99D;
+    }
+</style>
+{% endblock %}

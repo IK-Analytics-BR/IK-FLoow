@@ -1,0 +1,79 @@
+/* Correções para problemas de sobreposição no formulário de pedidos de compra */
+
+/* Hierarquia correta de z-index para elementos sobrepostos */
+
+/* Modal backdrop deve ficar atrás do modal */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+/* Modal deve ficar acima do backdrop */
+.modal {
+    z-index: 1050 !important;
+}
+
+/* Select2 deve ficar acima do modal quando aberto */
+.select2-container--open {
+    z-index: 2000 !important;
+}
+
+/* Dropdowns do Select2 devem ficar acima do modal */
+.select2-container--open .select2-dropdown {
+    z-index: 2000 !important;
+}
+
+/* Ajustar a largura das colunas da tabela de itens para melhor visualização */
+#itemsTable th, #itemsTable td {
+    vertical-align: middle;
+}
+
+/* Garantir que os campos de formulário sejam totalmente visíveis */
+.form-control, .form-select {
+    z-index: 1;
+}
+
+/* Corrigir a sobreposição de elementos na tabela de itens */
+.table-responsive {
+    overflow-x: visible;
+    overflow-y: visible;
+}
+
+/* Tooltips e popovers devem ficar acima do modal */
+.tooltip, .popover {
+    z-index: 2000 !important;
+}
+
+/* Melhorar a visibilidade dos botões de ação */
+.btn-sm {
+    position: relative;
+    z-index: 2;
+}
+
+/* Corrigir problemas de sobreposição no resumo do pedido */
+#order-summary {
+    clear: both;
+    position: relative;
+    z-index: 1;
+}
+
+/* Garantir que os campos Select2 sejam totalmente visíveis */
+.select2-container {
+    width: 100% !important;
+    z-index: 3;
+}
+
+/* Corrigir a altura dos campos Select2 para alinhar com outros campos */
+.select2-container .select2-selection--single {
+    height: 38px !important;
+    padding: 5px;
+}
+
+/* Alinhar o texto nos campos Select2 */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 28px !important;
+}
+
+/* Alinhar a seta nos campos Select2 */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
+}

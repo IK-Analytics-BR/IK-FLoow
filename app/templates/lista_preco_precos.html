@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Preços - {{ lista.nome }} - Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">
+        <i class="fas fa-dollar-sign me-2"></i>Preços da Lista: {{ lista.nome }}
+    </h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('lista_preco.lista') }}">Listas de Preço</a></li>
+        <li class="breadcrumb-item active">{{ lista.nome }}</li>
+    </ol>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="fas fa-table me-1"></i> Produtos e Preços
+                <span class="badge bg-info ms-2">{{ lista.codigo }}</span>
+            </span>
+            <div>
+                <button type="button" class="btn btn-success btn-sm" onclick="salvarPrecos()">
+                    <i class="fas fa-save me-1"></i> Salvar Alterações
+                </button>
+                <a href="{{ url_for('lista_preco.lista') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Filtro -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" id="filtro_produto" placeholder="Filtrar por código ou nome...">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filtro_com_preco">
+                        <option value="">Todos</option>
+                        <option value="com">Com preço definido</option>
+                        <option value="sem">Sem preço definido</option>
+                    </select>
+                </div>
+            </div>
+
+            <form method="POST" id="formPrecos">
+                <table class="table table-striped table-hover table-sm" id="tabelaPrecos">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:100px">Código</th>
+                            <th>Produto</th>
+                            <th style="width:60px">UN</th>
+                            <th style="width:120px">Preço Custo</th>
+                            <th style="width:120px">Preço Padrão</th>
+                            <th style="width:140px">Preço Final</th>
+                            <th style="width:100px">% Lista</th>
+                            <th style="width:100px">Markup</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr data-codigo="{{ item.internal_code }}" data-nome="{{ item.name|lower }}">
+                            <td>
+                                <code>{{ item.internal_code }}</code>
+                                <input type="hidden" name="produto_id[]" value="{{ item.id }}">
+                            </td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.unit or 'UN' }}</td>
+                            <td class="text-end">
+                                <span class="text-muted">{{ "%.2f"|format(item.preco_custo or 0) }}</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-muted">{{ "%.2f"|format(item.preco_padrao or 0) }}</span>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end js-preco-final" 
+                                       name="preco_final[]" value="{{ "%.2f"|format(item.preco_com_desconto or 0) }}" 
+                                       step="0.01" min="0" placeholder="0.00"
+                                       data-preco-padrao="{{ item.preco_padrao or 0 }}"
+                                       data-preco-custo="{{ item.preco_custo or 0 }}">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end js-percentual" 
+                                       name="percentual_lista[]" value="{{ "%.2f"|format(item.percentual_aplicado or 0) }}" 
+                                       step="0.01" placeholder="0.00"
+                                       data-preco-padrao="{{ item.preco_padrao or 0 }}"
+                                       data-preco-custo="{{ item.preco_custo or 0 }}">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end js-markup" 
+                                       name="markup_percent[]" value="{{ "%.2f"|format(item.markup_percent) if item.markup_percent is not none else '' }}" 
+                                       step="0.01" placeholder="0.00"
+                                       data-preco-custo="{{ item.preco_custo or 0 }}">
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                Nenhum produto cadastrado no sistema
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function salvarPrecos() {
+    document.getElementById('formPrecos').submit();
+}
+
+// Filtros
+document.getElementById('filtro_produto').addEventListener('input', filtrarTabela);
+document.getElementById('filtro_com_preco').addEventListener('change', filtrarTabela);
+
+function filtrarTabela() {
+    const termo = document.getElementById('filtro_produto').value.toLowerCase();
+    const filtroPreco = document.getElementById('filtro_com_preco').value;
+    const linhas = document.querySelectorAll('#tabelaPrecos tbody tr');
+    
+    linhas.forEach(linha => {
+        const codigo = linha.dataset.codigo || '';
+        const nome = linha.dataset.nome || '';
+        const inputPreco = linha.querySelector('input[name="preco_final[]"]');
+        const temPreco = inputPreco && inputPreco.value && parseFloat(inputPreco.value) > 0;
+        
+        let visivel = true;
+        
+        // Filtro de texto
+        if (termo && !codigo.toLowerCase().includes(termo) && !nome.includes(termo)) {
+            visivel = false;
+        }
+        
+        // Filtro de preço
+        if (filtroPreco === 'com' && !temPreco) visivel = false;
+        if (filtroPreco === 'sem' && temPreco) visivel = false;
+        
+        linha.style.display = visivel ? '' : 'none';
+    });
+}
+
+function _parseNumber(val) {
+    if (val === null || val === undefined) return null;
+    const s = String(val).replace(',', '.').trim();
+    if (!s) return null;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : null;
+}
+
+function _setMarkupColor(input) {
+    const v = _parseNumber(input.value);
+    input.classList.remove('text-danger', 'text-success');
+    if (v === null) return;
+    if (v < 0) input.classList.add('text-danger');
+    if (v > 0) input.classList.add('text-success');
+}
+
+function _recalcFromPrecoFinal(row) {
+    const precoFinalEl = row.querySelector('.js-preco-final');
+    const percEl = row.querySelector('.js-percentual');
+    const markupEl = row.querySelector('.js-markup');
+    if (!precoFinalEl || !percEl || !markupEl) return;
+
+    const precoFinal = _parseNumber(precoFinalEl.value) || 0;
+    const precoPadrao = _parseNumber(precoFinalEl.dataset.precoPadrao) || 0;
+    const precoCusto = _parseNumber(precoFinalEl.dataset.precoCusto) || 0;
+
+    // % lista (interpretação: desconto sobre preço padrão)
+    if (precoPadrao > 0) {
+        const perc = Math.max(0, (1 - (precoFinal / precoPadrao)) * 100);
+        percEl.value = perc.toFixed(2);
+    }
+
+    // markup (sobre custo)
+    if (precoCusto > 0) {
+        const mk = ((precoFinal - precoCusto) / precoCusto) * 100;
+        markupEl.value = mk.toFixed(2);
+    }
+    _setMarkupColor(markupEl);
+}
+
+function _recalcFromPercentual(row) {
+    const precoFinalEl = row.querySelector('.js-preco-final');
+    const percEl = row.querySelector('.js-percentual');
+    const markupEl = row.querySelector('.js-markup');
+    if (!precoFinalEl || !percEl || !markupEl) return;
+
+    const perc = _parseNumber(percEl.value);
+    const precoPadrao = _parseNumber(percEl.dataset.precoPadrao) || 0;
+    if (perc === null || precoPadrao <= 0) return;
+
+    const precoFinal = Math.max(0, precoPadrao * (1 - (perc / 100)));
+    precoFinalEl.value = precoFinal.toFixed(2);
+    _recalcFromPrecoFinal(row);
+}
+
+function _recalcFromMarkup(row) {
+    const precoFinalEl = row.querySelector('.js-preco-final');
+    const markupEl = row.querySelector('.js-markup');
+    const precoCusto = _parseNumber(markupEl.dataset.precoCusto) || 0;
+    const mk = _parseNumber(markupEl.value);
+    if (mk === null || precoCusto <= 0) {
+        _setMarkupColor(markupEl);
+        return;
+    }
+
+    const precoFinal = Math.max(0, precoCusto * (1 + (mk / 100)));
+    precoFinalEl.value = precoFinal.toFixed(2);
+    _recalcFromPrecoFinal(row);
+}
+
+document.querySelectorAll('#tabelaPrecos tbody tr').forEach(row => {
+    const precoFinalEl = row.querySelector('.js-preco-final');
+    const percEl = row.querySelector('.js-percentual');
+    const markupEl = row.querySelector('.js-markup');
+
+    if (markupEl) _setMarkupColor(markupEl);
+
+    if (precoFinalEl) {
+        precoFinalEl.addEventListener('input', () => _recalcFromPrecoFinal(row));
+    }
+    if (percEl) {
+        percEl.addEventListener('input', () => _recalcFromPercentual(row));
+    }
+    if (markupEl) {
+        markupEl.addEventListener('input', () => _recalcFromMarkup(row));
+    }
+});
+</script>
+{% endblock %}

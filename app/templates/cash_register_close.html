@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Fechar Caixa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-door-closed"></i> Fechar Caixa - {{ register.register_number }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('cash_register.cash_register_list') }}">Controle de Caixa</a></li>
+                            <li class="breadcrumb-item active">Fechar Caixa</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('cash_register.cash_register_list') }}" class="btn btn-info">
+                        <i class="fas fa-history"></i> Ver Histórico
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <!-- Coluna 1: Valores Esperados -->
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-calculator"></i> Valores Esperados (Sistema)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> Valores calculados automaticamente com base nas vendas registradas.
+                        </div>
+
+                        <table class="table table-borderless table-lg">
+                            <tr>
+                                <td><strong>💵 Dinheiro:</strong></td>
+                                <td class="text-end">
+                                    <h4 class="mb-0 text-success">R$ {{ "%.2f"|format(expected_cash)|replace('.', ',') }}</h4>
+                                    <small class="text-muted">Abertura: R$ {{ "%.2f"|format(register.opening_balance)|replace('.', ',') }} + Vendas: R$ {{ "%.2f"|format(totals.cash_total)|replace('.', ',') }}</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>💳 Cartões:</strong></td>
+                                <td class="text-end">
+                                    <h5 class="mb-0">R$ {{ "%.2f"|format(totals.card_total)|replace('.', ',') }}</h5>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>🔄 Outros:</strong></td>
+                                <td class="text-end">
+                                    <h5 class="mb-0">R$ {{ "%.2f"|format(totals.other_total)|replace('.', ',') }}</h5>
+                                </td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>📊 TOTAL ESPERADO:</strong></td>
+                                <td class="text-end">
+                                    <h3 class="mb-0 text-primary">R$ {{ "%.2f"|format(totals.grand_total)|replace('.', ',') }}</h3>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="fas fa-receipt"></i> Resumo de Vendas:</h6>
+                                <p class="mb-0"><strong>{{ totals.total_count }}</strong> venda(s) confirmada(s)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna 2: Contagem Real -->
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-hand-holding-usd"></i> Contagem Real (Informar)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Atenção:</strong> Conte todo o dinheiro e comprovantes antes de fechar!
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label required-field">💵 Dinheiro em Caixa</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" name="actual_cash" class="form-control" 
+                                       step="0.01" min="0" value="{{ "%.2f"|format(expected_cash) }}" 
+                                       required id="actualCash" onchange="calculateDifference()">
+                            </div>
+                            <small class="form-text text-muted">Conte todas as notas e moedas</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label required-field">💳 Comprovantes de Cartão</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" name="actual_card" class="form-control" 
+                                       step="0.01" min="0" value="{{ "%.2f"|format(totals.card_total) }}" 
+                                       required id="actualCard" onchange="calculateDifference()">
+                            </div>
+                            <small class="form-text text-muted">Some todos os comprovantes</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">🔄 Outros Valores</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" name="actual_other" class="form-control" 
+                                       step="0.01" min="0" value="{{ "%.2f"|format(totals.other_total) }}" 
+                                       id="actualOther" onchange="calculateDifference()">
+                            </div>
+                            <small class="form-text text-muted">PIX, cheques, boletos, etc</small>
+                        </div>
+
+                        <!-- Cálculo Automático -->
+                        <div class="card" id="differenceCard">
+                            <div class="card-body">
+                                <h6><i class="fas fa-calculator"></i> Diferença Calculada:</h6>
+                                <div id="differenceDisplay">
+                                    <h3 class="mb-0"><span id="differenceValue">R$ 0,00</span></h3>
+                                    <p class="mb-0" id="differenceText">Confira os valores</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Observações e Confirmação -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Observações do Fechamento</label>
+                            <textarea name="closing_notes" class="form-control" rows="3" 
+                                      placeholder="Descreva qualquer observação relevante sobre o fechamento..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg" id="btnClose">
+                                <i class="fas fa-lock"></i> Confirmar e Fechar Caixa
+                            </button>
+                            <a href="{{ url_for('cash_register.cash_register_current') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    const expectedCash = {{ expected_cash }};
+    const expectedCard = {{ totals.card_total }};
+    const expectedOther = {{ totals.other_total }};
+    const expectedTotal = {{ totals.grand_total }};
+
+    function calculateDifference() {
+        const actualCash = parseFloat(document.getElementById('actualCash').value) || 0;
+        const actualCard = parseFloat(document.getElementById('actualCard').value) || 0;
+        const actualOther = parseFloat(document.getElementById('actualOther').value) || 0;
+        const actualTotal = actualCash + actualCard + actualOther;
+        
+        const difference = actualTotal - expectedTotal;
+        const cashDifference = actualCash - expectedCash;
+        
+        const card = document.getElementById('differenceCard');
+        const valueSpan = document.getElementById('differenceValue');
+        const textP = document.getElementById('differenceText');
+        
+        if (Math.abs(difference) < 0.01) {
+            // Confere!
+            card.className = 'card border-success';
+            card.style.backgroundColor = '#d4edda';
+            valueSpan.textContent = 'R$ 0,00';
+            valueSpan.className = 'text-success';
+            textP.innerHTML = '<strong>✅ Caixa conferido! Valores batem.</strong>';
+        } else if (difference > 0) {
+            // Sobra
+            card.className = 'card border-success';
+            card.style.backgroundColor = '#d4edda';
+            valueSpan.textContent = 'R$ ' + difference.toFixed(2).replace('.', ',');
+            valueSpan.className = 'text-success';
+            textP.innerHTML = '<strong>💰 SOBRA no caixa</strong><br><small>Real é maior que o esperado</small>';
+        } else {
+            // Quebra
+            card.className = 'card border-danger';
+            card.style.backgroundColor = '#f8d7da';
+            valueSpan.textContent = 'R$ ' + Math.abs(difference).toFixed(2).replace('.', ',');
+            valueSpan.className = 'text-danger';
+            textP.innerHTML = '<strong>⚠️ QUEBRA no caixa</strong><br><small>Real é menor que o esperado</small>';
+        }
+        
+        // Detalhamento
+        if (Math.abs(cashDifference) > 0.01) {
+            textP.innerHTML += '<br><small>Diferença em dinheiro: R$ ' + cashDifference.toFixed(2).replace('.', ',') + '</small>';
+        }
+    }
+    
+    // Calcular na carga
+    calculateDifference();
+</script>
+{% endblock %}

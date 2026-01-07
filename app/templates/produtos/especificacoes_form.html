@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Especificações Técnicas - {{ produto.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-dna"></i> Especificações Técnicas (DNA do Produto)
+                </h5>
+                <div>
+                    <a href="{{ url_for('produtos.editar', produto_id=produto.id) }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left"></i> Voltar ao Produto
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Produto:</strong> {{ produto.name }} 
+                {% if produto.internal_code %}({{ produto.internal_code }}){% endif %}
+            </div>
+
+            <form method="post" action="{{ url_for('produto_especificacoes.editar', produto_id=produto.id) }}">
+                <!-- DNA Preview -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>🧬 Código DNA:</strong>
+                                        <span id="dna-preview" class="badge bg-dark fs-6 ms-2">
+                                            {{ especificacao.codigo_dna if especificacao else 'XXX-XXX-XXX-0-0L-SEM' }}
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="atualizarDNA()">
+                                        <i class="fas fa-sync"></i> Atualizar DNA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Abas -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#dimensoes">📐 Dimensões</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tipo-material">🔧 Tipo e Material</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#estrutura">🏗️ Estrutura</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#operacional">⚙️ Operacional</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#certificacoes">📋 Certificações</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content border border-top-0 p-4">
+                    <!-- ABA DIMENSÕES -->
+                    <div class="tab-pane fade show active" id="dimensoes">
+                        <h6 class="text-primary mb-3">📐 Dimensões Principais</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Largura (mm) *</label>
+                                <input type="number" name="largura_mm" class="form-control" step="0.01" 
+                                       value="{{ especificacao.largura_mm if especificacao else '' }}"
+                                       onchange="atualizarDNA()">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Comprimento (mm) *</label>
+                                <input type="number" name="comprimento_mm" class="form-control" step="0.01"
+                                       value="{{ especificacao.comprimento_mm if especificacao else '' }}"
+                                       onchange="atualizarDNA()">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Espessura (mm)</label>
+                                <input type="number" name="espessura_mm" class="form-control" step="0.01"
+                                       value="{{ especificacao.espessura_mm if especificacao else '' }}">
+                            </div>
+                        </div>
+                        
+                        <h6 class="text-primary mb-3 mt-4">Para Correias Sincronizadas</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Passo (mm)</label>
+                                <input type="number" name="passo_mm" class="form-control" step="0.01"
+                                       value="{{ especificacao.passo_mm if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Número de Dentes</label>
+                                <input type="number" name="numero_dentes" class="form-control"
+                                       value="{{ especificacao.numero_dentes if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Largura do Dente (mm)</label>
+                                <input type="number" name="largura_dente_mm" class="form-control" step="0.01"
+                                       value="{{ especificacao.largura_dente_mm if especificacao else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA TIPO E MATERIAL -->
+                    <div class="tab-pane fade" id="tipo-material">
+                        <h6 class="text-primary mb-3">🔧 Tipo e Material</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Tipo de Correia *</label>
+                                <select name="tipo_correia_id" id="tipo_correia_id" class="form-select" onchange="atualizarDNA(); carregarPerfis()">
+                                    <option value="">Selecione...</option>
+                                    {% for tipo in tipos_correia %}
+                                    <option value="{{ tipo.id }}" data-codigo="{{ tipo.codigo }}"
+                                            {% if especificacao and especificacao.tipo_correia_id == tipo.id %}selected{% endif %}>
+                                        {{ tipo.nome }} ({{ tipo.codigo }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Material Base *</label>
+                                <select name="material_base_id" id="material_base_id" class="form-select" onchange="atualizarDNA()">
+                                    <option value="">Selecione...</option>
+                                    {% for mat in materiais %}
+                                    <option value="{{ mat.id }}" data-codigo="{{ mat.codigo }}"
+                                            {% if especificacao and especificacao.material_base_id == mat.id %}selected{% endif %}>
+                                        {{ mat.nome }} ({{ mat.codigo }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Perfil</label>
+                                <select name="perfil_id" id="perfil_id" class="form-select" onchange="atualizarDNA()">
+                                    <option value="">Selecione...</option>
+                                    {% for perfil in perfis %}
+                                    <option value="{{ perfil.id }}" data-codigo="{{ perfil.codigo }}"
+                                            {% if especificacao and especificacao.perfil_id == perfil.id %}selected{% endif %}>
+                                        {{ perfil.codigo }} - {{ perfil.nome }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Material Revestimento</label>
+                                <input type="text" name="material_revestimento" class="form-control"
+                                       value="{{ especificacao.material_revestimento if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Cor</label>
+                                <select name="cor" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% set cores = ['Preto', 'Branco', 'Azul', 'Verde', 'Vermelho', 'Amarelo', 'Cinza', 'Transparente', 'Natural'] %}
+                                    {% for cor in cores %}
+                                    <option value="{{ cor }}" {% if especificacao and especificacao.cor == cor %}selected{% endif %}>
+                                        {{ cor }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Dureza Shore A *</label>
+                                <input type="number" name="dureza_shore" id="dureza_shore" class="form-control" step="0.1" 
+                                       min="0" max="100" onchange="atualizarDNA()"
+                                       value="{{ especificacao.dureza_shore if especificacao else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA ESTRUTURA -->
+                    <div class="tab-pane fade" id="estrutura">
+                        <h6 class="text-primary mb-3">🏗️ Estrutura e Acabamento</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Número de Lonas</label>
+                                <input type="number" name="numero_lonas" id="numero_lonas" class="form-control" 
+                                       min="0" max="10" onchange="atualizarDNA()"
+                                       value="{{ especificacao.numero_lonas if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Tipo de Lona</label>
+                                <select name="tipo_lona" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% set lonas = ['Poliéster', 'Nylon', 'EP (Poliéster/Nylon)', 'NN (Nylon/Nylon)', 'Algodão', 'Aramida', 'Fibra de Vidro'] %}
+                                    {% for lona in lonas %}
+                                    <option value="{{ lona }}" {% if especificacao and especificacao.tipo_lona == lona %}selected{% endif %}>
+                                        {{ lona }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Reforço</label>
+                                <select name="reforco" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% set reforcos = ['Aço', 'Kevlar', 'Fibra de Vidro', 'Cabos de Aço', 'Cordas de Poliéster', 'Sem reforço'] %}
+                                    {% for ref in reforcos %}
+                                    <option value="{{ ref }}" {% if especificacao and especificacao.reforco == ref %}selected{% endif %}>
+                                        {{ ref }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tipo de Emenda *</label>
+                                <select name="tipo_emenda" id="tipo_emenda" class="form-select" onchange="atualizarDNA()">
+                                    <option value="">Selecione...</option>
+                                    {% set emendas = ['Vulcanizada', 'Mecânica', 'Soldada', 'Sem emenda (contínua)', 'Grampeada'] %}
+                                    {% for em in emendas %}
+                                    <option value="{{ em }}" {% if especificacao and especificacao.tipo_emenda == em %}selected{% endif %}>
+                                        {{ em }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Acabamento da Borda</label>
+                                <select name="acabamento_borda" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% set bordas = ['Selada', 'Cortada', 'Fresada', 'Natural', 'Reforçada'] %}
+                                    {% for borda in bordas %}
+                                    <option value="{{ borda }}" {% if especificacao and especificacao.acabamento_borda == borda %}selected{% endif %}>
+                                        {{ borda }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA OPERACIONAL -->
+                    <div class="tab-pane fade" id="operacional">
+                        <h6 class="text-primary mb-3">⚙️ Características Operacionais</h6>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Temp. Mínima (°C)</label>
+                                <input type="number" name="temperatura_min" class="form-control" step="0.1"
+                                       value="{{ especificacao.temperatura_min if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Temp. Máxima (°C)</label>
+                                <input type="number" name="temperatura_max" class="form-control" step="0.1"
+                                       value="{{ especificacao.temperatura_max if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Velocidade Máx. (m/s)</label>
+                                <input type="number" name="velocidade_max" class="form-control" step="0.01"
+                                       value="{{ especificacao.velocidade_max if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Carga Máx. (kg)</label>
+                                <input type="number" name="carga_max_kg" class="form-control" step="0.01"
+                                       value="{{ especificacao.carga_max_kg if especificacao else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Aplicação</label>
+                                <input type="text" name="aplicacao" class="form-control" 
+                                       placeholder="Ex: Transporte de materiais, Sincronização de máquinas"
+                                       value="{{ especificacao.aplicacao if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ambiente</label>
+                                <select name="ambiente" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    {% set ambientes = ['Industrial', 'Alimentício', 'Farmacêutico', 'Químico', 'Alta Temperatura', 'Baixa Temperatura', 'Úmido', 'Externo'] %}
+                                    {% for amb in ambientes %}
+                                    <option value="{{ amb }}" {% if especificacao and especificacao.ambiente == amb %}selected{% endif %}>
+                                        {{ amb }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA CERTIFICAÇÕES -->
+                    <div class="tab-pane fade" id="certificacoes">
+                        <h6 class="text-primary mb-3">📋 Normas e Certificações</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Norma Técnica</label>
+                                <input type="text" name="norma_tecnica" class="form-control" 
+                                       placeholder="Ex: ISO 9001, DIN 7753, ABNT NBR"
+                                       value="{{ especificacao.norma_tecnica if especificacao else '' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Certificações</label>
+                                <input type="text" name="certificacoes" class="form-control" 
+                                       placeholder="Ex: FDA, ATEX, CE"
+                                       value="{{ especificacao.certificacoes if especificacao else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Observações Técnicas</label>
+                                <textarea name="observacoes_tecnicas" class="form-control" rows="4"
+                                          placeholder="Informações adicionais sobre o produto...">{{ especificacao.observacoes_tecnicas if especificacao else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões -->
+                <div class="row mt-4">
+                    <div class="col-12 text-end">
+                        <a href="{{ url_for('produtos.editar', produto_id=produto.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Salvar Especificações
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function atualizarDNA() {
+    const tipoSelect = document.getElementById('tipo_correia_id');
+    const materialSelect = document.getElementById('material_base_id');
+    const perfilSelect = document.getElementById('perfil_id');
+    const dureza = document.getElementById('dureza_shore').value || 0;
+    const lonas = document.getElementById('numero_lonas').value || 0;
+    const emendaSelect = document.getElementById('tipo_emenda');
+    
+    // Códigos
+    const tipoCod = tipoSelect.options[tipoSelect.selectedIndex]?.dataset.codigo || 'XXX';
+    const matCod = materialSelect.options[materialSelect.selectedIndex]?.dataset.codigo || 'XXX';
+    const perfilCod = perfilSelect.options[perfilSelect.selectedIndex]?.dataset.codigo || 'XXX';
+    
+    // Emenda
+    let emendaCod = 'SEM';
+    const emenda = emendaSelect.value || '';
+    if (emenda.includes('Vulcan')) emendaCod = 'VUL';
+    else if (emenda.includes('Mec')) emendaCod = 'MEC';
+    else if (emenda.includes('Sold')) emendaCod = 'SOL';
+    else if (emenda.includes('Gramp')) emendaCod = 'GRA';
+    
+    // Montar DNA
+    const dna = `${tipoCod}-${matCod}-${perfilCod}-${Math.floor(dureza)}-${lonas}L-${emendaCod}`;
+    document.getElementById('dna-preview').textContent = dna;
+}
+
+function carregarPerfis() {
+    const tipoSelect = document.getElementById('tipo_correia_id');
+    const tipoCodigo = tipoSelect.options[tipoSelect.selectedIndex]?.dataset.codigo;
+    
+    if (!tipoCodigo) return;
+    
+    fetch(`/produtos/especificacoes/api/perfis/${tipoCodigo}`)
+        .then(r => r.json())
+        .then(perfis => {
+            const perfilSelect = document.getElementById('perfil_id');
+            const valorAtual = perfilSelect.value;
+            
+            perfilSelect.innerHTML = '<option value="">Selecione...</option>';
+            perfis.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.dataset.codigo = p.codigo;
+                opt.textContent = `${p.codigo} - ${p.nome}`;
+                if (p.id == valorAtual) opt.selected = true;
+                perfilSelect.appendChild(opt);
+            });
+        });
+}
+
+// Inicializar DNA ao carregar
+document.addEventListener('DOMContentLoaded', function() {
+    atualizarDNA();
+});
+</script>
+{% endblock %}

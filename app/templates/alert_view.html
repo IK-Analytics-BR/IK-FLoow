@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Alerta #{{ alert.id }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Alerta #{{ alert.id }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('alert.alert_list') }}">Alertas</a></li>
+        <li class="breadcrumb-item active">Visualizar Alerta</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-bell me-1"></i>
+                    Detalhes do Alerta
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5>
+                            {% if alert.priority == 'critical' %}
+                            <span class="badge bg-danger">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                            {% elif alert.priority == 'high' %}
+                            <span class="badge bg-warning text-dark">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                            {% elif alert.priority == 'medium' %}
+                            <span class="badge bg-primary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ priority_levels.get(alert.priority, 'Média') }}</span>
+                            {% endif %}
+                        </h5>
+                        <h5>
+                            {% if alert.status == 'active' %}
+                            <span class="badge bg-danger">Ativo</span>
+                            {% elif alert.status == 'acknowledged' %}
+                            <span class="badge bg-warning text-dark">Reconhecido</span>
+                            {% elif alert.status == 'resolved' %}
+                            <span class="badge bg-success">Resolvido</span>
+                            {% endif %}
+                        </h5>
+                    </div>
+                    
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>Tipo:</th>
+                            <td>{{ alert_types.get(alert.alert_type, 'Desconhecido') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Equipamento:</th>
+                            <td>
+                                <a href="{{ url_for('equipamento.equipamento_visualizar', id=alert.equipment_id) }}">
+                                    {{ alert.equipment_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Componente:</th>
+                            <td>
+                                {% if alert.supply_id %}
+                                <a href="{{ url_for('insumo.insumo_visualizar', id=alert.supply_id) }}">
+                                    {{ alert.supply_name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Mensagem:</th>
+                            <td>{{ alert.message }}</td>
+                        </tr>
+                        <tr>
+                            <th>Data de Criação:</th>
+                            <td>{{ alert.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Reconhecido por:</th>
+                            <td>
+                                {% if alert.acknowledged_by %}
+                                {{ alert.acknowledged_by_name }} em {{ alert.acknowledged_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                                {% else %}
+                                <span class="text-muted">Não reconhecido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Resolvido por:</th>
+                            <td>
+                                {% if alert.resolved_by %}
+                                {{ alert.resolved_by_name }} em {{ alert.resolved_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                                {% else %}
+                                <span class="text-muted">Não resolvido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div class="mt-3">
+                        {% if alert.status == 'active' %}
+                        <form action="{{ url_for('alert.alert_acknowledge', alert_id=alert.id) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-check me-1"></i> Reconhecer
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        {% if alert.status != 'resolved' %}
+                        <form action="{{ url_for('alert.alert_resolve', alert_id=alert.id) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check-double me-1"></i> Resolver
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('alert.alert_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-link me-1"></i>
+                    Informações Relacionadas
+                </div>
+                <div class="card-body">
+                    {% if alert.alert_type in ['wear_80', 'wear_100'] %}
+                        {% if 'supply' in related_info %}
+                            <h5>Informações do Componente</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Nome:</th>
+                                    <td>{{ related_info.supply.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Equipamento:</th>
+                                    <td>{{ related_info.supply.equipment_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Vida Útil Base:</th>
+                                    <td>{{ related_info.supply.base_life_hours }} horas</td>
+                                </tr>
+                                <tr>
+                                    <th>Percentual Preventiva:</th>
+                                    <td>{{ related_info.supply.preventive_percentage }}%</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="mt-3">
+                                <a href="{{ url_for('insumo.insumo_visualizar', id=alert.supply_id) }}" class="btn btn-primary">
+                                    <i class="fas fa-eye me-1"></i> Ver Componente
+                                </a>
+                            </div>
+                        {% elif 'equipment' in related_info %}
+                            <h5>Informações do Equipamento</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Nome:</th>
+                                    <td>{{ related_info.equipment.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Vida Útil Base:</th>
+                                    <td>{{ related_info.equipment.base_life_hours }} horas</td>
+                                </tr>
+                                <tr>
+                                    <th>Vida Útil Ajustada:</th>
+                                    <td>{{ related_info.equipment.adjusted_life_hours }} horas</td>
+                                </tr>
+                                <tr>
+                                    <th>Horas Acumuladas:</th>
+                                    <td>{{ related_info.equipment.accumulated_hours }} horas</td>
+                                </tr>
+                                <tr>
+                                    <th>Desgaste:</th>
+                                    <td>{{ related_info.equipment.wear_percentage }}%</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="mt-3">
+                                <a href="{{ url_for('equipamento.equipamento_visualizar', id=alert.equipment_id) }}" class="btn btn-primary">
+                                    <i class="fas fa-eye me-1"></i> Ver Equipamento
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% elif alert.alert_type == 'stock_low' %}
+                        <h5>Informações do Estoque</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Componente:</th>
+                                <td>{{ related_info.supply.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Estoque Atual:</th>
+                                <td>{{ related_info.supply.stock }}</td>
+                            </tr>
+                            <tr>
+                                <th>Estoque Mínimo:</th>
+                                <td>{{ related_info.supply.min_stock }}</td>
+                            </tr>
+                            <tr>
+                                <th>Último Preço:</th>
+                                <td>R$ {{ "%.2f"|format(related_info.supply.last_price) }}</td>
+                            </tr>
+                        </table>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('insumo.insumo_visualizar', id=alert.supply_id) }}" class="btn btn-primary">
+                                <i class="fas fa-eye me-1"></i> Ver Componente
+                            </a>
+                        </div>
+                    {% elif alert.alert_type == 'maintenance_due' %}
+                        <h5>Informações do Plano de Manutenção</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Equipamento:</th>
+                                <td>{{ related_info.maintenance_plan.equipment_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Componente:</th>
+                                <td>{{ related_info.maintenance_plan.supply_name or 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tarefa:</th>
+                                <td>{{ related_info.maintenance_plan.task }}</td>
+                            </tr>
+                            <tr>
+                                <th>Gatilho:</th>
+                                <td>
+                                    {% if related_info.maintenance_plan.trigger_type == 'hours' %}
+                                    {{ related_info.maintenance_plan.trigger_value }} horas
+                                    {% elif related_info.maintenance_plan.trigger_type == 'cycles' %}
+                                    {{ related_info.maintenance_plan.trigger_value }} ciclos
+                                    {% elif related_info.maintenance_plan.trigger_type == 'time' %}
+                                    {{ related_info.maintenance_plan.trigger_value }} dias
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('maintenance_plan.maintenance_plan_view', plan_id=related_info.maintenance_plan.id) }}" class="btn btn-primary">
+                                <i class="fas fa-eye me-1"></i> Ver Plano
+                            </a>
+                            <a href="{{ url_for('service_order.service_order_add') }}?equipment_id={{ alert.equipment_id }}&maintenance_plan_id={{ related_info.maintenance_plan.id }}" class="btn btn-success">
+                                <i class="fas fa-tools me-1"></i> Criar OS
+                            </a>
+                        </div>
+                    {% elif alert.alert_type in ['os_created', 'os_assigned', 'os_completed'] %}
+                        <h5>Informações da Ordem de Serviço</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Número:</th>
+                                <td>{{ related_info.service_order.order_number }}</td>
+                            </tr>
+                            <tr>
+                                <th>Equipamento:</th>
+                                <td>{{ related_info.service_order.equipment_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tipo:</th>
+                                <td>
+                                    {% if related_info.service_order.type == 'preventive' %}
+                                    <span class="badge bg-success">Preventiva</span>
+                                    {% elif related_info.service_order.type == 'corrective' %}
+                                    <span class="badge bg-danger">Corretiva</span>
+                                    {% elif related_info.service_order.type == 'predictive' %}
+                                    <span class="badge bg-info">Preditiva</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td>
+                                    {% if related_info.service_order.status == 'open' %}
+                                    <span class="badge bg-primary">Aberta</span>
+                                    {% elif related_info.service_order.status == 'in_progress' %}
+                                    <span class="badge bg-warning">Em Andamento</span>
+                                    {% elif related_info.service_order.status == 'completed' %}
+                                    <span class="badge bg-success">Concluída</span>
+                                    {% elif related_info.service_order.status == 'canceled' %}
+                                    <span class="badge bg-danger">Cancelada</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Técnico:</th>
+                                <td>{{ related_info.service_order.technician_name or 'Não atribuído' }}</td>
+                            </tr>
+                        </table>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('service_order.service_order_view', order_id=related_info.service_order.id) }}" class="btn btn-primary">
+                                <i class="fas fa-eye me-1"></i> Ver OS
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Nenhuma informação relacionada disponível para este tipo de alerta.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    Ações Recomendadas
+                </div>
+                <div class="card-body">
+                    {% if alert.alert_type == 'wear_80' %}
+                        <ul>
+                            <li>Planejar manutenção preventiva para o {% if alert.supply_id %}componente{% else %}equipamento{% endif %}.</li>
+                            <li>Verificar disponibilidade de peças de reposição no estoque.</li>
+                            <li>Agendar técnico para realizar a manutenção.</li>
+                        </ul>
+                        <div class="mt-3">
+                            <a href="{{ url_for('maintenance_plan.maintenance_plan_add') }}?equipment_id={{ alert.equipment_id }}{% if alert.supply_id %}&supply_id={{ alert.supply_id }}{% endif %}" class="btn btn-primary">
+                                <i class="fas fa-clipboard-list me-1"></i> Criar Plano
+                            </a>
+                        </div>
+                    {% elif alert.alert_type == 'wear_100' %}
+                        <ul>
+                            <li>Realizar manutenção corretiva imediatamente.</li>
+                            <li>Verificar disponibilidade de peças de reposição no estoque.</li>
+                            <li>Agendar técnico para realizar a manutenção com urgência.</li>
+                        </ul>
+                        <div class="mt-3">
+                            <a href="{{ url_for('service_order.service_order_add') }}?equipment_id={{ alert.equipment_id }}{% if alert.supply_id %}&supply_id={{ alert.supply_id }}{% endif %}&type=corrective" class="btn btn-danger">
+                                <i class="fas fa-tools me-1"></i> Criar OS Corretiva
+                            </a>
+                        </div>
+                    {% elif alert.alert_type == 'stock_low' %}
+                        <ul>
+                            <li>Realizar pedido de reposição do componente.</li>
+                            <li>Verificar fornecedores disponíveis.</li>
+                            <li>Considerar ajustar o nível de estoque mínimo se necessário.</li>
+                        </ul>
+                    {% elif alert.alert_type == 'maintenance_due' %}
+                        <ul>
+                            <li>Criar ordem de serviço para a manutenção programada.</li>
+                            <li>Verificar disponibilidade de técnicos.</li>
+                            <li>Verificar disponibilidade de peças necessárias.</li>
+                        </ul>
+                        <div class="mt-3">
+                            <a href="{{ url_for('service_order.service_order_add') }}?equipment_id={{ alert.equipment_id }}" class="btn btn-primary">
+                                <i class="fas fa-tools me-1"></i> Criar OS
+                            </a>
+                        </div>
+                    {% elif alert.alert_type == 'os_created' %}
+                        <ul>
+                            <li>Atribuir um técnico à ordem de serviço.</li>
+                            <li>Verificar disponibilidade de peças necessárias.</li>
+                            <li>Agendar a execução da manutenção.</li>
+                        </ul>
+                    {% elif alert.alert_type == 'os_assigned' %}
+                        <ul>
+                            <li>Acompanhar a execução da ordem de serviço.</li>
+                            <li>Verificar se o técnico possui todas as informações necessárias.</li>
+                        </ul>
+                    {% elif alert.alert_type == 'os_completed' %}
+                        <ul>
+                            <li>Verificar a qualidade do serviço realizado.</li>
+                            <li>Atualizar o histórico de manutenção do equipamento.</li>
+                            <li>Verificar se há necessidade de ajustes no plano de manutenção.</li>
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Planos de Manutenção - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Antes da solicitação: caso já tenha na versão atual, avance para a próxima.
+    </div>
+
+    <h1 class="mt-4">Planos de Manutenção</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Planos de Manutenção</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-clipboard-list me-1"></i>
+                    Planos de Manutenção
+                </div>
+                <div>
+                    <a href="{{ url_for('maintenance_plan.maintenance_plan_calendar') }}" class="btn btn-info btn-sm me-2">
+                        <i class="fas fa-calendar"></i> Calendário
+                    </a>
+                    <a href="{{ url_for('maintenance_plan.maintenance_plan_add') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Novo Plano
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if plans %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Equipamento</th>
+                            <th>Componente</th>
+                            <th>Tipo</th>
+                            <th>Gatilho</th>
+                            <th>Tarefa</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in plans %}
+                        <tr>
+                            <td>{{ plan.id }}</td>
+                            <td>{{ plan.customer_name }}</td>
+                            <td>{{ plan.equipment_name }}</td>
+                            <td>{{ plan.supply_name or 'N/A' }}</td>
+                            <td>
+                                {% if plan.type == 'preventive' %}
+                                <span class="badge bg-success">Preventiva</span>
+                                {% elif plan.type == 'corrective' %}
+                                <span class="badge bg-danger">Corretiva</span>
+                                {% elif plan.type == 'predictive' %}
+                                <span class="badge bg-info">Preditiva</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if plan.trigger_type == 'hours' %}
+                                <span class="badge bg-primary">{{ plan.trigger_value }} horas</span>
+                                {% elif plan.trigger_type == 'cycles' %}
+                                <span class="badge bg-warning">{{ plan.trigger_value }} ciclos</span>
+                                {% elif plan.trigger_type == 'time' %}
+                                <span class="badge bg-secondary">{{ plan.trigger_value }} dias</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ plan.task }}</td>
+                            <td>
+                                <a href="{{ url_for('maintenance_plan.maintenance_plan_view', plan_id=plan.id) }}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('maintenance_plan.maintenance_plan_edit', plan_id=plan.id) }}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('maintenance_plan.maintenance_plan_delete', plan_id=plan.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este plano de manutenção?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Nenhum plano de manutenção cadastrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações
+        </div>
+        <div class="card-body">
+            <h5>Tipos de Planos de Manutenção</h5>
+            <ul>
+                <li><strong>Preventiva:</strong> Manutenção programada para evitar falhas.</li>
+                <li><strong>Corretiva:</strong> Manutenção para corrigir falhas já ocorridas.</li>
+                <li><strong>Preditiva:</strong> Manutenção baseada em análise de condições.</li>
+            </ul>
+            
+            <h5>Tipos de Gatilho</h5>
+            <ul>
+                <li><strong>Horas:</strong> Baseado em horas de operação do equipamento.</li>
+                <li><strong>Ciclos:</strong> Baseado em número de ciclos de operação.</li>
+                <li><strong>Tempo:</strong> Baseado em intervalo de tempo fixo (dias).</li>
+            </ul>
+            
+            <p>Para visualizar o calendário de manutenções, clique no botão "Calendário" acima.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            order: [[0, 'desc']]
+        });
+    });
+</script>
+{% endblock %}

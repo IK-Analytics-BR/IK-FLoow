@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Etapas de Produção{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-stream"></i> Etapas de Produção</h4>
+                    <div>
+                        <a href="{{ url_for('ordem_producao.producao_gantt') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-project-diagram"></i> Produção (Gantt)
+                        </a>
+                        <a href="{{ url_for('ordem_producao.etapas_grupos_lista') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-layer-group"></i> Grupos
+                        </a>
+                        <a href="{{ url_for('ordem_producao.etapas_nova') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus"></i> Nova Etapa
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:80px;">Ordem</th>
+                                    <th>Nome</th>
+                                    <th style="width:160px;">Grupo</th>
+                                    <th style="width:180px;">Operador Padrão</th>
+                                    <th style="width:120px;">Cor/Ícone</th>
+                                    <th style="width:100px;">Ativo</th>
+                                    <th style="width:180px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if etapas %}
+                                {% for e in etapas %}
+                                <tr>
+                                    <td>{{ e.ordem }}</td>
+                                    <td>{{ e.nome }}</td>
+                                    <td>{{ e.grupo_nome or '-' }}</td>
+                                    <td>
+                                        {% if e.operador_nome %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-hard-hat me-1"></i>{{ e.operador_nome }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if e.cor_hex %}
+                                        <span class="badge etapa-cor-badge" data-bg="{{ e.cor_hex }}">&nbsp;</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                        {% if e.icone %}
+                                        <i class="{{ e.icone }} ms-2"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if e.ativo %}
+                                        <span class="badge bg-success">Sim</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Não</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('ordem_producao.etapas_editar', id=e.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        <form method="post" action="{{ url_for('ordem_producao.etapas_toggle', id=e.id) }}" class="d-inline" onsubmit="return confirm('Alterar status desta etapa?');">
+                                            <button class="btn btn-sm btn-warning" type="submit">
+                                                <i class="fas fa-toggle-on"></i> Ativar/Desativar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">Nenhuma etapa cadastrada.</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="text-muted"><small>As etapas ativas aparecem na tela de Produção (Gantt) e no modal de mudança de etapa da OP.</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.etapa-cor-badge').forEach(el => {
+        const bg = el.getAttribute('data-bg');
+        if (bg) el.style.background = bg;
+    });
+});
+</script>
+{% endblock %}

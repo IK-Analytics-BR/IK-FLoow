@@ -1,0 +1,126 @@
+<!-- Modal de Busca de NCM -->
+<div class="modal fade" id="ncmSearchModal" tabindex="-1" aria-labelledby="ncmSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ncmSearchModalLabel">Buscar NCM</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-12">
+            <div class="input-group">
+              <input type="text" class="form-control" id="ncmSearchInput" placeholder="Digite o código ou descrição do NCM (mínimo 3 caracteres)">
+              <button class="btn btn-primary" type="button" id="ncmSearchButton">
+                <i class="fas fa-search"></i> Buscar
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-striped table-hover" id="ncmResultsTable">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Resultados da busca serão inseridos aqui -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script para busca de NCM -->
+<script>
+  $(document).ready(function() {
+    // Buscar NCMs quando o botão for clicado
+    $('#ncmSearchButton').on('click', function() {
+      searchNCM();
+    });
+    
+    // Buscar NCMs quando Enter for pressionado no campo de busca
+    $('#ncmSearchInput').on('keypress', function(e) {
+      if (e.which === 13) {
+        e.preventDefault();
+        searchNCM();
+      }
+    });
+    
+    // Função para buscar NCMs
+    function searchNCM() {
+      var searchTerm = $('#ncmSearchInput').val();
+      
+      if (searchTerm.length < 3) {
+        alert('Digite pelo menos 3 caracteres para buscar.');
+        return;
+      }
+      
+      // Limpar a tabela de resultados
+      $('#ncmResultsTable tbody').empty();
+      
+      // Mostrar indicador de carregamento
+      $('#ncmResultsTable tbody').append('<tr><td colspan="3" class="text-center">Carregando...</td></tr>');
+      
+      // Buscar NCMs via API
+      $.ajax({
+        url: '/api/ncms/search',
+        data: { term: searchTerm },
+        dataType: 'json',
+        success: function(data) {
+          // Limpar a tabela de resultados
+          $('#ncmResultsTable tbody').empty();
+          
+          if (data.results.length > 0) {
+            // Adicionar resultados à tabela
+            data.results.forEach(function(item) {
+              var parts = item.text.split(' - ');
+              var codigo = parts[0];
+              var descricao = parts.slice(1).join(' - ');
+              
+              var row = '<tr>' +
+                '<td>' + codigo + '</td>' +
+                '<td>' + descricao + '</td>' +
+                '<td>' +
+                  '<button class="btn btn-sm btn-primary select-ncm-btn" data-codigo="' + codigo + '" data-descricao="' + descricao + '">' +
+                    '<i class="fas fa-check"></i> Selecionar' +
+                  '</button>' +
+                '</td>' +
+              '</tr>';
+              
+              $('#ncmResultsTable tbody').append(row);
+            });
+          } else {
+            $('#ncmResultsTable tbody').append('<tr><td colspan="3" class="text-center">Nenhum NCM encontrado para "' + searchTerm + '"</td></tr>');
+          }
+        },
+        error: function() {
+          $('#ncmResultsTable tbody').empty();
+          $('#ncmResultsTable tbody').append('<tr><td colspan="3" class="text-center">Erro ao buscar NCMs. Tente novamente.</td></tr>');
+        }
+      });
+    }
+    
+    // Selecionar NCM quando o botão for clicado
+    $(document).on('click', '.select-ncm-btn', function() {
+      var codigo = $(this).data('codigo');
+      var descricao = $(this).data('descricao');
+      
+      // Preencher os campos do formulário
+      $('#ncm').val(codigo);
+      $('#ncm_description').val(descricao);
+      
+      // Fechar o modal
+      $('#ncmSearchModal').modal('hide');
+    });
+  });
+</script>

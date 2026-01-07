@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}{{ account.code }} - {{ account.name }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ account.code }} - {{ account.name }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('chart_of_accounts.chart_of_accounts_list') }}">Plano de Contas</a></li>
+                    <li class="breadcrumb-item active">{{ account.code }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('chart_of_accounts.chart_of_accounts_list') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- Informações da Conta -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações da Conta
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row">
+                        <dt class="col-sm-4">Código:</dt>
+                        <dd class="col-sm-8"><strong>{{ account.code }}</strong></dd>
+                        
+                        <dt class="col-sm-4">Nome:</dt>
+                        <dd class="col-sm-8"><strong>{{ account.name }}</strong></dd>
+                        
+                        <dt class="col-sm-4">Tipo:</dt>
+                        <dd class="col-sm-8">
+                            {% if account.type == 'asset' %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% elif account.type == 'liability' %}
+                                <span class="badge bg-danger">Passivo</span>
+                            {% elif account.type == 'equity' %}
+                                <span class="badge bg-info">Patrimônio Líquido</span>
+                            {% elif account.type == 'revenue' %}
+                                <span class="badge bg-primary">Receita</span>
+                            {% elif account.type == 'expense' %}
+                                <span class="badge bg-warning text-dark">Despesa</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Nível:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-secondary">Nível {{ account.level }}</span>
+                        </dd>
+                    </dl>
+                </div>
+                
+                <div class="col-md-6">
+                    <dl class="row">
+                        <dt class="col-sm-4">Analítica:</dt>
+                        <dd class="col-sm-8">
+                            {% if account.is_analytical %}
+                                <span class="badge bg-success">Sim</span>
+                                <small class="text-muted">(Aceita lançamentos)</small>
+                            {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                                <small class="text-muted">(Apenas agrupamento)</small>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if account.active %}
+                                <span class="badge bg-success">Ativa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativa</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Conta Pai:</dt>
+                        <dd class="col-sm-8">
+                            {% if account.parent_id %}
+                                {{ account.parent_code }} - {{ account.parent_name }}
+                            {% else %}
+                                <span class="text-muted">Conta raiz</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+            
+            {% if account.description %}
+            <hr>
+            <div class="row">
+                <div class="col-12">
+                    <strong>Descrição:</strong>
+                    <p class="mt-2">{{ account.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Sub-contas (Contas Filhas) -->
+    {% if children %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-sitemap me-1"></i>
+            Sub-contas ({{ children|length }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Nível</th>
+                            <th>Analítica</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for child in children %}
+                        <tr>
+                            <td><strong>{{ child.code }}</strong></td>
+                            <td>{{ child.name }}</td>
+                            <td>
+                                {% if child.type == 'asset' %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% elif child.type == 'liability' %}
+                                    <span class="badge bg-danger">Passivo</span>
+                                {% elif child.type == 'equity' %}
+                                    <span class="badge bg-info">PL</span>
+                                {% elif child.type == 'revenue' %}
+                                    <span class="badge bg-primary">Receita</span>
+                                {% elif child.type == 'expense' %}
+                                    <span class="badge bg-warning text-dark">Despesa</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-secondary">{{ child.level }}</span></td>
+                            <td>
+                                {% if child.is_analytical %}
+                                    <span class="badge bg-success">Sim</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Não</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if child.active %}
+                                    <span class="badge bg-success">Ativa</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inativa</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('chart_of_accounts.chart_of_accounts_view', account_id=child.id) }}" 
+                                   class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Movimentações (Contas a Pagar) -->
+    {% if payables %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-invoice-dollar me-1"></i>
+            Contas a Pagar Relacionadas ({{ payables|length }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fornecedor</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payable in payables %}
+                        <tr>
+                            <td>#{{ payable.id }}</td>
+                            <td>{{ payable.supplier_name }}</td>
+                            <td>{{ payable.description }}</td>
+                            <td>R$ {{ "{:,.2f}".format(payable.total_amount) }}</td>
+                            <td>
+                                {% if payable.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pendente</span>
+                                {% elif payable.status == 'paid' %}
+                                    <span class="badge bg-success">Paga</span>
+                                {% elif payable.status == 'overdue' %}
+                                    <span class="badge bg-danger">Vencida</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('accounts_payable.accounts_payable_view', payable_id=payable.id) }}" 
+                                   class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Movimentações (Contas a Receber) -->
+    {% if receivables %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-hand-holding-usd me-1"></i>
+            Contas a Receber Relacionadas ({{ receivables|length }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receivable in receivables %}
+                        <tr>
+                            <td>#{{ receivable.id }}</td>
+                            <td>{{ receivable.customer_name }}</td>
+                            <td>{{ receivable.description }}</td>
+                            <td>R$ {{ "{:,.2f}".format(receivable.total_amount) }}</td>
+                            <td>
+                                {% if receivable.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pendente</span>
+                                {% elif receivable.status == 'received' %}
+                                    <span class="badge bg-success">Recebida</span>
+                                {% elif receivable.status == 'overdue' %}
+                                    <span class="badge bg-danger">Vencida</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('accounts_receivable.accounts_receivable_view', receivable_id=receivable.id) }}" 
+                                   class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not children and not payables and not receivables %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Esta conta não possui sub-contas nem movimentações relacionadas.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

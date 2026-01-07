@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Abrir Caixa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-cash-register"></i> Abrir Caixa</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('cash_register.cash_register_list') }}">Controle de Caixa</a></li>
+                            <li class="breadcrumb-item active">Abrir Caixa</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('cash_register.cash_register_list') }}" class="btn btn-info btn-lg">
+                        <i class="fas fa-history"></i> Ver Histórico de Caixas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-door-open"></i> Abertura de Caixa</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Atenção:</strong> Você está abrindo um novo caixa. Informe o valor inicial (troco) disponível.
+                    </div>
+
+                    <form method="POST">
+                        <!-- NOVO: Seleção de PDV -->
+                        <div class="mb-3">
+                            <label class="form-label required-field">PDV / Ponto de Venda</label>
+                            <select name="pdv_id" class="form-select form-select-lg" required id="pdvSelect">
+                                {% if pdvs %}
+                                    {% for pdv in pdvs %}
+                                        {% if not pdv.tem_caixa_aberto %}
+                                        <option value="{{ pdv.id }}" 
+                                                data-empresa="{{ pdv.empresa_nome or 'Sem empresa' }}"
+                                                {% if loop.first %}selected{% endif %}>
+                                            PDV {{ pdv.pdv_number }} - {{ pdv.pdv_name }} ({{ pdv.empresa_nome or 'Sem empresa' }})
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if pdvs|selectattr('tem_caixa_aberto', 'equalto', 0)|list|length == 0 %}
+                                        <option value="" disabled selected>Nenhum PDV disponível</option>
+                                    {% endif %}
+                                {% else %}
+                                    <option value="1">PDV Padrão</option>
+                                {% endif %}
+                            </select>
+                            <small class="form-text text-muted">
+                                {% set pdvs_disponiveis = pdvs|selectattr('tem_caixa_aberto', 'equalto', 0)|list|length if pdvs else 0 %}
+                                {% if pdvs_disponiveis > 0 %}
+                                    Selecione um PDV disponível ({{ pdvs_disponiveis }} disponível{% if pdvs_disponiveis > 1 %}is{% endif %})
+                                {% else %}
+                                    ⚠️ Todos os PDVs já estão sendo usados por outros operadores
+                                {% endif %}
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label required-field">Nome do Caixa</label>
+                            <input type="text" name="register_number" class="form-control form-control-lg" 
+                                   value="Caixa 1" required>
+                            <small class="form-text text-muted">Ex: Caixa 1, Caixa Principal, PDV 01</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required-field">Valor Inicial (Troco)</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" name="opening_balance" class="form-control" 
+                                       step="0.01" min="0" value="100.00" required
+                                       id="openingBalance">
+                            </div>
+                            <small class="form-text text-muted">Dinheiro em espécie disponível para troco</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observações</label>
+                            <textarea name="opening_notes" class="form-control" rows="3" 
+                                      placeholder="Informações adicionais sobre a abertura..."></textarea>
+                        </div>
+
+                        <!-- Resumo -->
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h6><i class="fas fa-info"></i> Resumo da Abertura:</h6>
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <td><strong>PDV:</strong></td>
+                                        <td id="displayPdv">
+                                            {% if pdvs and pdvs|length > 0 %}
+                                                PDV {{ pdvs[0].pdv_number }} - {{ pdvs[0].pdv_name }}
+                                            {% else %}
+                                                PDV Padrão
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Empresa:</strong></td>
+                                        <td id="displayEmpresa" class="text-primary">
+                                            {% if pdvs and pdvs|length > 0 %}
+                                                {{ pdvs[0].empresa_nome or 'Sem empresa' }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Operador:</strong></td>
+                                        <td>{{ session.get('username', '') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Data/Hora:</strong></td>
+                                        <td id="currentDateTime"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Valor Inicial:</strong></td>
+                                        <td><strong class="text-success" id="displayBalance">R$ 100,00</strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check-circle"></i> Abrir Caixa
+                            </button>
+                            <a href="{{ url_for('cash_register.cash_register_list') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Atualizar data/hora em tempo real
+    function updateDateTime() {
+        const now = new Date();
+        const formatted = now.toLocaleString('pt-BR');
+        document.getElementById('currentDateTime').textContent = formatted;
+    }
+    
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+    
+    // Atualizar display do valor
+    document.getElementById('openingBalance').addEventListener('input', function(e) {
+        const value = parseFloat(e.target.value) || 0;
+        document.getElementById('displayBalance').textContent = 
+            'R$ ' + value.toFixed(2).replace('.', ',');
+    });
+    
+    // NOVO: Atualizar resumo ao trocar PDV
+    document.getElementById('pdvSelect').addEventListener('change', function(e) {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const pdvText = selectedOption.textContent;
+        const empresaText = selectedOption.getAttribute('data-empresa');
+        
+        document.getElementById('displayPdv').textContent = pdvText.split('(')[0].trim();
+        document.getElementById('displayEmpresa').textContent = empresaText;
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Insumos - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Insumos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Insumos</li>
+    </ol>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Lista de Insumos</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('insumo.insumo_cadastrar') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Novo Insumo
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Fornecedor</th>
+                    <th class="text-end">Estoque</th>
+                    <th class="text-end">Mínimo</th>
+                    <th class="text-end">Preço (R$)</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for insumo in insumos %}
+                <tr>
+                    <td>{{ insumo.id }}</td>
+                    <td>{{ insumo.name }}</td>
+                    <td>{{ insumo.description }}</td>
+                    <td>{{ insumo.supplier_name }}</td>
+                    <td class="text-end {% if insumo.stock < insumo.min_stock %}text-danger fw-bold{% endif %}">{{ insumo.stock }}</td>
+                    <td class="text-end">{{ insumo.min_stock }}</td>
+                    <td class="text-end">{{ "%.2f"|format(insumo.price) }}</td>
+                    <td>
+                        <a href="{{ url_for('insumo.insumo_visualizar', id=insumo.id) }}" class="btn btn-sm btn-info" title="Visualizar">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ url_for('insumo.insumo_editar', id=insumo.id) }}" class="btn btn-sm btn-warning" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('insumo.insumo_excluir', id=insumo.id) }}" class="btn btn-sm btn-danger" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este insumo?');">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center">Nenhum insumo cadastrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializa tooltips e popovers do Bootstrap
+        $('[data-bs-toggle="tooltip"]').tooltip();
+        $('[data-bs-toggle="popover"]').popover();
+    });
+</script>
+{% endblock %}

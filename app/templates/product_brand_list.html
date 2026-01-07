@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Marcas de Produtos - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Marcas de Produtos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('produto.produtos') }}">Produtos</a></li>
+        <li class="breadcrumb-item active">Marcas</li>
+    </ol>
+
+    <!-- Mensagens flash são exibidas no template base.html -->
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Lista de Marcas</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('product_brand.marca_cadastrar') }}" class="btn btn-sm btn-primary me-2">
+                <i class="fas fa-plus"></i> Nova Marca
+            </a>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#searchModal">
+                <i class="fas fa-search"></i> Buscar Marca
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Data de Criação</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for marca in marcas %}
+                <tr>
+                    <td>{{ marca.id }}</td>
+                    <td>{{ marca.name }}</td>
+                    <td>{{ marca.description }}</td>
+                    <td>{{ marca.created_at.strftime('%d/%m/%Y %H:%M') if marca.created_at else '' }}</td>
+                    <td>
+                        <a href="{{ url_for('product_brand.marca_visualizar', id=marca.id) }}" class="btn btn-sm btn-info" title="Visualizar">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ url_for('product_brand.marca_editar', id=marca.id) }}" class="btn btn-sm btn-warning" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('product_brand.marca_excluir', id=marca.id) }}" class="btn btn-sm btn-danger" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir esta marca?');">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">Nenhuma marca cadastrada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de Busca de Marca -->
+<div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="searchModalLabel">Buscar Marca</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="searchForm" action="{{ url_for('product_brand.marcas') }}" method="get">
+                    <div class="mb-3">
+                        <label for="search_term" class="form-label">Nome da Marca</label>
+                        <input type="text" class="form-control" id="search_term" name="search_term" placeholder="Digite o nome da marca..." value="{{ search_term }}">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="searchForm" class="btn btn-primary">Buscar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializa tooltips e popovers do Bootstrap
+        $('[data-bs-toggle="tooltip"]').tooltip();
+        $('[data-bs-toggle="popover"]').popover();
+    });
+</script>
+{% endblock %}

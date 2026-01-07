@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if etapa else 'Nova' }} Etapa{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-stream"></i> {{ 'Editar' if etapa else 'Nova' }} Etapa</h4>
+                    <a href="{{ url_for('ordem_producao.etapas_lista') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome</label>
+                                <input type="text" class="form-control" name="nome" value="{{ etapa.nome if etapa else '' }}" required maxlength="60">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Ordem</label>
+                                <input type="number" class="form-control" name="ordem" value="{{ etapa.ordem if etapa else 0 }}" required min="0">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Ativo</label>
+                                <select class="form-select" name="ativo">
+                                    <option value="1" {% if (etapa and etapa.ativo) or not etapa %}selected{% endif %}>Sim</option>
+                                    <option value="0" {% if etapa and not etapa.ativo %}selected{% endif %}>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <label class="form-label">Grupo de Etapas</label>
+                                    <a class="small" href="{{ url_for('ordem_producao.etapas_grupos_lista') }}">Gerenciar</a>
+                                </div>
+                                <select class="form-select" name="grupo_etapas_id">
+                                    <option value="" {% if not etapa or not etapa.grupo_etapas_id %}selected{% endif %}>(sem grupo)</option>
+                                    {% for g in (grupos_etapas or []) %}
+                                    <option value="{{ g.id }}" {% if etapa and etapa.grupo_etapas_id and (etapa.grupo_etapas_id|int == g.id) %}selected{% endif %}>{{ g.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label"><i class="fas fa-hard-hat text-warning me-1"></i>Operador Padrão</label>
+                                <select class="form-select" name="operador_padrao_id">
+                                    <option value="" {% if not etapa or not etapa.operador_padrao_id %}selected{% endif %}>(sem operador definido)</option>
+                                    {% for op in (operadores or []) %}
+                                    <option value="{{ op.id }}" {% if etapa and etapa.operador_padrao_id and (etapa.operador_padrao_id|int == op.id) %}selected{% endif %}>{{ op.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Operador responsável por esta etapa (aparece no Gantt do operador)</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Cor (hex)</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="cor_hex_picker" value="{{ etapa.cor_hex if etapa and etapa.cor_hex else '#0d6efd' }}" title="Escolher cor">
+                                    <input type="text" class="form-control" id="cor_hex" name="cor_hex" value="{{ etapa.cor_hex if etapa else '' }}" maxlength="15" placeholder="#0d6efd">
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Ícone (FontAwesome)</label>
+                                <select class="form-select" id="icone_select">
+                                    <option value="" {% if not etapa or not etapa.icone %}selected{% endif %}>(sem ícone)</option>
+                                    <option value="fas fa-hourglass-start" {% if etapa and etapa.icone=='fas fa-hourglass-start' %}selected{% endif %}>Ampulheta</option>
+                                    <option value="fas fa-tools" {% if etapa and etapa.icone=='fas fa-tools' %}selected{% endif %}>Ferramentas</option>
+                                    <option value="fas fa-cogs" {% if etapa and etapa.icone=='fas fa-cogs' %}selected{% endif %}>Engrenagens</option>
+                                    <option value="fas fa-hammer" {% if etapa and etapa.icone=='fas fa-hammer' %}selected{% endif %}>Martelo</option>
+                                    <option value="fas fa-industry" {% if etapa and etapa.icone=='fas fa-industry' %}selected{% endif %}>Indústria</option>
+                                    <option value="fas fa-clipboard-check" {% if etapa and etapa.icone=='fas fa-clipboard-check' %}selected{% endif %}>Checklist</option>
+                                    <option value="fas fa-box" {% if etapa and etapa.icone=='fas fa-box' %}selected{% endif %}>Caixa</option>
+                                    <option value="fas fa-truck" {% if etapa and etapa.icone=='fas fa-truck' %}selected{% endif %}>Entrega</option>
+                                    <option value="fas fa-check-circle" {% if etapa and etapa.icone=='fas fa-check-circle' %}selected{% endif %}>Concluído</option>
+                                </select>
+                                <div class="d-flex align-items-center mt-2">
+                                    <i id="icone_preview" class="me-2"></i>
+                                    <input type="text" class="form-control" id="icone" name="icone" value="{{ etapa.icone if etapa else '' }}" maxlength="60" placeholder="fas fa-cogs">
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Descrição</label>
+                                <textarea class="form-control" name="descricao" rows="3">{{ etapa.descricao if etapa and etapa.descricao else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                        <a class="btn btn-secondary" href="{{ url_for('ordem_producao.etapas_lista') }}">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const picker = document.getElementById('cor_hex_picker');
+    const input = document.getElementById('cor_hex');
+    const select = document.getElementById('icone_select');
+    const iconInput = document.getElementById('icone');
+    const preview = document.getElementById('icone_preview');
+
+    if (picker && input) {
+        if (!input.value) {
+            input.value = picker.value;
+        } else {
+            picker.value = input.value;
+        }
+
+        picker.addEventListener('input', function() {
+            input.value = this.value;
+        });
+
+        input.addEventListener('input', function() {
+            const v = (this.value || '').trim();
+            if (v && v.startsWith('#') && (v.length === 4 || v.length === 7)) {
+                picker.value = v;
+            }
+        });
+    }
+
+    function updateIconPreview(cls) {
+        if (!preview) return;
+        preview.className = '';
+        if (cls) {
+            preview.className = cls + ' me-2';
+        }
+    }
+
+    if (select && iconInput) {
+        if (iconInput.value) {
+            select.value = iconInput.value;
+        }
+        updateIconPreview(iconInput.value);
+
+        select.addEventListener('change', function() {
+            iconInput.value = this.value;
+            updateIconPreview(this.value);
+        });
+
+        iconInput.addEventListener('input', function() {
+            updateIconPreview(this.value);
+        });
+    }
+});
+</script>
+{% endblock %}

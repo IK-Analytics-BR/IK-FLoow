@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Caixa #{{ register.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-file-invoice-dollar"></i> Relatório de Caixa #{{ register.id }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cash_register.cash_register_list') }}">Controle de Caixa</a></li>
+                    <li class="breadcrumb-item active">Caixa #{{ register.id }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Informações do Caixa -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Informações do Caixa</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>Número:</strong></td>
+                            <td>{{ register.register_number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Operador:</strong></td>
+                            <td>{{ register.cashier_name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PDV:</strong></td>
+                            <td>
+                                {% if register.pdv_name %}
+                                    <i class="fas fa-desktop text-primary"></i> {{ register.pdv_name }} (#{{ register.pdv_number }})
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Empresa:</strong></td>
+                            <td>
+                                {% if register.empresa_nome %}
+                                    <i class="fas fa-building text-info"></i> {{ register.empresa_nome }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Abertura:</strong></td>
+                            <td>{{ register.opened_at.strftime('%d/%m/%Y às %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fechamento:</strong></td>
+                            <td>
+                                {% if register.closed_at %}
+                                    {{ register.closed_at.strftime('%d/%m/%Y às %H:%M') }}
+                                {% else %}
+                                    <span class="badge badge-success">🟢 Ainda aberto</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td>
+                                {% if register.status == 'open' %}
+                                    <span class="badge badge-success">🟢 Aberto</span>
+                                {% elif register.status == 'closed' %}
+                                    <span class="badge badge-danger">🔴 Fechado</span>
+                                {% else %}
+                                    <span class="badge badge-warning">⚠️ {{ register.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+
+                    {% if register.opening_notes %}
+                    <div class="alert alert-info">
+                        <strong>Observações de Abertura:</strong><br>
+                        {{ register.opening_notes }}
+                    </div>
+                    {% endif %}
+
+                    {% if register.closing_notes %}
+                    <div class="alert alert-warning">
+                        <strong>Observações de Fechamento:</strong><br>
+                        {{ register.closing_notes }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave"></i> Resumo Financeiro</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <td><strong>💵 Abertura:</strong></td>
+                            <td class="text-end">R$ {{ "%.2f"|format(register.opening_balance)|replace('.', ',') }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>📊 Vendas (Esperado):</strong></td>
+                            <td class="text-end">R$ {{ "%.2f"|format(register.expected_sales or 0)|replace('.', ',') }}</td>
+                        </tr>
+                        <tr class="table-active">
+                            <td><strong>✅ Total Esperado:</strong></td>
+                            <td class="text-end"><strong>R$ {{ "%.2f"|format(register.expected_total or 0)|replace('.', ',') }}</strong></td>
+                        </tr>
+                        {% if register.status == 'closed' %}
+                        <tr>
+                            <td colspan="2"><hr></td>
+                        </tr>
+                        <tr>
+                            <td><strong>💰 Contado (Real):</strong></td>
+                            <td class="text-end">R$ {{ "%.2f"|format(register.actual_total or 0)|replace('.', ',') }}</td>
+                        </tr>
+                        <tr class="{% if register.difference_total > 0.01 %}table-success{% elif register.difference_total < -0.01 %}table-danger{% else %}table-info{% endif %}">
+                            <td><strong>⚖️ Diferença:</strong></td>
+                            <td class="text-end">
+                                <strong>
+                                    {% if register.difference_total > 0.01 %}
+                                        💰 +R$ {{ "%.2f"|format(register.difference_total)|replace('.', ',') }}
+                                    {% elif register.difference_total < -0.01 %}
+                                        ⚠️ -R$ {{ "%.2f"|format(register.difference_total|abs)|replace('.', ',') }}
+                                    {% else %}
+                                        ✅ Conferido
+                                    {% endif %}
+                                </strong>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Totais por Forma de Pagamento -->
+    {% if payment_totals %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> Totais por Forma de Pagamento</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for pt in payment_totals %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>{{ pt.payment_name }}</h6>
+                                    <h4 class="mb-0">R$ {{ "%.2f"|format(pt.total)|replace('.', ',') }}</h4>
+                                    <small class="text-muted">{{ pt.quantity }} venda(s)</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Vendas Detalhadas -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Vendas Realizadas</h5>
+                </div>
+                <div class="card-body">
+                    {% if sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Data/Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Forma Pagamento</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td><strong>{{ sale.id }}</strong></td>
+                                    <td>{{ sale.sale_date }}</td>
+                                    <td>{{ sale.customer_name or 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge badge-info">{{ sale.payment_method_name or sale.payment_method }}</span>
+                                    </td>
+                                    <td><strong>R$ {{ "%.2f"|format(sale.net_total)|replace('.', ',') }}</strong></td>
+                                    <td>
+                                        {% if sale.status == 'confirmed' %}
+                                            <span class="badge badge-success">✅</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">{{ sale.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i> Nenhuma venda registrada neste caixa.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botões -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('cash_register.cash_register_list') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            
+            {% if register.status == 'open' %}
+            <!-- Botões para Caixa Aberto -->
+            <a href="{{ url_for('cash_register.cash_register_withdrawal', register_id=register.id) }}" class="btn btn-warning">
+                <i class="fas fa-minus-circle"></i> Sangria
+            </a>
+            <a href="{{ url_for('cash_register.cash_register_supply', register_id=register.id) }}" class="btn btn-info">
+                <i class="fas fa-plus-circle"></i> Suprimento
+            </a>
+            <a href="{{ url_for('cash_register.cash_register_close', register_id=register.id) }}" class="btn btn-danger btn-lg">
+                <i class="fas fa-lock"></i> Fechar Caixa
+            </a>
+            {% endif %}
+            
+            <button onclick="window.print()" class="btn btn-secondary">
+                <i class="fas fa-print"></i> Imprimir Página
+            </button>
+            
+            <a href="{{ url_for('cash_register.imprimir_relatorio_caixa', register_id=register.id) }}" 
+               class="btn btn-primary" target="_blank">
+                <i class="fas fa-file-pdf"></i> Imprimir PDF
+            </a>
+            
+            <div class="btn-group">
+                <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown">
+                    <i class="fas fa-print"></i> Formato
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{{ url_for('cash_register.imprimir_relatorio_caixa', register_id=register.id, formato='80mm') }}" target="_blank">
+                        <i class="fas fa-receipt"></i> Cupom 80mm
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('cash_register.imprimir_relatorio_caixa', register_id=register.id, formato='58mm') }}" target="_blank">
+                        <i class="fas fa-receipt"></i> Cupom 58mm
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('cash_register.imprimir_relatorio_caixa', register_id=register.id, formato='A4') }}" target="_blank">
+                        <i class="fas fa-file-alt"></i> Folha A4
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .breadcrumb, .btn, .card-header { display: none !important; }
+    }
+</style>
+
+<script>
+// Verificar se deve abrir impressão automaticamente
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const imprimir = urlParams.get('imprimir');
+    const formato = urlParams.get('formato') || '80mm';
+    
+    if (imprimir === '1') {
+        // Abrir PDF em nova aba
+        const pdfUrl = "{{ url_for('cash_register.imprimir_relatorio_caixa', register_id=register.id) }}?formato=" + formato;
+        window.open(pdfUrl, '_blank');
+        
+        // Remover parâmetros da URL para não abrir novamente ao atualizar
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+});
+</script>
+{% endblock %}

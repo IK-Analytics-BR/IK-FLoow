@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Estatísticas -->
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-primary text-white">
+            <div class="card-body text-center">
+                <div class="dashboard-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h5 class="card-title">Clientes</h5>
+                <h2 class="card-text">{{ stats.clientes }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-success text-white">
+            <div class="card-body text-center">
+                <div class="dashboard-icon">
+                    <i class="fas fa-box"></i>
+                </div>
+                <h5 class="card-title">Produtos</h5>
+                <h2 class="card-text">{{ stats.produtos }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-warning text-white">
+            <div class="card-body text-center">
+                <div class="dashboard-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <h5 class="card-title">Insumos</h5>
+                <h2 class="card-text">{{ stats.insumos }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-info text-white">
+            <div class="card-body text-center">
+                <div class="dashboard-icon">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <h5 class="card-title">Equipamentos</h5>
+                <h2 class="card-text">{{ stats.equipamentos }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Insumos com estoque baixo -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Insumos com Estoque Baixo</h5>
+            </div>
+            <div class="card-body">
+                {% if insumos_baixo_estoque %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nome</th>
+                                <th>Estoque Atual</th>
+                                <th>Estoque Mínimo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for insumo in insumos_baixo_estoque %}
+                            <tr>
+                                <td>{{ insumo.codigo }}</td>
+                                <td>{{ insumo.nome }}</td>
+                                <td>{{ insumo.estoque_atual }}</td>
+                                <td>{{ insumo.estoque_minimo }}</td>
+                                <td>
+                                    <a href="{{ url_for('supplies.visualizar', id=insumo.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center">Não há insumos com estoque baixo.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipamentos que precisam de manutenção -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-wrench"></i> Equipamentos para Manutenção</h5>
+            </div>
+            <div class="card-body">
+                {% if equipamentos_manutencao %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nº Série</th>
+                                <th>Cliente</th>
+                                <th>Produto</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for equipamento in equipamentos_manutencao %}
+                            <tr>
+                                <td>{{ equipamento.numero_serie }}</td>
+                                <td>{{ equipamento.cliente.nome }}</td>
+                                <td>{{ equipamento.tipo_produto.nome }}</td>
+                                <td>
+                                    <a href="{{ url_for('equipment.visualizar', id=equipamento.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center">Não há equipamentos que precisam de manutenção.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-2">
+    <!-- Links rápidos -->
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-link"></i> Acesso Rápido</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('customers.novo') }}" class="btn btn-outline-primary btn-lg w-100">
+                            <i class="fas fa-user-plus"></i> Novo Cliente
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('products.novo') }}" class="btn btn-outline-success btn-lg w-100">
+                            <i class="fas fa-box-open"></i> Novo Produto
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('supplies.novo') }}" class="btn btn-outline-warning btn-lg w-100">
+                            <i class="fas fa-cog"></i> Novo Insumo
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('equipment.novo') }}" class="btn btn-outline-info btn-lg w-100">
+                            <i class="fas fa-tools"></i> Novo Equipamento
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Rota de Vendas' if not route_id else 'Editar Rota de Vendas' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Nova Rota de Vendas' if not route_id else 'Editar Rota de Vendas' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('rota_vendas.rotas_vendas_list') }}">Rotas de Vendas</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Rota' if not route_id else 'Editar Rota' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-route me-1"></i>
+            {{ 'Nova Rota de Vendas' if not route_id else 'Editar Rota de Vendas' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('rota_vendas.rota_vendas_cadastrar') if not route_id else url_for('rota_vendas.rota_vendas_editar', route_id=route_id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Nome da Rota <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ rota.name if rota else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="seller_id" class="form-label">Vendedor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="seller_id" name="seller_id" required>
+                            <option value="">Selecione um vendedor</option>
+                            {% for vendedor in vendedores %}
+                            <option value="{{ vendedor.id }}" {% if rota and rota.seller_id == vendedor.id %}selected{% endif %}>
+                                {{ vendedor.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="frequency" class="form-label">Frequência <span class="text-danger">*</span></label>
+                        <select class="form-select" id="frequency" name="frequency" required>
+                            <option value="">Selecione a frequência</option>
+                            <option value="daily" {% if rota and rota.frequency == 'daily' %}selected{% endif %}>Diária</option>
+                            <option value="weekly" {% if rota and rota.frequency == 'weekly' %}selected{% endif %}>Semanal</option>
+                            <option value="monthly" {% if rota and rota.frequency == 'monthly' %}selected{% endif %}>Mensal</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        {% if route_id %}
+                        <label class="form-label">Código da Rota</label>
+                        <input type="text" class="form-control" value="{{ rota.code }}" readonly>
+                        <div class="form-text">O código da rota é gerado automaticamente e não pode ser alterado.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label for="clientes" class="form-label">Clientes da Rota <span class="text-danger">*</span></label>
+                        <select class="form-select" id="clientes" name="clientes" multiple data-placeholder="Selecione os clientes" required>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" {% if clientes_ids and cliente.id in clientes_ids %}selected{% endif %}>
+                                {{ cliente.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Selecione os clientes que fazem parte desta rota. A ordem de seleção define a ordem de visita.</div>
+                        <input type="hidden" id="clientes_order" name="clientes_order" value="">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Ordem de Visita
+                            </div>
+                            <div class="card-body">
+                                <div id="clientesOrdem" class="list-group">
+                                    <!-- A ordem dos clientes será exibida aqui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('rota_vendas.rotas_vendas_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Inicializar Select2 para múltipla seleção
+        $('#clientes').select2({
+            placeholder: "Selecione os clientes",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Utilitários para obter e sincronizar a ordem
+        function getHiddenOrder() {
+            var val = ($('#clientes_order').val() || '').trim();
+            if (!val) return [];
+            return val.split(',').filter(Boolean);
+        }
+
+        function setHiddenOrder(ids) {
+            $('#clientes_order').val((ids || []).join(','));
+        }
+
+        function getSelectedIds() {
+            // IDs atualmente selecionados no select (ordem de DOM)
+            return $('#clientes').val() || [];
+        }
+
+        // Função para atualizar a lista de ordem de visita com base na ordem atual
+        function updateVisitOrder() {
+            var clientesOrdem = $('#clientesOrdem');
+            clientesOrdem.empty();
+            
+            // Ordem atual: priorizar a ordem armazenada no hidden; sincronizar com a seleção atual
+            var currentOrder = getHiddenOrder();
+            var selectedIds = getSelectedIds();
+
+            // Filtrar a ordem atual para manter apenas IDs selecionados
+            var filteredOrder = currentOrder.filter(function(id){ return selectedIds.includes(String(id)); });
+            // Adicionar ao final IDs selecionados que ainda não estejam na ordem
+            selectedIds.forEach(function(id){ if (!filteredOrder.includes(String(id))) { filteredOrder.push(String(id)); } });
+            // Atualizar hidden com a ordem efetiva
+            setHiddenOrder(filteredOrder);
+            
+            if (filteredOrder.length === 0) {
+                clientesOrdem.append('<div class="alert alert-info">Nenhum cliente selecionado.</div>');
+                return;
+            }
+            
+            // Adicionar cada cliente à lista de ordem usando o texto da option correspondente
+            filteredOrder.forEach(function(id, index) {
+                var text = $('#clientes option[value="' + id + '"]').text();
+                var item = $('<div class="list-group-item d-flex justify-content-between align-items-center" data-id="' + id + '">' +
+                             '<span><i class="fas fa-grip-lines me-2"></i>' + (index + 1) + '. ' + text + '</span>' +
+                             '</div>');
+                clientesOrdem.append(item);
+            });
+            
+            // Tornar a lista ordenável
+            var sortable = new Sortable(clientesOrdem[0], {
+                animation: 150,
+                forceFallback: true,
+                ghostClass: 'bg-light',
+                onEnd: function() {
+                    // Reordenar os clientes no select
+                    var newOrder = [];
+                    $('#clientesOrdem .list-group-item').each(function() {
+                        newOrder.push($(this).data('id'));
+                    });
+                    
+                    // Atualizar hidden; não dispare 'change' para não perder a ordem
+                    setHiddenOrder(newOrder);
+                    
+                    // Atualizar a numeração
+                    $('#clientesOrdem .list-group-item').each(function(index) {
+                        var text = $(this).find('span').text();
+                        text = text.replace(/^\d+\./, (index + 1) + '.');
+                        $(this).find('span').text(text);
+                    });
+                }
+            });
+            // Já sincronizado acima por setHiddenOrder(filteredOrder)
+        }
+        
+        // Atualizar a ordem quando a seleção de clientes mudar
+        $('#clientes').on('change', function() {
+            // Ao mudar seleção, recalcular ordem mantendo a ordem anterior quando possível
+            updateVisitOrder();
+        });
+        
+        // Inicializar a ordem de visita
+        updateVisitOrder();
+
+        // Antes de submeter, garantir que o campo oculto esteja sincronizado
+        $('form').on('submit', function() {
+            // Garantir que a ordem enviada esteja no hidden
+            var order = [];
+            $('#clientesOrdem .list-group-item').each(function() {
+                order.push($(this).data('id'));
+            });
+            setHiddenOrder(order);
+        });
+        
+        // Filtrar clientes por vendedor
+        $('#seller_id').on('change', function() {
+            var sellerId = $(this).val();
+            
+            if (sellerId) {
+                // Fazer uma requisição AJAX para buscar os clientes do vendedor
+                $.ajax({
+                    url: '/api/vendedor/' + sellerId + '/clientes',
+                    type: 'GET',
+                    success: function(data) {
+                        var select = $('#clientes');
+                        select.empty();
+                        
+                        // Adicionar os clientes do vendedor
+                        $.each(data, function(index, cliente) {
+                            select.append(new Option(cliente.name, cliente.id, false, false));
+                        });
+                        
+                        select.trigger('change');
+                    },
+                    error: function() {
+                        console.error('Erro ao buscar clientes do vendedor');
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

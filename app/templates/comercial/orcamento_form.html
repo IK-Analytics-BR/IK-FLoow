@@ -1,0 +1,896 @@
+{% extends "base.html" %}
+
+{% block title %}{% if modo == 'editar' %}Editar{% else %}Novo{% endif %} Orçamento{% endblock %}
+
+{% block styles %}
+<style>
+    .produto-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+    .produto-item:hover {
+        background: #e9ecef;
+    }
+    .btn-remove-item {
+        opacity: 0.6;
+    }
+    .btn-remove-item:hover {
+        opacity: 1;
+    }
+    #tabela-itens th {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    #tabela-itens td {
+        vertical-align: middle;
+    }
+    .autocomplete-results {
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1050;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .autocomplete-results .item {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+    .autocomplete-results .item:hover {
+        background: #f0f7ff;
+    }
+    .autocomplete-results .item:last-child {
+        border-bottom: none;
+    }
+    .totais-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-file-invoice-dollar text-primary me-2"></i>
+                {% if modo == 'editar' %}
+                    Editar Orçamento {{ orcamento.numero }}
+                {% else %}
+                    Novo Orçamento
+                {% endif %}
+            </h1>
+        </div>
+        <div class="d-flex gap-2">
+            {% if modo == 'editar' and orcamento %}
+                {% if orcamento.status == 'rascunho' %}
+                    <form action="{{ url_for('orcamentos.enviar', id=orcamento.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar ao Cliente
+                        </button>
+                    </form>
+                {% elif orcamento.status == 'enviado' %}
+                    <a href="{{ url_for('orcamentos.pre_aprovar', id=orcamento.id) }}" class="btn btn-success">
+                        <i class="fas fa-check me-2"></i>Aprovar
+                    </a>
+                    <form action="{{ url_for('orcamentos.reprovar', id=orcamento.id) }}" method="POST" class="d-inline"
+                          onsubmit="return confirm('Deseja reprovar este orçamento?')">
+                        <input type="hidden" name="motivo" value="">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-times me-2"></i>Reprovar
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if orcamento.status in ['rascunho', 'enviado'] %}
+                    <form action="{{ url_for('orcamentos.cancelar', id=orcamento.id) }}" method="POST" class="d-inline"
+                          onsubmit="return confirm('Deseja realmente cancelar este orçamento?')">
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-ban me-2"></i>Cancelar
+                        </button>
+                    </form>
+                {% endif %}
+            {% endif %}
+            <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+    </div>
+
+    <form id="form-orcamento" method="POST" action="{{ url_for('orcamentos.salvar') }}">
+        <input type="hidden" name="orcamento_id" value="{{ orcamento.id if orcamento else '' }}">
+        <input type="hidden" name="itens" id="input-itens" value="[]">
+        <input type="hidden" name="acao" id="input-acao" value="salvar">
+
+        <div class="row">
+            <!-- Coluna Principal -->
+            <div class="col-lg-8">
+                <!-- Dados do Cliente -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-8 position-relative">
+                                <label class="form-label">Cliente <span class="text-danger">*</span></label>
+                                <input type="text" id="busca-cliente" class="form-control" 
+                                       placeholder="Digite para buscar cliente..."
+                                       value="{{ cliente.name if cliente else '' }}" autocomplete="off">
+                                <input type="hidden" name="cliente_id" id="cliente_id" 
+                                       value="{{ orcamento.cliente_id if orcamento else (cliente.id if cliente else '') }}" required>
+                                <div id="resultado-clientes" class="autocomplete-results" style="display:none;"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Documento</label>
+                                <input type="text" id="cliente-documento" class="form-control" readonly
+                                       value="{{ cliente.document if cliente else '' }}">
+                            </div>
+                        </div>
+                        <div id="info-cliente" class="mt-3 p-3 bg-light rounded" {% if not cliente %}style="display:none;"{% endif %}>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted">Telefone:</small>
+                                    <div id="cliente-telefone">{{ cliente.phone if cliente else '' }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">Email:</small>
+                                    <div id="cliente-email">{{ cliente.email if cliente else '' }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">Cidade:</small>
+                                    <div id="cliente-cidade">{{ cliente.city if cliente else '' }} {{ '/' + cliente.state if cliente and cliente.state else '' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Itens do Orçamento -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-boxes me-2 text-primary"></i>Itens do Orçamento</h5>
+                        <span class="badge bg-primary" id="badge-qtd-itens">0 itens</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Busca de Produto -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6 position-relative">
+                                <label class="form-label">Adicionar Produto</label>
+                                <input type="text" id="busca-produto" class="form-control" 
+                                       placeholder="Digite código ou nome do produto..." autocomplete="off">
+                                <div id="resultado-produtos" class="autocomplete-results" style="display:none;"></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Quantidade</label>
+                                <input type="number" id="add-quantidade" class="form-control" value="1" min="0.01" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Preço Unit.</label>
+                                <input type="text" id="add-preco" class="form-control" placeholder="0,00">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" id="btn-adicionar-item" class="btn btn-success w-100" disabled>
+                                    <i class="fas fa-plus me-1"></i>Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Campos específicos para correias (oculto inicialmente) -->
+                        <div id="campos-correia" class="row g-3 mb-4 p-3 bg-light rounded" style="display:none;">
+                            <div class="col-12">
+                                <small class="text-muted fw-bold"><i class="fas fa-ruler me-1"></i>Dimensões da Correia</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Largura (mm)</label>
+                                <input type="number" id="add-largura" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Comprimento (m)</label>
+                                <input type="number" id="add-comprimento" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Espessura (mm)</label>
+                                <input type="number" id="add-espessura" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo</label>
+                                <select id="add-tipo-correia" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    <option value="Transportadora">Transportadora</option>
+                                    <option value="Elevador">Elevador</option>
+                                    <option value="Modular">Modular</option>
+                                    <option value="Sincronizadora">Sincronizadora</option>
+                                    <option value="Outro">Outro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Material</label>
+                                <select id="add-material" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    <option value="Borracha">Borracha</option>
+                                    <option value="PVC">PVC</option>
+                                    <option value="PU">Poliuretano (PU)</option>
+                                    <option value="Silicone">Silicone</option>
+                                    <option value="Lona">Lona</option>
+                                    <option value="Outro">Outro</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tabela de Itens -->
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="tabela-itens">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="40">#</th>
+                                        <th>Produto</th>
+                                        <th width="100" class="text-center">Qtd</th>
+                                        <th width="120" class="text-end">Preço Unit.</th>
+                                        <th width="80" class="text-center">Desc %</th>
+                                        <th width="120" class="text-end">Subtotal</th>
+                                        <th width="60"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-itens">
+                                    <tr id="row-vazio">
+                                        <td colspan="7" class="text-center py-5 text-muted">
+                                            <i class="fas fa-box-open fa-2x mb-2 d-block opacity-50"></i>
+                                            Nenhum item adicionado. Use a busca acima para adicionar produtos.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observações -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-comment me-2 text-primary"></i>Observações</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Observações para o Cliente</label>
+                                <textarea name="observacoes" class="form-control" rows="3"
+                                          placeholder="Estas observações aparecerão no PDF do orçamento...">{{ orcamento.observacoes if orcamento else '' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Observações Internas</label>
+                                <textarea name="observacoes_internas" class="form-control" rows="3"
+                                          placeholder="Observações internas (não aparecem no PDF)...">{{ orcamento.observacoes_internas if orcamento else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Lateral -->
+            <div class="col-lg-4">
+                <!-- Dados do Orçamento -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-cog me-2 text-primary"></i>Configurações</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Empresa <span class="text-danger">*</span></label>
+                            <select name="empresa_id" class="form-select" required>
+                                {% for e in empresas %}
+                                <option value="{{ e.id }}" 
+                                    {% if (orcamento and orcamento.empresa_id == e.id) or (not orcamento and empresa_padrao == e.id) %}selected{% endif %}>
+                                    {{ e.nome_fantasia or e.razao_social }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vendedor <span class="text-danger">*</span></label>
+                            <select name="vendedor_id" class="form-select" required>
+                                {% for v in vendedores %}
+                                <option value="{{ v.id }}"
+                                    {% if (orcamento and orcamento.vendedor_id == v.id) or (not orcamento and vendedor_padrao == v.id) %}selected{% endif %}>
+                                    {{ v.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Validade <span class="text-danger">*</span></label>
+                            <input type="date" name="data_validade" class="form-control" required
+                                   value="{{ orcamento.data_validade.strftime('%Y-%m-%d') if orcamento and orcamento.data_validade else data_validade_padrao }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Prazo de Entrega (dias)</label>
+                            <input type="number" name="prazo_entrega" class="form-control" min="1"
+                                   value="{{ orcamento.prazo_entrega if orcamento else '30' }}"
+                                   placeholder="Ex: 30">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Condição de Pagamento</label>
+                            <input type="text" name="condicao_pagamento" class="form-control"
+                                   value="{{ orcamento.condicao_pagamento if orcamento else '' }}"
+                                   placeholder="Ex: 30/60/90 dias">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Frete -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-truck me-2 text-primary"></i>Frete</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Frete por Conta</label>
+                            <select name="frete_por_conta" class="form-select">
+                                <option value="emitente" {% if orcamento and orcamento.frete_por_conta == 'emitente' %}selected{% endif %}>Emitente (CIF)</option>
+                                <option value="destinatario" {% if orcamento and orcamento.frete_por_conta == 'destinatario' %}selected{% endif %}>Destinatário (FOB)</option>
+                                <option value="terceiros" {% if orcamento and orcamento.frete_por_conta == 'terceiros' %}selected{% endif %}>Terceiros</option>
+                                <option value="sem_frete" {% if orcamento and orcamento.frete_por_conta == 'sem_frete' %}selected{% endif %}>Sem Frete</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Transportadora</label>
+                            <select name="transportadora_id" class="form-select">
+                                <option value="">Nenhuma</option>
+                                {% for t in transportadoras %}
+                                <option value="{{ t.id }}" {% if orcamento and orcamento.transportadora_id == t.id %}selected{% endif %}>
+                                    {{ t.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">Valor do Frete</label>
+                            <input type="text" name="valor_frete" id="valor-frete" class="form-control money-input"
+                                   value="{{ '{:,.2f}'.format(orcamento.valor_frete).replace(',', 'X').replace('.', ',').replace('X', '.') if orcamento and orcamento.valor_frete else '0,00' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Totais -->
+                <div class="totais-box mb-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal Produtos:</span>
+                        <span id="total-produtos">R$ 0,00</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Desconto:</span>
+                        <div class="d-flex align-items-center">
+                            <input type="number" name="percentual_desconto" id="percentual-desconto" 
+                                   class="form-control form-control-sm bg-white text-dark" 
+                                   style="width: 60px;" min="0" max="100" step="0.01"
+                                   value="{{ orcamento.percentual_desconto if orcamento else 0 }}">
+                            <span class="ms-1">%</span>
+                            <span class="ms-2" id="valor-desconto">- R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Frete:</span>
+                        <span id="total-frete">R$ 0,00</span>
+                    </div>
+                    <hr class="border-light">
+                    <div class="d-flex justify-content-between">
+                        <span class="h5 mb-0">TOTAL:</span>
+                        <span class="h4 mb-0 fw-bold" id="total-geral">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="salvarOrcamento('salvar')">
+                        <i class="fas fa-save me-2"></i>Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" onclick="salvarOrcamento('enviar')">
+                        <i class="fas fa-paper-plane me-2"></i>Salvar e Enviar
+                    </button>
+                    <a href="{{ url_for('orcamentos.lista') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Produto selecionado (temporário) -->
+<input type="hidden" id="produto-selecionado-id">
+<input type="hidden" id="produto-selecionado-nome">
+<input type="hidden" id="produto-selecionado-codigo">
+
+{% if itens %}
+<script type="application/json" id="itens-orcamento-json">{{ itens|tojson }}</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Lista de itens do orçamento
+let itensOrcamento = [];
+let produtoSelecionado = null;
+
+// Carregar itens existentes (edição)
+try {
+    const itensJsonEl = document.getElementById('itens-orcamento-json');
+    if (itensJsonEl) {
+        const itensRaw = JSON.parse(itensJsonEl.textContent || '[]');
+        // Normalizar para o formato esperado pelo JS do formulário
+        itensOrcamento = (itensRaw || []).map(item => ({
+            produto_id: item.produto_id,
+            produto_codigo: item.produto_codigo || '',
+            produto_nome: item.produto_nome || '',
+            quantidade: Number(item.quantidade || 0),
+            unidade: item.unidade || 'UN',
+            preco_tabela: Number(item.preco_tabela || item.preco_unitario || 0),
+            preco_unitario: Number(item.preco_unitario || 0),
+            percentual_desconto: Number(item.percentual_desconto || 0),
+            valor_desconto: Number(item.valor_desconto || 0),
+            valor_total: Number(item.valor_total || 0),
+            largura: item.largura === null ? null : item.largura,
+            comprimento: item.comprimento === null ? null : item.comprimento,
+            espessura: item.espessura === null ? null : item.espessura,
+            tipo_correia: item.tipo_correia || '',
+            material: item.material || '',
+            observacao: item.observacao || ''
+        }));
+    }
+} catch (e) {
+    console.error('Erro ao carregar itens do orçamento:', e);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderizarItens();
+    calcularTotais();
+    
+    // Busca de cliente
+    const buscaCliente = document.getElementById('busca-cliente');
+    const resultadoClientes = document.getElementById('resultado-clientes');
+    
+    buscaCliente.addEventListener('input', debounce(function() {
+        const termo = this.value;
+        if (termo.length < 2) {
+            resultadoClientes.style.display = 'none';
+            return;
+        }
+        
+        fetch(`{{ url_for('orcamentos.api_buscar_clientes') }}?q=${encodeURIComponent(termo)}`)
+            .then(r => r.json())
+            .then(clientes => {
+                if (clientes.length === 0) {
+                    resultadoClientes.innerHTML = '<div class="item text-muted">Nenhum cliente encontrado</div>';
+                } else {
+                    resultadoClientes.innerHTML = clientes.map(c => `
+                        <div class="item" onclick="selecionarCliente(${c.id}, '${escapeHtml(c.nome)}', '${c.documento || ''}', '${c.telefone || ''}', '${c.email || ''}', '${c.cidade || ''} ${c.estado ? '/' + c.estado : ''}')">
+                            <strong>${escapeHtml(c.nome)}</strong>
+                            <br><small class="text-muted">${c.documento || ''} - ${c.cidade || ''}</small>
+                        </div>
+                    `).join('');
+                }
+                resultadoClientes.style.display = 'block';
+            });
+    }, 300));
+    
+    // Busca de produto
+    const buscaProduto = document.getElementById('busca-produto');
+    const resultadoProdutos = document.getElementById('resultado-produtos');
+    
+    buscaProduto.addEventListener('input', debounce(function() {
+        const termo = this.value;
+        if (termo.length < 2) {
+            resultadoProdutos.style.display = 'none';
+            return;
+        }
+        
+        fetch(`{{ url_for('orcamentos.api_buscar_produtos') }}?q=${encodeURIComponent(termo)}`)
+            .then(r => r.json())
+            .then(produtos => {
+                if (produtos.length === 0) {
+                    resultadoProdutos.innerHTML = '<div class="item text-muted">Nenhum produto encontrado</div>';
+                } else {
+                    resultadoProdutos.innerHTML = produtos.map(p => `
+                        <div class="item" onclick="selecionarProduto(${p.id}, '${escapeHtml(p.nome)}', '${p.codigo || ''}', ${p.preco || 0}, '${p.unidade || 'UN'}')">
+                            <strong>${p.codigo || ''}</strong> - ${escapeHtml(p.nome)}
+                            <br><small class="text-muted">R$ ${formatarMoeda(p.preco || 0)} | Estoque: ${p.estoque || 0}</small>
+                        </div>
+                    `).join('');
+                }
+                resultadoProdutos.style.display = 'block';
+            });
+    }, 300));
+    
+    // Fechar dropdowns ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#busca-cliente') && !e.target.closest('#resultado-clientes')) {
+            resultadoClientes.style.display = 'none';
+        }
+        if (!e.target.closest('#busca-produto') && !e.target.closest('#resultado-produtos')) {
+            resultadoProdutos.style.display = 'none';
+        }
+    });
+    
+    // Recalcular ao mudar desconto ou frete
+    document.getElementById('percentual-desconto').addEventListener('input', calcularTotais);
+    document.getElementById('valor-frete').addEventListener('input', calcularTotais);
+});
+
+function selecionarCliente(id, nome, documento, telefone, email, cidade) {
+    document.getElementById('cliente_id').value = id;
+    document.getElementById('busca-cliente').value = nome;
+    document.getElementById('cliente-documento').value = documento;
+    document.getElementById('cliente-telefone').textContent = telefone;
+    document.getElementById('cliente-email').textContent = email;
+    document.getElementById('cliente-cidade').textContent = cidade;
+    document.getElementById('info-cliente').style.display = 'block';
+    document.getElementById('resultado-clientes').style.display = 'none';
+}
+
+function selecionarProduto(id, nome, codigo, preco, unidade) {
+    produtoSelecionado = { id, nome, codigo, preco, unidade };
+    document.getElementById('busca-produto').value = `${codigo} - ${nome}`;
+    document.getElementById('add-preco').value = formatarMoeda(preco);
+    document.getElementById('btn-adicionar-item').disabled = false;
+    document.getElementById('resultado-produtos').style.display = 'none';
+    
+    // Mostrar campos de correia se produto parece ser correia
+    const nomeLower = nome.toLowerCase();
+    if (nomeLower.includes('correia') || nomeLower.includes('belt') || nomeLower.includes('esteira')) {
+        document.getElementById('campos-correia').style.display = 'flex';
+    } else {
+        document.getElementById('campos-correia').style.display = 'none';
+    }
+}
+
+document.getElementById('btn-adicionar-item').addEventListener('click', function() {
+    if (!produtoSelecionado) return;
+    
+    const quantidade = parseFloat(document.getElementById('add-quantidade').value) || 1;
+    const precoStr = document.getElementById('add-preco').value.replace(/\./g, '').replace(',', '.');
+    const preco = parseFloat(precoStr) || 0;
+    
+    const item = {
+        produto_id: produtoSelecionado.id,
+        produto_codigo: produtoSelecionado.codigo,
+        produto_nome: produtoSelecionado.nome,
+        quantidade: quantidade,
+        unidade: produtoSelecionado.unidade,
+        preco_tabela: produtoSelecionado.preco,
+        preco_unitario: preco,
+        percentual_desconto: 0,
+        valor_desconto: 0,
+        valor_total: quantidade * preco,
+        largura: parseFloat(document.getElementById('add-largura').value) || null,
+        comprimento: parseFloat(document.getElementById('add-comprimento').value) || null,
+        espessura: parseFloat(document.getElementById('add-espessura').value) || null,
+        tipo_correia: document.getElementById('add-tipo-correia').value,
+        material: document.getElementById('add-material').value,
+        observacao: ''
+    };
+    
+    itensOrcamento.push(item);
+    renderizarItens();
+    calcularTotais();
+    limparCamposAdicao();
+});
+
+function limparCamposAdicao() {
+    produtoSelecionado = null;
+    document.getElementById('busca-produto').value = '';
+    document.getElementById('add-quantidade').value = '1';
+    document.getElementById('add-preco').value = '';
+    document.getElementById('add-largura').value = '';
+    document.getElementById('add-comprimento').value = '';
+    document.getElementById('add-espessura').value = '';
+    document.getElementById('add-tipo-correia').value = '';
+    document.getElementById('add-material').value = '';
+    document.getElementById('campos-correia').style.display = 'none';
+    document.getElementById('btn-adicionar-item').disabled = true;
+}
+
+function renderizarItens() {
+    const tbody = document.getElementById('tbody-itens');
+    const rowVazio = document.getElementById('row-vazio');
+    
+    if (itensOrcamento.length === 0) {
+        tbody.innerHTML = '';
+        tbody.appendChild(rowVazio.cloneNode(true));
+        document.getElementById('badge-qtd-itens').textContent = '0 itens';
+        return;
+    }
+    
+    tbody.innerHTML = itensOrcamento.map((item, index) => `
+        <tr>
+            <td class="text-muted">${index + 1}</td>
+            <td>
+                <strong>${item.produto_codigo || ''}</strong> ${item.produto_nome}
+                ${item.largura || item.comprimento ? `<br><small class="text-muted">${item.largura || ''}mm x ${item.comprimento || ''}m ${item.tipo_correia ? '- ' + item.tipo_correia : ''}</small>` : ''}
+            </td>
+            <td class="text-center">
+                <input type="number" class="form-control form-control-sm text-center" 
+                       value="${item.quantidade}" min="0.01" step="0.01"
+                       onchange="atualizarItem(${index}, 'quantidade', this.value)">
+            </td>
+            <td class="text-end">
+                <input type="text" class="form-control form-control-sm text-end" 
+                       value="${formatarMoeda(item.preco_unitario)}"
+                       onchange="atualizarItem(${index}, 'preco_unitario', this.value)">
+            </td>
+            <td class="text-center">
+                <input type="number" class="form-control form-control-sm text-center" 
+                       value="${item.percentual_desconto || 0}" min="0" max="100" step="0.01"
+                       onchange="atualizarItem(${index}, 'percentual_desconto', this.value)">
+            </td>
+            <td class="text-end fw-semibold">R$ ${formatarMoeda(item.valor_total)}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item" onclick="removerItem(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    document.getElementById('badge-qtd-itens').textContent = `${itensOrcamento.length} ${itensOrcamento.length === 1 ? 'item' : 'itens'}`;
+}
+
+function atualizarItem(index, campo, valor) {
+    if (campo === 'preco_unitario') {
+        valor = parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
+    } else {
+        valor = parseFloat(valor) || 0;
+    }
+    
+    itensOrcamento[index][campo] = valor;
+    
+    // Recalcular valor do item
+    const item = itensOrcamento[index];
+    const subtotal = item.quantidade * item.preco_unitario;
+    item.valor_desconto = subtotal * (item.percentual_desconto / 100);
+    item.valor_total = subtotal - item.valor_desconto;
+    
+    renderizarItens();
+    calcularTotais();
+}
+
+function removerItem(index) {
+    if (confirm('Deseja remover este item?')) {
+        itensOrcamento.splice(index, 1);
+        renderizarItens();
+        calcularTotais();
+    }
+}
+
+function calcularTotais() {
+    const totalProdutos = itensOrcamento.reduce((sum, item) => sum + item.valor_total, 0);
+    const percentualDesconto = parseFloat(document.getElementById('percentual-desconto').value) || 0;
+    const valorDesconto = totalProdutos * (percentualDesconto / 100);
+    
+    const valorFreteStr = document.getElementById('valor-frete').value.replace(/\./g, '').replace(',', '.');
+    const valorFrete = parseFloat(valorFreteStr) || 0;
+    
+    const totalGeral = totalProdutos - valorDesconto + valorFrete;
+    
+    document.getElementById('total-produtos').textContent = 'R$ ' + formatarMoeda(totalProdutos);
+    document.getElementById('valor-desconto').textContent = '- R$ ' + formatarMoeda(valorDesconto);
+    document.getElementById('total-frete').textContent = 'R$ ' + formatarMoeda(valorFrete);
+    document.getElementById('total-geral').textContent = 'R$ ' + formatarMoeda(totalGeral);
+}
+
+function salvarOrcamento(acao) {
+    // Validações
+    const clienteId = document.getElementById('cliente_id').value;
+    if (!clienteId) {
+        alert('Selecione um cliente.');
+        document.getElementById('busca-cliente').focus();
+        return;
+    }
+    
+    if (itensOrcamento.length === 0) {
+        alert('Adicione pelo menos um item ao orçamento.');
+        document.getElementById('busca-produto').focus();
+        return;
+    }
+    
+    // Preencher campos ocultos
+    document.getElementById('input-itens').value = JSON.stringify(itensOrcamento);
+    document.getElementById('input-acao').value = acao;
+    
+    // Submeter formulário
+    document.getElementById('form-orcamento').submit();
+}
+
+// Utilitários
+function formatarMoeda(valor) {
+    return (valor || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// ===== PREVISÃO DE ENTREGA =====
+
+// Calcular previsão automática baseada nos itens do orçamento
+function calcularPrevisaoAutomatica() {
+    const previsaoManual = document.getElementById('previsao_manual');
+    const previsaoInfo = document.getElementById('previsao_info');
+    const tempoDisplay = document.getElementById('tempo_estimado_display');
+    
+    // Se manual, avisar
+    if (previsaoManual && previsaoManual.checked) {
+        alert('Desmarque "Manual" para calcular automaticamente.');
+        return;
+    }
+    
+    // Coletar itens do orçamento
+    const itens = [];
+    document.querySelectorAll('#tabelaItens tbody tr').forEach(function(tr) {
+        const produtoId = tr.querySelector('input[name*="produto_id"]');
+        const quantidade = tr.querySelector('input[name*="quantidade"]');
+        if (produtoId && produtoId.value && quantidade && quantidade.value) {
+            itens.push({
+                produto_id: parseInt(produtoId.value),
+                quantidade: parseFloat(quantidade.value) || 1
+            });
+        }
+    });
+    
+    if (itens.length === 0) {
+        alert('Adicione itens ao orçamento para calcular a previsão.');
+        return;
+    }
+    
+    const diasTransporte = parseInt(document.getElementById('dias_transporte')?.value || 0);
+    
+    // Mostrar loading
+    if (previsaoInfo) previsaoInfo.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando previsão...';
+    if (tempoDisplay) tempoDisplay.value = '...';
+    
+    // Chamar API
+    fetch('/industria/config/api/previsao/calcular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itens: itens, dias_transporte: diasTransporte })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.sucesso) {
+            // Preencher campos
+            const dataProducao = document.getElementById('data_previsao_producao');
+            const dataEntrega = document.getElementById('data_previsao_entrega');
+            
+            if (dataProducao && data.previsao_producao) {
+                dataProducao.value = data.previsao_producao;
+            }
+            if (dataEntrega && data.previsao_entrega) {
+                dataEntrega.value = data.previsao_entrega;
+            }
+            if (tempoDisplay) {
+                tempoDisplay.value = data.dias_producao + ' dias';
+            }
+            
+            // Atualizar info
+            if (previsaoInfo) {
+                previsaoInfo.innerHTML = `<span class="text-success">✅ Calculado: ${data.horas_producao}h de produção + ${data.tempo_fila_minutos}min de fila</span>`;
+            }
+        } else {
+            if (previsaoInfo) {
+                previsaoInfo.innerHTML = `<span class="text-warning">⚠️ ${data.mensagem || 'Não foi possível calcular'}</span>`;
+            }
+            if (tempoDisplay) tempoDisplay.value = '--';
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao calcular previsão:', error);
+        if (previsaoInfo) {
+            previsaoInfo.innerHTML = '<span class="text-danger">❌ Erro ao calcular previsão</span>';
+        }
+        if (tempoDisplay) tempoDisplay.value = '--';
+    });
+}
+
+function calcularPrevisaoEntrega() {
+    const previsaoManual = document.getElementById('previsao_manual');
+    const dataProducao = document.getElementById('data_previsao_producao');
+    const diasTransporte = document.getElementById('dias_transporte');
+    const dataEntrega = document.getElementById('data_previsao_entrega');
+    const previsaoInfo = document.getElementById('previsao_info');
+    
+    // Se checkbox manual está marcado, não calcular automaticamente
+    if (previsaoManual && previsaoManual.checked) {
+        if (previsaoInfo) {
+            previsaoInfo.innerHTML = '<span class="text-warning">⚠️ Modo manual: datas definidas pelo usuário</span>';
+        }
+        return;
+    }
+    
+    // Se não tem data de produção, não calcular
+    if (!dataProducao || !dataProducao.value) {
+        if (previsaoInfo) {
+            previsaoInfo.innerHTML = 'Defina a data de previsão de produção para calcular a entrega.';
+        }
+        return;
+    }
+    
+    // Calcular data de entrega = produção + dias de transporte
+    const dias = parseInt(diasTransporte ? diasTransporte.value : 0) || 0;
+    const dataBase = new Date(dataProducao.value + 'T00:00:00');
+    dataBase.setDate(dataBase.getDate() + dias);
+    
+    // Formatar para YYYY-MM-DD
+    const ano = dataBase.getFullYear();
+    const mes = String(dataBase.getMonth() + 1).padStart(2, '0');
+    const dia = String(dataBase.getDate()).padStart(2, '0');
+    const dataCalculada = `${ano}-${mes}-${dia}`;
+    
+    if (dataEntrega) {
+        dataEntrega.value = dataCalculada;
+    }
+    
+    // Atualizar info
+    if (previsaoInfo) {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const diffDias = Math.ceil((dataBase - hoje) / (1000 * 60 * 60 * 24));
+        
+        if (diffDias < 0) {
+            previsaoInfo.innerHTML = '<span class="text-danger">⚠️ Atenção: Data de entrega no passado!</span>';
+        } else if (diffDias === 0) {
+            previsaoInfo.innerHTML = '<span class="text-warning">📦 Entrega prevista para HOJE</span>';
+        } else if (diffDias <= 7) {
+            previsaoInfo.innerHTML = `<span class="text-success">✅ Entrega em ${diffDias} dia(s)</span>`;
+        } else {
+            previsaoInfo.innerHTML = `📅 Entrega em ${diffDias} dias (${dataBase.toLocaleDateString('pt-BR')})`;
+        }
+    }
+}
+
+// Event listeners para cálculo automático
+document.addEventListener('DOMContentLoaded', function() {
+    const dataProducao = document.getElementById('data_previsao_producao');
+    const diasTransporte = document.getElementById('dias_transporte');
+    const previsaoManual = document.getElementById('previsao_manual');
+    
+    if (dataProducao) {
+        dataProducao.addEventListener('change', calcularPrevisaoEntrega);
+    }
+    if (diasTransporte) {
+        diasTransporte.addEventListener('change', calcularPrevisaoEntrega);
+        diasTransporte.addEventListener('input', calcularPrevisaoEntrega);
+    }
+    if (previsaoManual) {
+        previsaoManual.addEventListener('change', function() {
+            if (!this.checked) {
+                calcularPrevisaoEntrega();
+            }
+        });
+    }
+    
+    // Calcular na carga inicial se já tiver dados
+    if (dataProducao && dataProducao.value) {
+        calcularPrevisaoEntrega();
+    }
+});
+</script>
+{% endblock %}

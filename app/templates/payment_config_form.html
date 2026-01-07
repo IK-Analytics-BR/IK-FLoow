@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if config else 'Nova' }} Forma de Pagamento{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>
+                <i class="fas fa-credit-card"></i> 
+                {{ 'Editar' if config else 'Nova' }} Forma de Pagamento
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('payment_config.payment_config_list') }}">Formas de Pagamento</a></li>
+                    <li class="breadcrumb-item active">{{ 'Editar' if config else 'Novo' }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <!-- Coluna 1: Dados Básicos e Comportamento -->
+            <div class="col-md-6">
+                <!-- Card: Dados Básicos -->
+                <div class="card mb-4 shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> Dados Básicos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="required-field">Nome</label>
+                            <input type="text" name="name" class="form-control form-control-lg" 
+                                   value="{{ config.name if config else '' }}" 
+                                   placeholder="Ex: Cartão de Crédito à Vista"
+                                   required>
+                            <small class="form-text text-muted">Nome que aparecerá nas vendas</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="required-field">Código</label>
+                            <input type="text" name="code" class="form-control" 
+                                   value="{{ config.code if config else '' }}" 
+                                   placeholder="Ex: credit_card, pix, boleto"
+                                   {{ 'readonly' if config else '' }} 
+                                   required>
+                            <small class="form-text text-muted">
+                                Identificador único (sem espaços, use _ ou -). 
+                                {% if config %}
+                                <strong>Não pode ser alterado após criado.</strong>
+                                {% endif %}
+                            </small>
+                        </div>
+                        
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="active" class="form-check-input" id="activeCheck"
+                                   {{ 'checked' if not config or config.active else '' }}>
+                            <label class="form-check-label" for="activeCheck">
+                                <strong>Ativo</strong> 
+                                <small class="text-muted">(disponível para uso)</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card: Comportamento Financeiro -->
+                <div class="card mb-4 shadow">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-sync"></i> Comportamento Financeiro</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="required-field">Onde Registrar</label>
+                            <select name="financial_behavior" class="form-control form-control-lg" id="financialBehavior" required>
+                                <option value="cash_flow" {{ 'selected' if config and config.financial_behavior == 'cash_flow' else '' }}>
+                                    💰 Apenas Fluxo de Caixa (Dinheiro, PIX, Cartão)
+                                </option>
+                                <option value="receivable" {{ 'selected' if config and config.financial_behavior == 'receivable' else '' }}>
+                                    📄 Apenas Contas a Receber (Boleto, Crediário)
+                                </option>
+                                <option value="both" {{ 'selected' if config and config.financial_behavior == 'both' else '' }}>
+                                    🔄 Ambos (Controle Duplo)
+                                </option>
+                            </select>
+                            <small class="form-text text-muted">Define como a venda será registrada financeiramente</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="required-field">Prazo de Recebimento (dias)</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">D+</span>
+                                </div>
+                                <input type="number" name="days_to_receive" class="form-control" 
+                                       value="{{ config.days_to_receive if config else 0 }}" 
+                                       min="0" max="365" required>
+                                <div class="input-group-append">
+                                    <span class="input-group-text">dias</span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                D+0 = hoje | D+1 = amanhã | D+30 = 30 dias
+                            </small>
+                        </div>
+
+                        <div class="form-check">
+                            <input type="checkbox" name="receive_on_business_days" class="form-check-input" id="businessDays"
+                                   {{ 'checked' if config and config.receive_on_business_days else '' }}>
+                            <label class="form-check-label" for="businessDays">
+                                Considerar apenas dias úteis
+                            </label>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label>Conta Bancária de Destino</label>
+                            <select name="bank_account_id" class="form-control">
+                                <option value="">Nenhuma (usar padrão)</option>
+                                {% for ba in bank_accounts %}
+                                <option value="{{ ba.id }}" {{ 'selected' if config and config.bank_account_id == ba.id else '' }}>
+                                    {{ ba.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Conta onde o dinheiro será depositado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna 2: Taxas e Parcelamento -->
+            <div class="col-md-6">
+                <!-- Card: Taxas e Tarifas -->
+                <div class="card mb-4 shadow">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-percent"></i> Taxas e Tarifas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Taxas da Operadora:</strong> Valores descontados automaticamente do valor bruto da venda.
+                            Exemplo: Venda de R$ 100 com taxa 3% = R$ 97 líquido no fluxo de caixa.
+                        </div>
+
+                        <div class="form-group">
+                            <label>Taxa Percentual (%)</label>
+                            <div class="input-group">
+                                <input type="number" name="operator_fee_percent" class="form-control" 
+                                       value="{{ config.operator_fee_percent if config else 0 }}" 
+                                       step="0.01" min="0" max="100"
+                                       placeholder="0.00">
+                                <div class="input-group-append">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                Cartão débito: ~2% | Cartão crédito: ~3-5%
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Taxa Fixa (R$)</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">R$</span>
+                                </div>
+                                <input type="number" name="operator_fee_fixed" class="form-control" 
+                                       value="{{ config.operator_fee_fixed if config else 0 }}" 
+                                       step="0.01" min="0"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-text text-muted">Valor fixo cobrado por transação (raro)</small>
+                        </div>
+
+                        <!-- Simulação -->
+                        <div class="card bg-light mt-3">
+                            <div class="card-body">
+                                <h6><i class="fas fa-calculator"></i> Simulação:</h6>
+                                <p class="mb-1">Venda de <strong>R$ 100,00</strong></p>
+                                <p class="mb-1">Taxa: <span id="simulatedFee">R$ 0,00</span></p>
+                                <p class="mb-0"><strong>Valor líquido: <span id="simulatedNet">R$ 100,00</span></strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card: Parcelamento -->
+                <div class="card mb-4 shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-calculator"></i> Parcelamento</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="allow_installments" class="form-check-input" id="allowInstallments"
+                                   {{ 'checked' if config and config.allow_installments else '' }}
+                                   onchange="toggleInstallmentFields()">
+                            <label class="form-check-label" for="allowInstallments">
+                                <strong>Permitir Parcelamento</strong>
+                            </label>
+                        </div>
+                        
+                        <div id="installmentFields" style="display: {{ 'block' if config and config.allow_installments else 'none' }};">
+                            <div class="form-group">
+                                <label>Número Máximo de Parcelas</label>
+                                <select name="max_installments" class="form-control">
+                                    {% for i in range(1, 13) %}
+                                    <option value="{{ i }}" {{ 'selected' if config and config.max_installments == i else '' }}>
+                                        {{ i }}x
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Dias entre Parcelas</label>
+                                <input type="number" name="days_between_installments" class="form-control" 
+                                       value="{{ config.days_between_installments if config else 30 }}" 
+                                       min="1" max="365">
+                                <small class="form-text text-muted">Normalmente 30 dias (mensal)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Taxa Adicional por Parcela (%)</label>
+                                <div class="input-group">
+                                    <input type="number" name="installment_fee_percent" class="form-control" 
+                                           value="{{ config.installment_fee_percent if config else 0 }}" 
+                                           step="0.01" min="0">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">Taxa extra cobrada em cada parcela</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card: Opções Adicionais -->
+                <div class="card mb-4 shadow">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-cog"></i> Opções Adicionais</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" name="requires_approval" class="form-check-input" id="requiresApproval"
+                                   {{ 'checked' if config and config.requires_approval else '' }}>
+                            <label class="form-check-label" for="requiresApproval">
+                                Requer aprovação manual
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-2">
+                            <input type="checkbox" name="credit_analysis" class="form-check-input" id="creditAnalysis"
+                                   {{ 'checked' if config and config.credit_analysis else '' }}>
+                            <label class="form-check-label" for="creditAnalysis">
+                                Requer análise de crédito
+                            </label>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input type="checkbox" name="generate_boleto" class="form-check-input" id="generateBoleto"
+                                   {{ 'checked' if config and config.generate_boleto else '' }}>
+                            <label class="form-check-label" for="generateBoleto">
+                                Gerar boleto automaticamente
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Observações -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4 shadow">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Observações</label>
+                            <textarea name="notes" class="form-control" rows="3" 
+                                      placeholder="Informações adicionais sobre esta forma de pagamento...">{{ config.notes if config else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-save"></i> {{ 'Atualizar' if config else 'Cadastrar' }}
+                        </button>
+                        <a href="{{ url_for('payment_config.payment_config_list') }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        {% if config %}
+                        <button type="button" class="btn btn-info btn-lg" onclick="window.location.reload();">
+                            <i class="fas fa-redo"></i> Resetar
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Toggle campos de parcelamento
+function toggleInstallmentFields() {
+    const checkbox = document.getElementById('allowInstallments');
+    const fields = document.getElementById('installmentFields');
+    fields.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+// Simulação de taxas
+document.addEventListener('DOMContentLoaded', function() {
+    const feePercentInput = document.querySelector('input[name="operator_fee_percent"]');
+    const feeFixedInput = document.querySelector('input[name="operator_fee_fixed"]');
+    
+    function updateSimulation() {
+        const saleValue = 100;
+        const feePercent = parseFloat(feePercentInput.value) || 0;
+        const feeFixed = parseFloat(feeFixedInput.value) || 0;
+        
+        const totalFee = (saleValue * feePercent / 100) + feeFixed;
+        const netValue = saleValue - totalFee;
+        
+        document.getElementById('simulatedFee').textContent = 'R$ ' + totalFee.toFixed(2);
+        document.getElementById('simulatedNet').textContent = 'R$ ' + netValue.toFixed(2);
+    }
+    
+    feePercentInput.addEventListener('input', updateSimulation);
+    feeFixedInput.addEventListener('input', updateSimulation);
+    
+    // Atualizar na carga
+    updateSimulation();
+});
+</script>
+{% endblock %}

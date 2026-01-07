@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Venda #{{ sale.id }}{% endblock %}
+
+{% block styles %}
+<style>
+@media print {
+  .no-print { display:none !important; }
+  .card { box-shadow:none !important; border:0 !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex align-items-center justify-content-between no-print">
+    <h1 class="mt-4">Venda #{{ sale.id }}</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('venda.vendas_relacao') }}"><i class="fas fa-arrow-left"></i> Voltar</a>
+      <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+      {% if sale.status != 'cancelled' %}
+      <form method="post" action="{{ url_for('venda.venda_cancelar', sale_id=sale.id) }}" onsubmit="return confirm('Confirmar cancelamento da venda #{{ sale.id }}? O estoque será revertido.');">
+        <button type="submit" class="btn btn-danger"><i class="fas fa-ban"></i> Cancelar Venda</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <hr class="no-print" />
+
+  <div class="card mb-3">
+    <div class="card-header"><i class="fas fa-receipt me-1"></i> Cabeçalho</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3"><strong>Data:</strong> {{ sale.sale_date }}</div>
+        <div class="col-md-3"><strong>Status:</strong> {{ sale.status }}</div>
+        <div class="col-md-3"><strong>Vendedor:</strong> {{ sale.seller_name or '-' }}</div>
+        <div class="col-md-3"><strong>Tipo:</strong> {{ sale.sale_type or '-' }}</div>
+        <div class="col-md-6"><strong>Cliente:</strong> {{ sale.customer_name }}</div>
+        <div class="col-md-3"><strong>CNPJ/CPF:</strong> {{ sale.cnpj or '' }}</div>
+        <div class="col-md-3"><strong>IE/RG:</strong> {{ sale.ie or '' }}</div>
+        <div class="col-md-3"><strong>Telefone:</strong> {{ sale.phone or '' }}</div>
+        <div class="col-md-6"><strong>E-mail:</strong> {{ sale.email or '' }}</div>
+        <div class="col-md-12"><strong>Endereço:</strong>
+          {{ sale.address or '' }}, {{ sale.number or '' }}{% if sale.complement %} - {{ sale.complement }}{% endif %},
+          {{ sale.neighborhood or '' }}, {{ sale.city or '' }} - {{ sale.state or '' }}, {{ sale.cep or '' }}
+        </div>
+        {% if sale.payment_method %}<div class="col-md-3"><strong>Forma de Pagamento:</strong> {{ sale.payment_method }}</div>{% endif %}
+        {% if sale.payment_terms %}<div class="col-md-3"><strong>Condição de Pagamento:</strong> {{ sale.payment_terms }}</div>{% endif %}
+        {% if sale.delivery_type %}<div class="col-md-3"><strong>Tipo de Entrega:</strong> {{ sale.delivery_type }}</div>{% endif %}
+        {% if sale.delivery_eta %}<div class="col-md-3"><strong>Previsão de Entrega:</strong> {{ sale.delivery_eta }}</div>{% endif %}
+        {% if sale.delivery_address %}<div class="col-md-12"><strong>Endereço de Entrega:</strong> {{ sale.delivery_address }}</div>{% endif %}
+        {% if sale.notes %}<div class="col-md-12"><strong>Observações:</strong> {{ sale.notes }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><i class="fas fa-boxes me-1"></i> Itens</div>
+    <div class="card-body table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Produto</th>
+            <th>Quantidade</th>
+            <th>Preço Unitário</th>
+            <th>Desconto (%)</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set i = 1 %}
+          {% for it in itens %}
+          <tr>
+            <td>{{ i }}{% set i = i + 1 %}</td>
+            <td>{{ it.product_name or it.product_name_snapshot }}</td>
+            <td>{{ it.quantity }}</td>
+            <td>R$ {{ '%.2f'|format(it.unit_price or 0) }}</td>
+            <td>{{ '%.2f'|format(it.discount_percent or 0) }}</td>
+            <td>R$ {{ '%.2f'|format(it.total_price or 0) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted">Sem itens.</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Subtotal:</th>
+            <th>R$ {{ '%.2f'|format(sale.gross_total or 0) }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Descontos:</th>
+            <th>R$ {{ '%.2f'|format(sale.discount_total or 0) }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Frete:</th>
+            <th>R$ {{ '%.2f'|format(sale.freight_total or 0) }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Impostos:</th>
+            <th>R$ {{ '%.2f'|format(sale.tax_total or 0) }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Total:</th>
+            <th>R$ {{ '%.2f'|format(sale.net_total or 0) }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Equipe{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <h1>
+            <i class="fas fa-cog text-primary me-2"></i>
+            Gerenciar Minha Equipe
+        </h1>
+        <a href="{{ url_for('ordem_producao.lider_painel') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar ao Painel
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Operadores da Equipe -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-users me-2"></i><strong>Operadores da Minha Equipe</strong>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <select class="form-select" id="novoOperador">
+                                <option value="">-- Adicionar operador --</option>
+                                {% for op in todos_operadores %}
+                                {% set ja_vinculado = op.id in (operadores_equipe|map(attribute='id')|list) %}
+                                {% if not ja_vinculado %}
+                                <option value="{{ op.id }}">{{ op.name }} (@{{ op.username }})</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-success" type="button" id="btnAddOperador">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-group" id="listaOperadores">
+                        {% for op in operadores_equipe %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ op.id }}">
+                            <div>
+                                <i class="fas fa-hard-hat text-warning me-2"></i>
+                                <strong>{{ op.name }}</strong>
+                                <small class="text-muted">(@{{ op.username }})</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger btn-remover-operador" data-id="{{ op.id }}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted" id="semOperadores">
+                            Nenhum operador na equipe
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Etapas do Líder -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-stream me-2"></i><strong>Etapas que Controlo</strong>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <select class="form-select" id="novaEtapa">
+                                <option value="">-- Adicionar etapa --</option>
+                                {% for etapa in todas_etapas %}
+                                {% set ja_vinculada = etapa.id in (etapas_lider|map(attribute='id')|list) %}
+                                {% if not ja_vinculada %}
+                                <option value="{{ etapa.id }}">{{ etapa.ordem }}. {{ etapa.nome }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-success" type="button" id="btnAddEtapa">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-group" id="listaEtapas">
+                        {% for etapa in etapas_lider %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ etapa.id }}">
+                            <div>
+                                <span class="badge bg-secondary me-2">{{ etapa.ordem }}</span>
+                                <strong>{{ etapa.nome }}</strong>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger btn-remover-etapa" data-id="{{ etapa.id }}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted" id="semEtapas">
+                            Nenhuma etapa vinculada
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Dica:</strong> Adicione os operadores que fazem parte da sua equipe e as etapas de produção que você controla.
+        Os lotes dessas etapas aparecerão no seu painel para que você possa atribuir prioridades e operadores.
+    </div>
+</div>
+
+<script>
+// Adicionar operador
+document.getElementById('btnAddOperador').addEventListener('click', function() {
+    const select = document.getElementById('novoOperador');
+    const operadorId = select.value;
+    if (!operadorId) return;
+    
+    fetch('{{ url_for("ordem_producao.lider_vincular_operador") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'operador_id=' + operadorId
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro: ' + err));
+});
+
+// Remover operador
+document.querySelectorAll('.btn-remover-operador').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!confirm('Remover este operador da equipe?')) return;
+        const operadorId = this.dataset.id;
+        
+        fetch('{{ url_for("ordem_producao.lider_desvincular_operador") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'operador_id=' + operadorId
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                this.closest('li').remove();
+            } else {
+                alert('Erro: ' + (data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(err => alert('Erro: ' + err));
+    });
+});
+
+// Adicionar etapa
+document.getElementById('btnAddEtapa').addEventListener('click', function() {
+    const select = document.getElementById('novaEtapa');
+    const etapaId = select.value;
+    if (!etapaId) return;
+    
+    fetch('{{ url_for("ordem_producao.lider_vincular_etapa") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'etapa_id=' + etapaId
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro: ' + err));
+});
+
+// Remover etapa
+document.querySelectorAll('.btn-remover-etapa').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!confirm('Remover esta etapa do seu controle?')) return;
+        const etapaId = this.dataset.id;
+        
+        fetch('{{ url_for("ordem_producao.lider_desvincular_etapa") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'etapa_id=' + etapaId
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                this.closest('li').remove();
+            } else {
+                alert('Erro: ' + (data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(err => alert('Erro: ' + err));
+    });
+});
+</script>
+{% endblock %}

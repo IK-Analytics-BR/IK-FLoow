@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar PDVs{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- LISTA PDVs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-cash-register"></i> PDVs Cadastrados</h4>
+                    <div>
+                        <button type="button" class="btn btn-success" onclick="novoPDV()">
+                            <i class="fas fa-plus"></i> Novo PDV
+                        </button>
+                        <a href="/" class="btn btn-light"><i class="fas fa-arrow-left"></i> Voltar</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if pdvs and pdvs|length > 0 %}
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Nº</th><th>Nome</th><th>Empresa</th><th>Status</th><th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pdv in pdvs %}
+                            <tr>
+                                <td><strong>{{ pdv.pdv_number }}</strong></td>
+                                <td>{{ pdv.pdv_name }}</td>
+                                <td><span class="badge badge-info">{{ pdv.empresa_nome }}</span></td>
+                                <td>
+                                    {% if pdv.active %}
+                                    <span class="badge badge-success">Ativo</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="editarPDV({{ pdv.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="excluirPDV({{ pdv.id }}, '{{ pdv.pdv_name }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-info">Nenhum PDV cadastrado. Click em "Novo PDV".</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- FORMULÁRIO (continua de PARTE1) -->
+    <div class="row" id="formPDV" style="display: none;">
+        <div class="col-12">
+            <div class="card shadow border-success">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0" id="formTitle"><i class="fas fa-plus-circle"></i> Novo PDV</h4>
+                </div>
+                <form method="POST" id="pdvForm">
+                    <div class="card-body">
+                        <!-- IDENTIFICAÇÃO -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-id-card"></i> Identificação</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label>Nome <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="pdv_name" id="pdv_name" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label>Número <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" name="pdv_number" id="pdv_number" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label>Empresa <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="company_id" id="company_id" required>
+                                            <option value="">Selecione...</option>
+                                            {% for empresa in empresas %}
+                                            <option value="{{ empresa.id }}">{{ empresa.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label>Status</label>
+                                        <div class="custom-control custom-switch mt-2">
+                                            <input type="checkbox" class="custom-control-input" id="active" name="active" checked>
+                                            <label class="custom-control-label" for="active">Ativo</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <label>Descrição</label>
+                                        <textarea class="form-control" name="description" id="description" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- GRID 2 COLUNAS -->
+                        <div class="row">
+                            <!-- COLUNA 1 -->
+                            <div class="col-md-6">
+                                <!-- Estoque -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-boxes"></i> Estoque</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="allow_negative_stock" name="allow_negative_stock">
+                                            <label class="custom-control-label" for="allow_negative_stock">
+                                                <strong>Permitir Venda Sem Estoque</strong>
+                                            </label>
+                                        </div>
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="check_stock_realtime" name="check_stock_realtime" checked>
+                                            <label class="custom-control-label" for="check_stock_realtime">
+                                                Verificar Estoque em Tempo Real
+                                            </label>
+                                        </div>
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="show_stock_quantity" name="show_stock_quantity" checked>
+                                            <label class="custom-control-label" for="show_stock_quantity">
+                                                Mostrar Quantidade em Estoque
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quantidade -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-sort-numeric-up"></i> Quantidade</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <label>Quantidade Padrão</label>
+                                        <input type="number" step="0.001" class="form-control mb-2" name="default_quantity" id="default_quantity" value="1.000">
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="ask_quantity" name="ask_quantity" checked>
+                                            <label class="custom-control-label" for="ask_quantity">
+                                                <strong>Perguntar Quantidade</strong>
+                                            </label>
+                                        </div>
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="allow_decimal_quantity" name="allow_decimal_quantity" checked>
+                                            <label class="custom-control-label" for="allow_decimal_quantity">
+                                                Permitir Quantidade Decimal
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- COLUNA 2 -->
+                            <div class="col-md-6">
+                                <!-- Cliente -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-user"></i> Cliente</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="require_customer" name="require_customer" checked>
+                                            <label class="custom-control-label" for="require_customer">
+                                                <strong>Exigir Cliente na Venda</strong>
+                                                <small class="text-muted d-block">Se desabilitado, permite vender sem informar cliente</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Preço e Desconto -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Preço e Desconto</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <label>Desconto Máximo (%)</label>
+                                        <input type="number" step="0.01" class="form-control mb-2" name="max_discount_percent" id="max_discount_percent" value="10.00">
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="show_discount_button" name="show_discount_button" checked>
+                                            <label class="custom-control-label" for="show_discount_button">
+                                                <strong>Mostrar Botão Desconto</strong>
+                                            </label>
+                                        </div>
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="allow_item_discount" name="allow_item_discount" checked>
+                                            <label class="custom-control-label" for="allow_item_discount">
+                                                Permitir Desconto por Item
+                                            </label>
+                                        </div>
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="require_manager_approval" name="require_manager_approval">
+                                            <label class="custom-control-label" for="require_manager_approval">
+                                                Exigir Aprovação Gerente
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Atalhos -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-keyboard"></i> Atalhos</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <div class="custom-control custom-switch mb-1">
+                                                    <input type="checkbox" class="custom-control-input" id="enable_f2_customer" name="enable_f2_customer" checked>
+                                                    <label class="custom-control-label" for="enable_f2_customer">F2 - Cliente</label>
+                                                </div>
+                                                <div class="custom-control custom-switch mb-1">
+                                                    <input type="checkbox" class="custom-control-input" id="enable_f4_discount" name="enable_f4_discount" checked>
+                                                    <label class="custom-control-label" for="enable_f4_discount">F4 - Desconto</label>
+                                                </div>
+                                                <div class="custom-control custom-switch">
+                                                    <input type="checkbox" class="custom-control-input" id="enable_f5_cancel" name="enable_f5_cancel" checked>
+                                                    <label class="custom-control-label" for="enable_f5_cancel">F5 - Cancelar</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="custom-control custom-switch mb-1">
+                                                    <input type="checkbox" class="custom-control-input" id="enable_f6_search" name="enable_f6_search" checked>
+                                                    <label class="custom-control-label" for="enable_f6_search">F6 - Buscar</label>
+                                                </div>
+                                                <div class="custom-control custom-switch">
+                                                    <input type="checkbox" class="custom-control-input" id="enable_f9_finish" name="enable_f9_finish" checked>
+                                                    <label class="custom-control-label" for="enable_f9_finish">F9 - Finalizar</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- NFC-e -->
+                                <div class="card mb-3 border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="fas fa-file-invoice"></i> NFC-e (Nota Fiscal)</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="custom-control custom-switch mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="emitir_nfce" name="emitir_nfce">
+                                            <label class="custom-control-label" for="emitir_nfce">
+                                                <strong>Emitir NFC-e Automaticamente</strong>
+                                                <small class="text-muted d-block">Emite NFC-e ao finalizar cada venda</small>
+                                            </label>
+                                        </div>
+                                        <div class="alert alert-info small mb-0 mt-2">
+                                            <i class="fas fa-info-circle"></i>
+                                            O ambiente (Homologacao/Producao) e CSC sao definidos no cadastro da empresa.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Impressão -->
+                                <div class="card mb-3 border-info">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="fas fa-print"></i> Impressão</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="custom-control custom-switch mb-3">
+                                            <input type="checkbox" class="custom-control-input" id="imprimir_automatico" name="imprimir_automatico" checked>
+                                            <label class="custom-control-label" for="imprimir_automatico">
+                                                <strong>Imprimir Automaticamente</strong>
+                                                <small class="text-muted d-block">Abre o PDF após finalizar a venda</small>
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-group mb-3">
+                                            <label><strong>Formato de Impressão</strong></label>
+                                            <select class="form-control" name="formato_impressao" id="formato_impressao">
+                                                <option value="80mm">Cupom Térmico 80mm (Padrão)</option>
+                                                <option value="58mm">Cupom Térmico 58mm</option>
+                                                <option value="A4">Folha A4</option>
+                                            </select>
+                                            <small class="text-muted">Formato do PDF gerado para impressão</small>
+                                        </div>
+                                        
+                                        <div class="form-group mb-0">
+                                            <label><strong>Impressora Padrão</strong></label>
+                                            <input type="text" class="form-control" name="impressora_padrao" id="impressora_padrao" 
+                                                   placeholder="Ex: EPSON TM-T20, Bematech MP-4200">
+                                            <small class="text-muted">Nome da impressora térmica (opcional - para referência)</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BOTÕES -->
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-success float-right">
+                            <i class="fas fa-save"></i> Salvar PDV
+                        </button>
+                    </div>
+                    <input type="hidden" name="pdv_id" id="pdv_id">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+function novoPDV() {
+    document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Novo PDV';
+    document.getElementById('pdvForm').action = '{{ url_for("pdv_config.criar_pdv") }}';
+    document.getElementById('pdvForm').reset();
+    document.getElementById('pdv_id').value = '';
+    
+    // Checkboxes padrão
+    document.getElementById('active').checked = true;
+    document.getElementById('check_stock_realtime').checked = true;
+    document.getElementById('show_stock_quantity').checked = true;
+    document.getElementById('ask_quantity').checked = true;
+    document.getElementById('allow_decimal_quantity').checked = true;
+    document.getElementById('show_discount_button').checked = true;
+    document.getElementById('allow_item_discount').checked = true;
+    document.getElementById('enable_f2_customer').checked = true;
+    document.getElementById('enable_f4_discount').checked = true;
+    document.getElementById('enable_f5_cancel').checked = true;
+    document.getElementById('enable_f6_search').checked = true;
+    document.getElementById('enable_f9_finish').checked = true;
+    document.getElementById('imprimir_automatico').checked = true;
+    document.getElementById('formato_impressao').value = '80mm';
+    
+    document.getElementById('formPDV').style.display = 'block';
+    document.getElementById('formPDV').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editarPDV(pdvId) {
+    document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit"></i> Editar PDV';
+    document.getElementById('pdvForm').action = '/vendas/pdv/atualizar/' + pdvId;
+    
+    // Carregar dados via AJAX
+    fetch('/vendas/pdv/configuracoes/obter?id=' + pdvId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const c = data.config;
+                document.getElementById('pdv_id').value = c.id;
+                document.getElementById('pdv_name').value = c.pdv_name || '';
+                document.getElementById('pdv_number').value = c.pdv_number || '';
+                document.getElementById('company_id').value = c.company_id || '';
+                document.getElementById('description').value = c.description || '';
+                document.getElementById('default_quantity').value = c.default_quantity || 1;
+                document.getElementById('max_discount_percent').value = c.max_discount_percent || 10;
+                
+                // Checkboxes
+                document.getElementById('active').checked = c.active;
+                document.getElementById('allow_negative_stock').checked = c.allow_negative_stock;
+                document.getElementById('check_stock_realtime').checked = c.check_stock_realtime;
+                document.getElementById('show_stock_quantity').checked = c.show_stock_quantity;
+                document.getElementById('ask_quantity').checked = c.ask_quantity;
+                document.getElementById('allow_decimal_quantity').checked = c.allow_decimal_quantity;
+                document.getElementById('require_customer').checked = c.require_customer;
+                document.getElementById('show_discount_button').checked = c.show_discount_button;
+                document.getElementById('allow_item_discount').checked = c.allow_item_discount;
+                document.getElementById('require_manager_approval').checked = c.require_manager_approval;
+                document.getElementById('enable_f2_customer').checked = c.enable_f2_customer;
+                document.getElementById('enable_f4_discount').checked = c.enable_f4_discount;
+                document.getElementById('enable_f5_cancel').checked = c.enable_f5_cancel;
+                document.getElementById('enable_f6_search').checked = c.enable_f6_search;
+                document.getElementById('enable_f9_finish').checked = c.enable_f9_finish;
+                
+                // NFC-e
+                document.getElementById('emitir_nfce').checked = c.emitir_nfce;
+                
+                // Impressao
+                document.getElementById('imprimir_automatico').checked = c.imprimir_automatico;
+                document.getElementById('formato_impressao').value = c.formato_impressao || '80mm';
+                document.getElementById('impressora_padrao').value = c.impressora_padrao || '';
+                
+                document.getElementById('formPDV').style.display = 'block';
+                document.getElementById('formPDV').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                alert('Erro ao carregar: ' + data.erro);
+            }
+        })
+        .catch(error => alert('Erro ao carregar PDV'));
+}
+
+function cancelarEdicao() {
+    document.getElementById('formPDV').style.display = 'none';
+    window.scrollTo(0, 0);
+}
+
+function excluirPDV(pdvId, pdvName) {
+    if (confirm('Deseja realmente desativar o PDV "' + pdvName + '"?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/vendas/pdv/excluir/' + pdvId;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Ficha Técnica - OP {{ op.numero_op }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-download"></i> Importar Ficha Técnica</h5>
+                <a href="{{ url_for('ordem_producao.visualizar_op', id=op.id) }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                Você está importando uma Ficha Técnica para a OP <strong>{{ op.numero_op }}</strong>.
+            </div>
+
+            <form method="post" action="{{ url_for('ordem_producao.importar_template_para_op', id=op.id) }}">
+                <div class="mb-3">
+                    <label class="form-label">Ficha Técnica de origem</label>
+                    <select name="template_origem_id" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        {% for t in templates %}
+                            <option value="{{ t.template_id }}">{{ t.produto_nome }} — v{{ t.versao }} — {{ t.nome_template }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Apenas fichas técnicas ativas aparecem aqui.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Importar e Aplicar na OP
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

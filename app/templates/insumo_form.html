@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}{% if insumo %}Editar{% else %}Cadastrar{% endif %} Insumo - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{% if insumo %}Editar{% else %}Cadastrar{% endif %} Insumo</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('insumo.insumos') }}">Insumos</a></li>
+        <li class="breadcrumb-item active">{% if insumo %}Editar{% else %}Cadastrar{% endif %} Insumo</li>
+    </ol>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-tools me-1"></i>
+            {% if insumo %}Editar Insumo: {{ insumo.name }}{% else %}Novo Insumo{% endif %}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('insumo.insumo_editar', id=insumo.id) if insumo else url_for('insumo.insumo_cadastrar') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="name" name="name" placeholder="Nome" value="{{ insumo.name if insumo else '' }}" required>
+                            <label for="name">Nome</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="supplier_id" name="supplier_id">
+                                <option value="">Selecione um fornecedor (opcional)</option>
+                                {% for fornecedor in fornecedores %}
+                                <option value="{{ fornecedor.id }}" {% if insumo and insumo.supplier_id == fornecedor.id %}selected{% endif %}>{{ fornecedor.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="supplier_id">Fornecedor</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="description" name="description" placeholder="Descrição" style="height: 100px">{{ insumo.description if insumo else '' }}</textarea>
+                            <label for="description">Descrição</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <input type="number" class="form-control" id="stock" name="stock" placeholder="Estoque" value="{{ insumo.stock if insumo else '0' }}" min="0" required>
+                            <label for="stock">Estoque Atual</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <input type="number" class="form-control" id="min_stock" name="min_stock" placeholder="Estoque Mínimo" value="{{ insumo.min_stock if insumo else '0' }}" min="0" required>
+                            <label for="min_stock">Estoque Mínimo</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-3">
+                            <input type="number" class="form-control" id="price" name="price" placeholder="Preço" value="{{ insumo.price if insumo else '' }}" step="0.01" min="0" required>
+                            <label for="price">Preço (R$)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 mb-0">
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Formatação de valores monetários
+        $('#price').mask('#.##0,00', {reverse: true});
+    });
+</script>
+{% endblock %}

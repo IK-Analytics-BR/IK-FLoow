@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Líder{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <div>
+            <h4 class="mb-0">
+                <i class="fas fa-user-tie text-primary me-2"></i>Painel do Líder
+            </h4>
+            <small class="text-muted">Arraste os lotes para atribuir aos operadores</small>
+        </div>
+        <div>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+            <a href="{{ url_for('ordem_producao.lider_gerenciar_equipe') }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-cog me-1"></i> Gerenciar Equipe
+            </a>
+        </div>
+    </div>
+
+    <!-- Etapas -->
+    <div class="mb-3">
+        <strong class="me-2">Minhas Etapas:</strong>
+        {% for etapa in etapas_lider %}
+        <span class="badge me-1" style="background-color: {{ etapa.cor_hex or '#6c757d' }}">
+            {% if etapa.icone %}<i class="{{ etapa.icone }} me-1"></i>{% endif %}{{ etapa.nome }}
+        </span>
+        {% else %}
+        <span class="text-muted">Nenhuma etapa vinculada - <a href="{{ url_for('ordem_producao.lider_gerenciar_equipe') }}">configurar</a></span>
+        {% endfor %}
+    </div>
+
+    <!-- Kanban -->
+    <div class="row flex-nowrap" style="overflow-x: auto;">
+        <!-- Coluna: Sem Atribuição -->
+        <div class="col-md-3 col-lg-3" style="min-width: 320px;">
+            <div class="card border-warning h-100">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-inbox me-2"></i><strong>Sem Atribuição</strong></span>
+                    <span class="badge bg-dark">{{ lotes|selectattr('operador_designado_id', 'none')|list|length }}</span>
+                </div>
+                <div class="card-body p-2 drop-zone" data-operador-id="" style="max-height: 70vh; overflow-y: auto; min-height: 300px;">
+                    {% for lote in lotes if not lote.operador_designado_id %}
+                    <div class="card mb-2 shadow-sm border-start border-4 lote-card" 
+                         style="border-left-color: {% if lote.prioridade == 1 %}#dc3545{% elif lote.prioridade == 2 %}#fd7e14{% else %}#ffc107{% endif %} !important; cursor: grab;"
+                         draggable="true"
+                         data-lote-id="{{ lote.lote_id }}"
+                         data-prioridade="{{ lote.prioridade or 3 }}"
+                         data-quantidade="{{ lote.quantidade }}"
+                         data-numero-op="{{ lote.numero_op }}"
+                         data-produto="{{ lote.produto_nome|truncate(30) }}"
+                         data-status-operador="{{ lote.status_operador or 'sem_atribuicao' }}"
+                         data-pausa-inicio="{{ lote.pausa_inicio.isoformat() if lote.pausa_inicio else '' }}"
+                         data-atribuicao="{{ lote.data_atribuicao.isoformat() if lote.data_atribuicao else '' }}"
+                         data-inicio-producao-op="{{ lote.data_inicio_producao.isoformat() if lote.data_inicio_producao else '' }}"
+                         data-chegada-etapa="{{ lote.data_chegada_etapa.isoformat() if lote.data_chegada_etapa else '' }}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">
+                                        {% if lote.prioridade == 1 %}<span class="badge bg-danger me-1">🔴</span>
+                                        {% elif lote.prioridade == 2 %}<span class="badge bg-warning text-dark me-1">🟠</span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary">{{ lote.numero_op }}</span>
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-box me-1"></i>{{ lote.produto_nome|truncate(25) }}
+                                    </p>
+                                    <p class="card-text small mb-0 text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ lote.cliente_nome|truncate(20) }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ lote.quantidade }} un</span>
+                                </div>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                <span class="badge" style="background-color: {{ lote.etapa_cor or '#6c757d' }}; font-size: 10px;">
+                                    {{ lote.etapa_nome or 'Sem etapa' }}
+                                </span>
+                            </div>
+                            <div class="small mt-1" style="font-size: 9px;">
+                                <span class="text-muted" title="Tempo desde início da OP">🏭 Produção: <span class="timer-producao">--</span></span>
+                                <span class="text-warning ms-2" title="Tempo sem atribuição nesta etapa">⏳ S/Atrib: <span class="timer-etapa">--</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                        <p class="mb-0">Todos atribuídos!</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Colunas dos Operadores -->
+        {% for op in operadores %}
+        {% set stats = stats_operadores.get(op.id, {}) %}
+        {% set lotes_op = lotes|selectattr('operador_designado_id', 'equalto', op.id)|list %}
+        <div class="col-md-3 col-lg-3" style="min-width: 320px;">
+            <div class="card border-primary h-100">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas fa-hard-hat me-1"></i>
+                            <strong>{{ op.name|truncate(15) }}</strong>
+                        </span>
+                        <div>
+                            <span class="badge bg-warning text-dark" title="Em Espera">{{ stats.get('em_espera', 0) }}</span>
+                            <span class="badge bg-info" title="Em Produção">{{ stats.get('em_producao', 0) }}</span>
+                            <span class="badge bg-success" title="Hoje">{{ stats.get('despachados_hoje', 0) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-2 drop-zone" data-operador-id="{{ op.id }}" style="max-height: 70vh; overflow-y: auto; min-height: 300px;">
+                    
+                    {% for lote in lotes_op %}
+                    <div class="card mb-2 shadow-sm border-start border-4 lote-card
+                                {% if lote.status_operador == 'em_producao' %}bg-light{% endif %}
+                                {% if lote.status_operador == 'despachado' %}opacity-50{% endif %}" 
+                         style="border-left-color: {% if lote.prioridade == 1 %}#dc3545{% elif lote.prioridade == 2 %}#fd7e14{% elif lote.status_operador == 'em_producao' %}#0dcaf0{% elif lote.status_operador == 'despachado' %}#198754{% else %}#6c757d{% endif %} !important; cursor: grab;"
+                         draggable="{% if lote.status_operador != 'despachado' %}true{% else %}false{% endif %}"
+                         data-lote-id="{{ lote.lote_id }}"
+                         data-prioridade="{{ lote.prioridade or 3 }}"
+                         data-quantidade="{{ lote.quantidade }}"
+                         data-numero-op="{{ lote.numero_op }}"
+                         data-produto="{{ lote.produto_nome|truncate(30) }}"
+                         data-status-operador="{{ lote.status_operador or '' }}"
+                         data-pausa-inicio="{{ lote.pausa_inicio.isoformat() if lote.pausa_inicio else '' }}"
+                         data-inicio-producao="{{ lote.data_inicio_operador.isoformat() if lote.data_inicio_operador else '' }}"
+                         data-atribuicao="{{ lote.data_atribuicao.isoformat() if lote.data_atribuicao else '' }}"
+                         data-inicio-producao-op="{{ lote.data_inicio_producao.isoformat() if lote.data_inicio_producao else '' }}"
+                         data-chegada-etapa="{{ lote.data_chegada_etapa.isoformat() if lote.data_chegada_etapa else '' }}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">
+                                        {% if lote.prioridade == 1 %}<span class="badge bg-danger me-1">🔴</span>
+                                        {% elif lote.prioridade == 2 %}<span class="badge bg-warning text-dark me-1">🟠</span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary">{{ lote.numero_op }}</span>
+                                        {% if lote.status_operador == 'em_producao' %}
+                                        <span class="badge bg-info ms-1"><i class="fas fa-cog fa-spin"></i></span>
+                                        {% elif lote.status_operador == 'despachado' %}
+                                        <span class="badge bg-success ms-1"><i class="fas fa-check"></i></span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-box me-1"></i>{{ lote.produto_nome|truncate(25) }}
+                                    </p>
+                                    <p class="card-text small mb-0 text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ lote.cliente_nome|truncate(20) }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ lote.quantidade }} un</span>
+                                </div>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                <span class="badge" style="background-color: {{ lote.etapa_cor or '#6c757d' }}; font-size: 10px;">
+                                    {{ lote.etapa_nome or 'Sem etapa' }}
+                                </span>
+                                {% if lote.pausa_id %}
+                                <span class="badge bg-warning ms-1" style="font-size: 10px;" title="{{ lote.pausa_motivo }}">
+                                    <i class="fas fa-pause"></i> Pausado
+                                </span>
+                                {% elif lote.status_operador == 'em_espera' %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 10px;">Aguardando</span>
+                                {% elif lote.status_operador == 'em_producao' %}
+                                <span class="badge bg-info ms-1" style="font-size: 10px;">Produzindo</span>
+                                {% elif lote.status_operador == 'despachado' %}
+                                <span class="badge bg-success ms-1" style="font-size: 10px;">✓ Despachado</span>
+                                {% if lote.etapa_destino_nome %}
+                                <span class="badge bg-dark ms-1" style="font-size: 10px;">
+                                    → {{ lote.etapa_destino_nome }}
+                                </span>
+                                {% endif %}
+                                {% if lote.arara %}
+                                <span class="badge bg-secondary ms-1" style="font-size: 10px;">
+                                    <i class="fas fa-hanger"></i> {{ lote.arara }}
+                                </span>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            {% if lote.status_operador and lote.status_operador != 'despachado' %}
+                            <div class="small mt-1" style="font-size: 9px;">
+                                <span class="text-muted" title="Tempo desde início da OP">🏭 Produção: <span class="timer-producao">--</span></span>
+                                <span class="{% if lote.pausa_id %}text-warning{% elif lote.status_operador == 'em_producao' %}text-info{% else %}text-secondary{% endif %} ms-2" title="Tempo na etapa atual">
+                                    {% if lote.pausa_id %}⏸️ Pausado{% elif lote.status_operador == 'em_producao' %}⚙️ Produzindo{% else %}⏳ Espera{% endif %}: <span class="timer-etapa">--</span>
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4 drop-placeholder">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p class="mb-0">Arraste lotes aqui</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                    <p class="mb-2">Nenhum operador na sua equipe</p>
+                    <a href="{{ url_for('ordem_producao.lider_gerenciar_equipe') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Adicionar Operadores
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Atribuição -->
+<div class="modal fade" id="modalAtribuir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-primary text-white">
+                <h6 class="modal-title"><i class="fas fa-user-plus me-2"></i>Atribuir Lote ao Operador</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modal_lote_id">
+                <input type="hidden" id="modal_operador_id">
+                <input type="hidden" id="modal_qtd_total">
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Lote</label>
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                        <span id="modal_lote_info"></span>
+                        <span class="badge bg-primary" id="modal_qtd_disponivel_badge"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Quantidade a Atribuir</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control form-control-lg text-center" id="modal_quantidade" 
+                               min="1" step="1" required>
+                        <span class="input-group-text">unidades</span>
+                    </div>
+                    <small class="text-muted">
+                        Disponível: <span id="modal_qtd_disponivel" class="fw-bold"></span> un
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="usarTudo()">Usar tudo</button>
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Prioridade</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="prioridade" id="prio1" value="1">
+                        <label class="btn btn-outline-danger" for="prio1">🔴 Urgente</label>
+                        
+                        <input type="radio" class="btn-check" name="prioridade" id="prio2" value="2">
+                        <label class="btn btn-outline-warning" for="prio2">🟠 Alta</label>
+                        
+                        <input type="radio" class="btn-check" name="prioridade" id="prio3" value="3" checked>
+                        <label class="btn btn-outline-success" for="prio3">🟢 Normal</label>
+                        
+                        <input type="radio" class="btn-check" name="prioridade" id="prio4" value="4">
+                        <label class="btn btn-outline-secondary" for="prio4">⚪ Baixa</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarAtribuicao()">
+                    <i class="fas fa-check me-1"></i>Atribuir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.lote-card {
+    transition: all 0.2s ease;
+}
+.lote-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+.lote-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+.drop-zone {
+    transition: all 0.2s ease;
+}
+.drop-zone.drag-over {
+    background-color: rgba(0,123,255,0.1) !important;
+    border: 2px dashed #007bff !important;
+}
+.drop-placeholder {
+    pointer-events: none;
+}
+</style>
+
+<script>
+let draggedCard = null;
+
+// Drag Start
+document.querySelectorAll('.lote-card[draggable="true"]').forEach(card => {
+    card.addEventListener('dragstart', function(e) {
+        draggedCard = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.loteId);
+    });
+    
+    card.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.classList.remove('drag-over');
+        });
+    });
+});
+
+// Drop Zones
+document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+    });
+    
+    zone.addEventListener('dragleave', function(e) {
+        if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('drag-over');
+        }
+    });
+    
+    zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        if (!draggedCard) return;
+        
+        abrirModalAtribuir(draggedCard, this.dataset.operadorId);
+    });
+});
+
+function abrirModalAtribuir(card, operadorId) {
+    const loteId = card.dataset.loteId;
+    const quantidade = parseInt(card.dataset.quantidade) || 0;
+    const numeroOp = card.dataset.numeroOp || '';
+    const produto = card.dataset.produto || '';
+    
+    document.getElementById('modal_lote_id').value = loteId;
+    document.getElementById('modal_operador_id').value = operadorId;
+    document.getElementById('modal_qtd_total').value = quantidade;
+    document.getElementById('modal_lote_info').innerHTML = `<strong>${numeroOp}</strong> - ${produto}`;
+    document.getElementById('modal_qtd_disponivel').textContent = quantidade;
+    document.getElementById('modal_qtd_disponivel_badge').textContent = quantidade + ' un disponíveis';
+    document.getElementById('modal_quantidade').value = quantidade;
+    document.getElementById('modal_quantidade').max = quantidade;
+    document.getElementById('prio3').checked = true;
+    
+    new bootstrap.Modal(document.getElementById('modalAtribuir')).show();
+}
+
+function usarTudo() {
+    const qtd = document.getElementById('modal_qtd_total').value;
+    document.getElementById('modal_quantidade').value = qtd;
+}
+
+function confirmarAtribuicao() {
+    const loteId = document.getElementById('modal_lote_id').value;
+    const operadorId = document.getElementById('modal_operador_id').value;
+    const quantidade = document.getElementById('modal_quantidade').value;
+    const prioridade = document.querySelector('input[name="prioridade"]:checked').value;
+    
+    if (!quantidade || quantidade <= 0) {
+        alert('Informe uma quantidade válida');
+        return;
+    }
+    
+    fetch('{{ url_for("ordem_producao.lider_atribuir_lote") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `lote_id=${loteId}&operador_id=${operadorId}&prioridade=${prioridade}&quantidade=${quantidade}`
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalAtribuir')).hide();
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(err => alert('Erro: ' + err));
+}
+
+// Double-click para alterar atribuição
+document.querySelectorAll('.lote-card').forEach(card => {
+    card.addEventListener('dblclick', function() {
+        const zone = this.closest('.drop-zone');
+        const operadorId = zone ? zone.dataset.operadorId : '';
+        abrirModalAtribuir(this, operadorId);
+    });
+});
+
+// Auto-refresh a cada 45 segundos
+setInterval(() => location.reload(), 45000);
+
+// ===== TEMPORIZADORES =====
+function formatarTempo(ms) {
+    if (ms < 0) ms = 0;
+    const totalSeg = Math.floor(ms / 1000);
+    const totalMin = Math.floor(totalSeg / 60);
+    const horas = Math.floor(totalMin / 60);
+    const minutos = totalMin % 60;
+    
+    if (horas > 0) {
+        return horas + 'h' + String(minutos).padStart(2, '0') + 'm';
+    }
+    return minutos + 'm' + String(totalSeg % 60).padStart(2, '0') + 's';
+}
+
+function atualizarTemporizadores() {
+    const agora = new Date().getTime();
+    
+    document.querySelectorAll('.lote-card[data-status-operador]').forEach(card => {
+        const timerProducaoEl = card.querySelector('.timer-producao');
+        const timerEtapaEl = card.querySelector('.timer-etapa');
+        
+        const pausaInicio = card.dataset.pausaInicio;
+        const inicioProducao = card.dataset.inicioProducao;
+        const atribuicao = card.dataset.atribuicao;
+        const inicioProducaoOp = card.dataset.inicioProducaoOp;
+        const chegadaEtapa = card.dataset.chegadaEtapa;
+        const statusOperador = card.dataset.statusOperador;
+        
+        // Timer 1: Tempo total de produção (desde início da OP)
+        if (timerProducaoEl && inicioProducaoOp) {
+            const diffProducao = agora - new Date(inicioProducaoOp).getTime();
+            timerProducaoEl.textContent = formatarTempo(diffProducao);
+        }
+        
+        // Timer 2: Tempo na etapa atual
+        if (timerEtapaEl) {
+            let timestampEtapa = null;
+            
+            if (pausaInicio) {
+                // Pausado: conta desde quando pausou
+                timestampEtapa = new Date(pausaInicio).getTime();
+            } else if (statusOperador === 'em_producao' && inicioProducao) {
+                // Em produção: conta desde quando operador iniciou
+                timestampEtapa = new Date(inicioProducao).getTime();
+            } else if (statusOperador === 'em_espera' && atribuicao) {
+                // Em espera: conta desde atribuição
+                timestampEtapa = new Date(atribuicao).getTime();
+            } else if (statusOperador === 'sem_atribuicao' && chegadaEtapa) {
+                // Sem atribuição: conta desde quando chegou na etapa
+                timestampEtapa = new Date(chegadaEtapa).getTime();
+            } else if (statusOperador === 'sem_atribuicao' && inicioProducaoOp) {
+                // Fallback: conta desde início da OP (primeira etapa)
+                timestampEtapa = new Date(inicioProducaoOp).getTime();
+            }
+            
+            if (timestampEtapa) {
+                const diffEtapa = agora - timestampEtapa;
+                timerEtapaEl.textContent = formatarTempo(diffEtapa);
+            }
+        }
+    });
+}
+
+// Atualizar a cada segundo
+setInterval(atualizarTemporizadores, 1000);
+// Primeira atualização imediata
+setTimeout(atualizarTemporizadores, 100);
+</script>
+{% endblock %}

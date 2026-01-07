@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nova Conta Bancária' if not account else 'Editar Conta Bancária' }} - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ 'Nova Conta Bancária' if not account else 'Editar Conta Bancária' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('bank_account.bank_accounts_list') }}">Contas Bancárias</a></li>
+        <li class="breadcrumb-item active">{{ 'Nova Conta' if not account else 'Editar Conta' }}</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-university me-1"></i>
+            {{ 'Nova Conta Bancária' if not account else 'Editar Conta Bancária' }}
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('bank_account.bank_account_create') if not account else url_for('bank_account.bank_account_edit', account_id=account.id) }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Nome da Conta <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ account.name if account else '' }}" required>
+                        <div class="form-text">Ex.: Banco XYZ - Conta Corrente</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="cost_center" class="form-label">Centro de Custo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="cost_center" name="cost_center" value="{{ account.cost_center if account else '' }}" required>
+                        <div class="form-text">Ex.: Vendas, Compras, Manutenção, Administrativo</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="agency" class="form-label">Agência</label>
+                        <input type="text" class="form-control" id="agency" name="agency" value="{{ account.agency if account else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="account_number" class="form-label">Número da Conta</label>
+                        <input type="text" class="form-control" id="account_number" name="account_number" value="{{ account.account_number if account else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="pix_key" class="form-label">Chave PIX</label>
+                        <input type="text" class="form-control" id="pix_key" name="pix_key" value="{{ account.pix_key if account else '' }}">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="active" {% if account and account.status == 'active' %}selected{% endif %}>Ativo</option>
+                            <option value="inactive" {% if account and account.status == 'inactive' %}selected{% endif %}>Inativo</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                        <a href="{{ url_for('bank_account.bank_accounts_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

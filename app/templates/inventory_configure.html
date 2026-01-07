@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Estoque - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Configuração de Estoque</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.inventory_list') }}">Estoque</a></li>
+        <li class="breadcrumb-item active">Configuração de Estoque</li>
+    </ol>
+    
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-cog me-1"></i>
+                    Configuração de Estoque para {{ product.name }}
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Código:</strong> {{ product.code or product.sku or '-' }}</p>
+                                            <p><strong>Categoria:</strong> {{ product.category_name or '-' }}</p>
+                                            <p><strong>Unidade:</strong> {{ product.unit }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Preço de Compra:</strong> R$ {{ "%.2f"|format(product.purchase_price) if product.purchase_price else '0.00' }}</p>
+                                            <p><strong>Preço de Venda:</strong> R$ {{ "%.2f"|format(product.sale_price) if product.sale_price else '0.00' }}</p>
+                                            <p><strong>Status:</strong> {{ 'Ativo' if product.active else 'Inativo' }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h5>Configurações Atuais</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Local</th>
+                                            <th>Estoque Atual</th>
+                                            <th>Estoque Mínimo</th>
+                                            <th>Estoque Máximo</th>
+                                            <th>Ponto de Reposição</th>
+                                            <th>Qtd. Reposição</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for config in stock_configs %}
+                                        <tr class="
+                                            {% if config.quantity <= config.min_stock and config.min_stock > 0 %}table-danger{% endif %}
+                                            {% if config.quantity >= config.max_stock and config.max_stock > 0 %}table-warning{% endif %}
+                                        ">
+                                            <td>{{ config.location_name }}</td>
+                                            <td>{{ config.quantity }} {{ product.unit }}</td>
+                                            <td>{{ config.min_stock }} {{ product.unit }}</td>
+                                            <td>{{ config.max_stock }} {{ product.unit }}</td>
+                                            <td>{{ config.reorder_point }} {{ product.unit }}</td>
+                                            <td>{{ config.reorder_quantity }} {{ product.unit }}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-primary btn-sm" 
+                                                        onclick="prepareEdit('{{ config.location_id }}', '{{ config.location_name }}', {{ config.min_stock }}, {{ config.max_stock }}, {{ config.reorder_point }}, {{ config.reorder_quantity }})">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        
+                                        {% if not stock_configs %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">Nenhuma configuração de estoque encontrada para este produto.</td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5>Nova Configuração</h5>
+                            <form method="post" action="{{ url_for('inventory.inventory_configure', product_id=product.id) }}">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label for="location_id" class="form-label">Local <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="location_id" name="location_id" required>
+                                            <option value="">Selecione um local</option>
+                                            {% for location in locations %}
+                                            <option value="{{ location.id }}">{{ location.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="min_stock" class="form-label">Estoque Mínimo</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="min_stock" name="min_stock" min="0" step="0.01" value="0">
+                                            <span class="input-group-text">{{ product.unit }}</span>
+                                        </div>
+                                        <div class="form-text">Quantidade mínima que deve ser mantida em estoque.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="max_stock" class="form-label">Estoque Máximo</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="max_stock" name="max_stock" min="0" step="0.01" value="0">
+                                            <span class="input-group-text">{{ product.unit }}</span>
+                                        </div>
+                                        <div class="form-text">Quantidade máxima que deve ser mantida em estoque.</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="reorder_point" class="form-label">Ponto de Reposição</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="reorder_point" name="reorder_point" min="0" step="0.01" value="0">
+                                            <span class="input-group-text">{{ product.unit }}</span>
+                                        </div>
+                                        <div class="form-text">Quantidade que dispara uma reposição de estoque.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="reorder_quantity" class="form-label">Quantidade de Reposição</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="reorder_quantity" name="reorder_quantity" min="0" step="0.01" value="0">
+                                            <span class="input-group-text">{{ product.unit }}</span>
+                                        </div>
+                                        <div class="form-text">Quantidade sugerida para compra quando o ponto de reposição é atingido.</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i> Salvar Configuração
+                                        </button>
+                                        <a href="{{ url_for('inventory.inventory_list') }}" class="btn btn-secondary">
+                                            <i class="fas fa-arrow-left me-1"></i> Voltar
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Histórico de Consumo
+                </div>
+                <div class="card-body">
+                    <canvas id="consumptionChart" width="100%" height="40"></canvas>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Sobre Configurações de Estoque
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="accordionStockConfig">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                    O que é Estoque Mínimo?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionStockConfig">
+                                <div class="accordion-body">
+                                    <p>O <strong>Estoque Mínimo</strong> é a quantidade mínima de um produto que deve ser mantida em estoque para garantir a continuidade das operações sem risco de falta.</p>
+                                    <p>Quando o estoque atual está abaixo do estoque mínimo, o sistema emite alertas visuais (destaque em vermelho) para indicar a necessidade de reposição urgente.</p>
+                                    <p>Para calcular o estoque mínimo, considere:</p>
+                                    <ul>
+                                        <li>Consumo médio diário do produto</li>
+                                        <li>Tempo de reposição (lead time) do fornecedor</li>
+                                        <li>Margem de segurança para variações de demanda</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    O que é Estoque Máximo?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionStockConfig">
+                                <div class="accordion-body">
+                                    <p>O <strong>Estoque Máximo</strong> representa o limite superior de quantidade que deve ser mantida em estoque para evitar capital imobilizado e custos excessivos de armazenagem.</p>
+                                    <p>Quando o estoque atual está acima do estoque máximo, o sistema emite alertas visuais (destaque em amarelo) para indicar possível excesso de estoque.</p>
+                                    <p>Para calcular o estoque máximo, considere:</p>
+                                    <ul>
+                                        <li>Capacidade física de armazenamento</li>
+                                        <li>Capital disponível para investimento em estoque</li>
+                                        <li>Prazo de validade do produto</li>
+                                        <li>Custo de oportunidade do capital</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    O que é Ponto de Reposição?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionStockConfig">
+                                <div class="accordion-body">
+                                    <p>O <strong>Ponto de Reposição</strong> é o nível de estoque que, quando atingido, dispara o processo de reposição do produto.</p>
+                                    <p>É geralmente maior que o estoque mínimo, pois considera o tempo necessário para realizar o pedido e receber o produto.</p>
+                                    <p>Fórmula básica: Ponto de Reposição = Consumo médio diário × Tempo de reposição + Estoque de segurança</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                    O que é Quantidade de Reposição?
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#accordionStockConfig">
+                                <div class="accordion-body">
+                                    <p>A <strong>Quantidade de Reposição</strong> é o volume ideal a ser comprado quando o ponto de reposição é atingido.</p>
+                                    <p>Esta quantidade deve considerar:</p>
+                                    <ul>
+                                        <li>Lote mínimo de compra do fornecedor</li>
+                                        <li>Descontos por quantidade</li>
+                                        <li>Capacidade de armazenamento</li>
+                                        <li>Custos de frete e manuseio</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Função para preparar edição de configuração existente
+        window.prepareEdit = function(locationId, locationName, minStock, maxStock, reorderPoint, reorderQuantity) {
+            // Preencher o formulário com os dados da configuração selecionada
+            $('#location_id').val(locationId);
+            $('#min_stock').val(minStock);
+            $('#max_stock').val(maxStock);
+            $('#reorder_point').val(reorderPoint);
+            $('#reorder_quantity').val(reorderQuantity);
+            
+            // Scroll para o formulário
+            $('html, body').animate({
+                scrollTop: $("#location_id").offset().top - 100
+            }, 500);
+        };
+        
+        // Gráfico de histórico de consumo
+        var ctxConsumption = document.getElementById("consumptionChart");
+        if (ctxConsumption) {
+            // Dados de exemplo para o gráfico
+            // Em uma implementação real, esses dados viriam do servidor
+            var months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            var consumptionData = [10, 15, 12, 8, 20, 18, 22, 25, 18, 16, 14, 12];
+            var purchaseData = [0, 20, 0, 0, 15, 0, 30, 0, 0, 20, 0, 0];
+            
+            new Chart(ctxConsumption, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Consumo',
+                            backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: consumptionData
+                        },
+                        {
+                            label: 'Compras',
+                            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: 'rgba(40, 167, 69, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverRadius: 5,
+                            fill: true,
+                            data: purchaseData
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Quantidade ({{ product.unit }})'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

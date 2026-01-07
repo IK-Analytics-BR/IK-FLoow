@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes NF-e #{{ nfe.nfe_numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-file-invoice text-primary"></i> 
+            NF-e #{{ nfe.nfe_numero }} / {{ nfe.nfe_serie }}
+        </h2>
+        <div>
+            <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            
+            {% if not nfe.chave_acesso_nfe %}
+                <!-- NFe Gravada: Mostrar botão Editar -->
+                <a href="{{ url_for('nfe_emissao.editar_nfe', nfe_id=nfe.id) }}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+            {% else %}
+                <!-- NFe Autorizada: Mostrar botões de download -->
+                <a href="{{ url_for('nfe_emissao.download_xml', nfe_id=nfe.id) }}" class="btn btn-primary">
+                    <i class="fas fa-file-code"></i> Download XML
+                </a>
+                <a href="{{ url_for('nfe_emissao.download_danfe', nfe_id=nfe.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-file-pdf"></i> Download DANFE
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status da NF-e -->
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-check-circle"></i> Status: Autorizada
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Número:</strong>
+                    <p class="text-primary fs-4">{{ nfe.nfe_numero }}</p>
+                </div>
+                <div class="col-md-3">
+                    <strong>Série:</strong>
+                    <p class="text-primary fs-4">{{ nfe.nfe_serie }}</p>
+                </div>
+                <div class="col-md-3">
+                    <strong>Data Emissão:</strong>
+                    <p>{{ nfe.data_emissao_nfe.strftime('%d/%m/%Y %H:%M:%S') if nfe.data_emissao_nfe else '-' }}</p>
+                </div>
+                <div class="col-md-3">
+                    <strong>Protocolo:</strong>
+                    <p><code>{{ nfe.nfe_protocolo or '-' }}</code></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <strong>Chave de Acesso:</strong>
+                    <p><code class="fs-6">{{ nfe.nfe_chave_acesso or '-' }}</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Emitente -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-building"></i> Emitente
+                </div>
+                <div class="card-body">
+                    <h5>{{ nfe.empresa_nome }}</h5>
+                    <p class="mb-1">
+                        <strong>Razão Social:</strong> {{ nfe.empresa_razao or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>CNPJ:</strong> {{ nfe.empresa_cnpj or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>IE:</strong> {{ nfe.empresa_ie or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Endereço:</strong> {{ nfe.empresa_endereco or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Cidade/UF:</strong> {{ nfe.empresa_cidade or '-' }} / {{ nfe.empresa_uf or '-' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Destinatário -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-user"></i> Destinatário
+                </div>
+                <div class="card-body">
+                    <h5>{{ nfe.cliente_nome or 'Não informado' }}</h5>
+                    <p class="mb-1">
+                        <strong>CPF/CNPJ:</strong> {{ nfe.cnpj_cpf or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Email:</strong> {{ nfe.cliente_email or nfe.email or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Telefone:</strong> {{ nfe.phone or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Endereço:</strong> {{ nfe.address or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Cidade/UF:</strong> {{ nfe.city or '-' }} / {{ nfe.state or '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>CEP:</strong> {{ nfe.zip_code or '-' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Produtos/Serviços -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-box"></i> Produtos/Serviços
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 8%">Código</th>
+                            <th style="width: 30%">Descrição</th>
+                            <th style="width: 10%">NCM</th>
+                            <th style="width: 8%">CFOP</th>
+                            <th style="width: 8%">Qtd</th>
+                            <th style="width: 6%">Un.</th>
+                            <th style="width: 12%">Valor Unit.</th>
+                            <th style="width: 10%">Desconto</th>
+                            <th style="width: 12%">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.produto_codigo or '-' }}</td>
+                            <td>{{ item.produto_nome }}</td>
+                            <td>{{ item.ncm or '-' }}</td>
+                            <td>{{ item.cfop or '-' }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.unit_measure or 'UN' }}</td>
+                            <td>R$ {{ "%.2f"|format(item.unit_price) }}</td>
+                            <td>
+                                {% if item.desconto and item.desconto > 0 %}
+                                <span class="text-warning">R$ {{ "%.2f"|format(item.desconto) }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td><strong>R$ {{ "%.2f"|format(item.subtotal) }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="8" class="text-end"><strong>SUBTOTAL:</strong></td>
+                            <td>
+                                <strong>
+                                    R$ {{ "%.2f"|format(itens|sum(attribute='subtotal')) }}
+                                </strong>
+                            </td>
+                        </tr>
+                        {% set total_desconto = itens|sum(attribute='desconto') %}
+                        {% if total_desconto > 0 %}
+                        <tr class="table-warning">
+                            <td colspan="8" class="text-end"><strong>DESCONTO:</strong></td>
+                            <td><strong>R$ {{ "%.2f"|format(total_desconto) }}</strong></td>
+                        </tr>
+                        {% endif %}
+                        <tr class="table-success">
+                            <td colspan="8" class="text-end"><strong>TOTAL DA NF-e:</strong></td>
+                            <td>
+                                <strong class="fs-5">
+                                    R$ {{ "%.2f"|format(nfe.total_amount) }}
+                                </strong>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informações Adicionais -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-money-bill"></i> Pagamento
+                </div>
+                <div class="card-body">
+                    <p class="mb-1">
+                        <strong>Forma de Pagamento:</strong> 
+                        <span class="badge bg-primary">{{ nfe.payment_method|upper }}</span>
+                    </p>
+                    <p class="mb-1">
+                        <strong>Valor Total:</strong> 
+                        <span class="text-success fs-5">R$ {{ "%.2f"|format(nfe.total_amount) }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-info-circle"></i> Informações da Venda
+                </div>
+                <div class="card-body">
+                    <p class="mb-1">
+                        <strong>ID da Venda:</strong> #{{ nfe.id }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Data da Venda:</strong> 
+                        {{ nfe.sale_date.strftime('%d/%m/%Y') if nfe.sale_date else '-' }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Status:</strong> 
+                        <span class="badge bg-success">{{ nfe.status|upper }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eventos (CC-e, Cancelamento) -->
+    {% if eventos %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <i class="fas fa-history"></i> Eventos da NF-e ({{ eventos|length }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Seq.</th>
+                            <th>Data/Hora</th>
+                            <th>Protocolo</th>
+                            <th>Status</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evento in eventos %}
+                        <tr>
+                            <td>
+                                {% if evento.codigo_evento == '110110' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-edit"></i> CC-e
+                                    </span>
+                                {% elif evento.codigo_evento == '110111' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-ban"></i> Cancelamento
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ evento.tipo_evento }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ evento.sequencial_evento or '-' }}</td>
+                            <td>{{ evento.data_evento.strftime('%d/%m/%Y %H:%M') if evento.data_evento else '-' }}</td>
+                            <td><small>{{ evento.numero_protocolo or '-' }}</small></td>
+                            <td>
+                                {% if evento.status_sefaz == 'autorizado' %}
+                                    <span class="badge bg-success">{{ evento.codigo_status }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ evento.codigo_status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small title="{{ evento.justificativa }}">
+                                    {{ evento.justificativa[:50] }}{% if evento.justificativa|length > 50 %}...{% endif %}
+                                </small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Ações -->
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ url_for('nfe_emissao.historico') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar ao Histórico
+                    </a>
+                </div>
+                <div>
+                    <button type="button" 
+                            class="btn btn-success"
+                            onclick="reenviarEmail()">
+                        <i class="fas fa-envelope"></i> Enviar Email
+                    </button>
+                    <a href="{{ url_for('nfe_emissao.download_xml', nfe_id=nfe.id) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-download"></i> Baixar XML
+                    </a>
+                    <a href="{{ url_for('nfe_emissao.download_danfe', nfe_id=nfe.id) }}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-file-pdf"></i> Baixar DANFE
+                    </a>
+                    <button type="button" 
+                            class="btn btn-danger"
+                            onclick="confirmarCancelamento()">
+                        <i class="fas fa-ban"></i> Cancelar NF-e
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmarCancelamento() {
+    Swal.fire({
+        title: 'Cancelar NF-e?',
+        html: `
+            <p>Você está prestes a cancelar a NF-e <strong>#{{ nfe.nfe_numero }}</strong></p>
+            <div class="mb-3 text-start">
+                <label class="form-label"><strong>Justificativa (mínimo 15 caracteres):</strong></label>
+                <textarea id="justificativa" class="form-control" rows="4" 
+                          placeholder="Digite o motivo do cancelamento..."></textarea>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sim, Cancelar',
+        cancelButtonText: 'Não',
+        preConfirm: () => {
+            const justificativa = document.getElementById('justificativa').value.trim();
+            if (!justificativa || justificativa.length < 15) {
+                Swal.showValidationMessage('A justificativa deve ter no mínimo 15 caracteres');
+                return false;
+            }
+            return justificativa;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Cancelando...',
+                html: 'Enviando cancelamento para SEFAZ',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Enviar requisição
+            fetch('/nfe/cancelar/{{ nfe.id }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    justificativa: result.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'NF-e Cancelada!',
+                        text: data.message,
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        window.location.href = '/nfe/historico';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: 'Erro ao processar: ' + error
+                });
+            });
+        }
+    });
+}
+
+function reenviarEmail() {
+    Swal.fire({
+        title: 'Enviar Email',
+        html: `
+            <p>Enviar NF-e <strong>#{{ nfe.nfe_numero }}</strong> por email</p>
+            <div class="mb-3 text-start">
+                <label class="form-label"><strong>Email do destinatário:</strong></label>
+                <input type="email" id="emailDestino" class="form-control" 
+                       value="{{ nfe.cliente_email or '' }}" 
+                       placeholder="email@exemplo.com">
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Enviar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const email = document.getElementById('emailDestino').value.trim();
+            if (!email || !email.includes('@')) {
+                Swal.showValidationMessage('Informe um email válido');
+                return false;
+            }
+            return email;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Enviando...',
+                html: 'Preparando e enviando email',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch('/nfe/reenviar-email/{{ nfe.id }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: result.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Email Enviado!',
+                        text: data.message
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: 'Erro ao enviar: ' + error
+                });
+            });
+        }
+    });
+}
+</script>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

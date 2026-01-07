@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Permissões - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Permissões</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Permissões</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-key me-1"></i>
+            Lista de Permissões
+            <div class="float-end">
+                <a href="{{ url_for('users.permission_create') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Nova Permissão
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar permissão...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="permissionsTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Descrição</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for permission in permissions %}
+                        <tr>
+                            <td>{{ permission.name }}</td>
+                            <td>{{ permission.description }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('users.permission_edit', permission_id=permission.id) }}" class="btn btn-primary btn-sm" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-danger btn-sm" title="Excluir" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal{{ permission.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Modal de confirmação de exclusão -->
+                                <div class="modal fade" id="deleteModal{{ permission.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ permission.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ permission.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Tem certeza que deseja excluir a permissão <strong>{{ permission.name }}</strong>?</p>
+                                                <p class="text-danger">Esta ação não pode ser desfeita. Se esta permissão estiver atribuída a usuários, não será possível excluí-la.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('users.permission_delete', permission_id=permission.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not permissions %}
+            <div class="alert alert-info">
+                Nenhuma permissão cadastrada.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Sobre Permissões
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-lightbulb me-2"></i> O que são permissões?</h5>
+                        <p>Permissões são regras que determinam quais funcionalidades do sistema um usuário pode acessar. Elas permitem um controle granular de acesso, garantindo que cada usuário tenha acesso apenas às funcionalidades necessárias para sua função.</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-cogs me-1"></i> Gerenciamento de Permissões
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        <li>Crie permissões com nomes descritivos e significativos.</li>
+                                        <li>Forneça descrições claras para facilitar o entendimento da finalidade de cada permissão.</li>
+                                        <li>Atribua permissões aos usuários de acordo com suas responsabilidades.</li>
+                                        <li>Evite criar permissões redundantes ou muito abrangentes.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-shield-alt me-1"></i> Boas Práticas
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        <li>Siga o princípio do menor privilégio: atribua apenas as permissões necessárias.</li>
+                                        <li>Revise periodicamente as permissões atribuídas aos usuários.</li>
+                                        <li>Documente o propósito e o escopo de cada permissão.</li>
+                                        <li>Considere agrupar permissões relacionadas para facilitar o gerenciamento.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i> Importante</h5>
+                        <p>Usuários com perfil <strong>Administrador</strong> têm acesso a todas as funcionalidades do sistema, independentemente das permissões atribuídas. As permissões são aplicadas apenas a usuários com perfil <strong>Usuário</strong>.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Filtro de busca
+        $("#searchInput").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#permissionsTable tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+    });
+</script>
+{% endblock %}

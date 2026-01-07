@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Controle de Caixa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-cash-register"></i> Controle de Caixa</h1>
+                    <p class="text-muted">Histórico de aberturas e fechamentos de caixa</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('cash_register.cash_register_current') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-eye"></i> Ver Caixa Atual
+                    </a>
+                    <a href="{{ url_for('cash_register.cash_register_open') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-plus"></i> Abrir Novo Caixa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos</option>
+                                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>🟢 Abertos</option>
+                                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>🔴 Fechados</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Data Inicial</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Data Final</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Histórico de Caixas</h5>
+                </div>
+                <div class="card-body">
+                    {% if registers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="10%">Caixa</th>
+                                    <th width="15%">Operador</th>
+                                    <th width="12%">Abertura</th>
+                                    <th width="12%">Fechamento</th>
+                                    <th width="8%">Tempo</th>
+                                    <th width="8%">Vendas</th>
+                                    <th width="10%">Esperado</th>
+                                    <th width="10%">Real</th>
+                                    <th width="10%">Diferença</th>
+                                    <th width="10%">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reg in registers %}
+                                <tr>
+                                    <td><strong>{{ reg.id }}</strong></td>
+                                    <td>{{ reg.register_number }}</td>
+                                    <td>{{ reg.cashier_name }}</td>
+                                    <td>{{ reg.opened_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if reg.closed_at %}
+                                            {{ reg.closed_at.strftime('%d/%m/%Y %H:%M') }}
+                                        {% else %}
+                                            <span class="badge badge-success">🟢 Aberto</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if reg.minutes_open %}
+                                            {% set hours = (reg.minutes_open / 60)|int %}
+                                            {% set mins = reg.minutes_open % 60 %}
+                                            {{ hours }}h {{ mins }}m
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge badge-info">{{ reg.total_sales }}</span>
+                                    </td>
+                                    <td>
+                                        {% if reg.expected_total %}
+                                            R$ {{ "%.2f"|format(reg.expected_total)|replace('.', ',') }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if reg.actual_total %}
+                                            R$ {{ "%.2f"|format(reg.actual_total)|replace('.', ',') }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if reg.status == 'closed' and reg.difference_total is not none %}
+                                            {% if reg.difference_total > 0.01 %}
+                                                <span class="badge badge-success">
+                                                    💰 +R$ {{ "%.2f"|format(reg.difference_total)|replace('.', ',') }}
+                                                </span>
+                                            {% elif reg.difference_total < -0.01 %}
+                                                <span class="badge badge-danger">
+                                                    ⚠️ R$ {{ "%.2f"|format(reg.difference_total|abs)|replace('.', ',') }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge badge-success">✅ OK</span>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('cash_register.cash_register_detail', register_id=reg.id) }}" 
+                                               class="btn btn-sm btn-info" title="Ver Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if reg.status == 'open' %}
+                                            <a href="{{ url_for('cash_register.cash_register_close', register_id=reg.id) }}" 
+                                               class="btn btn-sm btn-danger" title="Fechar Caixa">
+                                                <i class="fas fa-lock"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle fa-3x mb-3"></i>
+                        <h4>Nenhum caixa encontrado</h4>
+                        <p>Abra um novo caixa para começar.</p>
+                        <a href="{{ url_for('cash_register.cash_register_open') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Abrir Novo Caixa
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

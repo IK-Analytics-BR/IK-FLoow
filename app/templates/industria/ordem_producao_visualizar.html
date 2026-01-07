@@ -1,0 +1,600 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar OP {{ op.numero_op }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-eye"></i> OP {{ op.numero_op }}
+                        </h4>
+                        <div>
+                            <button type="button" class="btn btn-warning btn-sm btn-alterar-status"
+                                    data-op-id="{{ op.id }}"
+                                    data-status-atual="{{ op.status }}">
+                                <i class="fas fa-exchange-alt"></i> Alterar Status
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm btn-mudar-etapa"
+                                    data-op-id="{{ op.id }}"
+                                    data-etapa-atual-id="{{ etapa_atual.id if etapa_atual and etapa_atual.id else '' }}">
+                                <i class="fas fa-stream"></i> Mudar Etapa
+                            </button>
+                            {% if op.status != 'cancelada' and etapa_atual and etapa_atual.id %}
+                            <a href="{{ url_for('ordem_producao.producao_gantt', op_id=op.id) }}" class="btn btn-dark btn-sm">
+                                <i class="fas fa-chart-gantt"></i> Ver no Gantt
+                            </a>
+                            {% endif %}
+                            {% if not op.usou_template %}
+                            <a href="{{ url_for('ordem_producao.importar_template_para_op', id=op.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-download"></i> Importar Ficha Técnica
+                            </a>
+                            <form method="post" action="{{ url_for('ordem_producao.criar_template_da_op', id=op.id) }}" class="d-inline" onsubmit="return confirm('Criar Ficha Técnica a partir desta OP e aplicar?');">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-magic"></i> Criar Ficha Técnica
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{{ url_for('ordem_producao.listar_ops') }}" class="btn btn-light btn-sm">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Informações Gerais -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">📋 Informações Gerais</h5>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Número OP:</label>
+                            <p>{{ op.numero_op }}</p>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Empresa:</label>
+                            <p>{{ op.empresa_nome }}</p>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Cliente:</label>
+                            <p>{{ op.cliente_nome }}</p>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Status:</label>
+                            <p>
+                                {% if op.status == 'pendente' %}
+                                <span class="badge bg-secondary">⚪ Pendente</span>
+                                {% elif op.status == 'em_producao' %}
+                                <span class="badge bg-warning text-dark">🟡 Em Produção</span>
+                                {% elif op.status == 'concluida' %}
+                                <span class="badge bg-success">🟢 Concluída</span>
+                                {% else %}
+                                <span class="badge bg-danger">🔴 Cancelada</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">Produto:</label>
+                            <p>{{ op.produto_nome }}</p>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Quantidade:</label>
+                            <p>{{ op.quantidade }}</p>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label class="fw-bold">Ficha Técnica:</label>
+                            <p>
+                                {% if op.usou_template %}
+                                <span class="badge bg-info">{{ op.template_info }}</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">Manual</span>
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">Etapa Atual:</label>
+                            <p>
+                                {% if etapa_atual and etapa_atual.nome %}
+                                <span class="badge bg-primary">{{ etapa_atual.nome }}</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">-</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">Data Solicitação:</label>
+                            <p>{{ op.data_solicitacao.strftime('%d/%m/%Y') if op.data_solicitacao else '-' }}</p>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">Data Prevista:</label>
+                            <p>{{ op.data_prevista.strftime('%d/%m/%Y') if op.data_prevista else '-' }}</p>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">Data Conclusão:</label>
+                            <p>{{ op.data_conclusao.strftime('%d/%m/%Y') if op.data_conclusao else '-' }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Chão de fábrica: histórico de etapas -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">🧭 Chão de Fábrica</h5>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Data/Hora</th>
+                                            <th>Líder</th>
+                                            <th>Operador</th>
+                                            <th>Etapa Anterior</th>
+                                            <th>Etapa Nova</th>
+                                            <th>Lote/Qtd</th>
+                                            <th>Status</th>
+                                            <th>Arara</th>
+                                            <th>Obs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if etapas_log %}
+                                        {% for l in etapas_log %}
+                                        <tr>
+                                            <td class="small">{{ l.created_at.strftime('%d/%m/%Y %H:%M') if l.created_at else '-' }}</td>
+                                            <td>{{ l.lider_nome or '-' }}</td>
+                                            <td>{{ l.operador_nome or l.usuario_nome or '-' }}</td>
+                                            <td>{{ l.etapa_anterior or '-' }}</td>
+                                            <td><strong>{{ l.etapa_nova or '-' }}</strong></td>
+                                            <td>
+                                                {% if l.lote_info %}
+                                                    {{ l.lote_info }}
+                                                    {% if l.quantidade_movida is not none %}
+                                                        <span class="text-muted">({{ l.quantidade_movida }})</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if l.status_anterior and l.status_novo %}
+                                                    <span class="badge bg-secondary">{{ l.status_anterior }}</span>
+                                                    → 
+                                                    <span class="badge bg-primary">{{ l.status_novo }}</span>
+                                                {% elif l.status_novo %}
+                                                    <span class="badge bg-primary">{{ l.status_novo }}</span>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ l.arara or '-' }}</td>
+                                            <td class="small">{{ l.observacao or '-' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted">Nenhum registro.</td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Itens da OP -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">📦 Itens da Ordem de Produção</h5>
+                        </div>
+                        
+                        <!-- Serviços (Mão de Obra) -->
+                        {% if itens_por_tipo.servico %}
+                        <div class="col-12 mb-4">
+                            <h6 class="text-primary">🔧 Mão de Obra / Serviços</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Quantidade</th>
+                                            <th>Unidade</th>
+                                            <th>Custo Unit. FT</th>
+                                            <th>Custo Unit. Atual</th>
+                                            <th>Variação</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in itens_por_tipo.servico %}
+                                        <tr>
+                                            <td>{{ item.produto_nome }}</td>
+                                            <td>{{ item.quantidade }}</td>
+                                            <td>{{ item.unidade_medida }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_template or 0) }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_atual) }}</td>
+                                            <td class="{% if item.variacao_custo_percentual > 0 %}text-danger{% elif item.variacao_custo_percentual < 0 %}text-success{% endif %}">
+                                                {{ "%.1f"|format(item.variacao_custo_percentual or 0) }}%
+                                            </td>
+                                            <td><strong>R$ {{ "%.2f"|format(item.custo_total) }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                        <tr class="table-primary">
+                                            <td colspan="6" class="text-end"><strong>Subtotal Mão de Obra:</strong></td>
+                                            <td><strong>R$ {{ "%.2f"|format(totais.servico) }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Matéria Prima -->
+                        <div class="col-12 mb-4">
+                            <h6 class="text-success">📦 Matéria Prima / Insumos</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Quantidade</th>
+                                            <th>Unidade</th>
+                                            <th>Custo Unit. FT</th>
+                                            <th>Custo Unit. Atual</th>
+                                            <th>Variação</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if itens_por_tipo.materia_prima %}
+                                        {% for item in itens_por_tipo.materia_prima %}
+                                        <tr>
+                                            <td>{{ item.produto_nome }}</td>
+                                            <td>{{ item.quantidade }}</td>
+                                            <td>{{ item.unidade_medida }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_template or 0) }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_atual) }}</td>
+                                            <td class="{% if item.variacao_custo_percentual > 0 %}text-danger{% elif item.variacao_custo_percentual < 0 %}text-success{% endif %}">
+                                                {{ "%.1f"|format(item.variacao_custo_percentual or 0) }}%
+                                            </td>
+                                            <td><strong>R$ {{ "%.2f"|format(item.custo_total) }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">Nenhum item de matéria prima</td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr class="table-success">
+                                            <td colspan="6" class="text-end"><strong>Subtotal Matéria Prima:</strong></td>
+                                            <td><strong>R$ {{ "%.2f"|format(totais.materia_prima) }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Consumo Interno -->
+                        <div class="col-12 mb-4">
+                            <h6 class="text-warning">🧰 Consumo Interno</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Quantidade</th>
+                                            <th>Unidade</th>
+                                            <th>Custo Unit. FT</th>
+                                            <th>Custo Unit. Atual</th>
+                                            <th>Variação</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if itens_por_tipo.consumo_interno %}
+                                        {% for item in itens_por_tipo.consumo_interno %}
+                                        <tr>
+                                            <td>{{ item.produto_nome }}</td>
+                                            <td>{{ item.quantidade }}</td>
+                                            <td>{{ item.unidade_medida }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_template or 0) }}</td>
+                                            <td>R$ {{ "%.2f"|format(item.custo_unitario_atual) }}</td>
+                                            <td class="{% if item.variacao_custo_percentual > 0 %}text-danger{% elif item.variacao_custo_percentual < 0 %}text-success{% endif %}">
+                                                {{ "%.1f"|format(item.variacao_custo_percentual or 0) }}%
+                                            </td>
+                                            <td><strong>R$ {{ "%.2f"|format(item.custo_total) }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">Nenhum item de consumo interno</td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr class="table-warning">
+                                            <td colspan="6" class="text-end"><strong>Subtotal Consumo Interno:</strong></td>
+                                            <td><strong>R$ {{ "%.2f"|format(totais.consumo_interno) }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Total Geral -->
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <h5>💰 Resumo de Custos</h5>
+                                            <table class="table table-sm mb-0">
+                                                <tr>
+                                                    <td>Mão de Obra:</td>
+                                                    <td class="text-end"><strong>R$ {{ "%.2f"|format(totais.servico) }}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Matéria Prima:</td>
+                                                    <td class="text-end"><strong>R$ {{ "%.2f"|format(totais.materia_prima) }}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Consumo Interno:</td>
+                                                    <td class="text-end"><strong>R$ {{ "%.2f"|format(totais.consumo_interno) }}</strong></td>
+                                                </tr>
+                                                <tr class="table-primary">
+                                                    <td><strong>TOTAL:</strong></td>
+                                                    <td class="text-end"><h5 class="mb-0">R$ {{ "%.2f"|format(totais.servico + totais.materia_prima + totais.consumo_interno) }}</h5></td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="col-md-4">
+                                            {% if op.variacao_custo_percentual and op.variacao_custo_percentual != 0 %}
+                                            <div class="alert {% if op.variacao_custo_percentual > 0 %}alert-danger{% else %}alert-success{% endif %} mb-0">
+                                                <h6>Variação vs Ficha Técnica:</h6>
+                                                <h4 class="mb-0">
+                                                    {{ "%.1f"|format(op.variacao_custo_percentual) }}%
+                                                    {% if op.variacao_custo_percentual > 0 %}⬆️{% else %}⬇️{% endif %}
+                                                </h4>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Observações -->
+                    {% if op.observacoes %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">📝 Observações</h5>
+                            <p>{{ op.observacoes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Botões de Ação -->
+                    <div class="row">
+                        <div class="col-12">
+                            <a href="{{ url_for('ordem_producao.listar_ops') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Mudar Etapa -->
+<div class="modal fade" id="modalMudarEtapa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mudar Etapa da OP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMudarEtapa">
+                    <input type="hidden" id="op_id_etapa" name="op_id">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nova Etapa</label>
+                        <select class="form-select" id="etapa_nova_id" name="etapa_nova_id" required>
+                            <option value="">Selecione...</option>
+                            {% for e in etapas %}
+                            <option value="{{ e.id }}">{{ '%02d' % (e.ordem or 0) }} – {{ e.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observação (opcional)</label>
+                        <textarea class="form-control" id="etapa_observacao" name="observacao" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarMudancaEtapa()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Alterar Status -->
+<div class="modal fade" id="modalAlterarStatus" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alterar Status da OP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAlterarStatus">
+                    <input type="hidden" id="op_id" name="op_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Novo Status</label>
+                        <select class="form-select" id="novo_status" name="status" required>
+                            <option value="pendente">⚪ Pendente</option>
+                            <option value="em_producao">🟡 Em Produção</option>
+                            <option value="concluida">🟢 Concluída</option>
+                            <option value="cancelada">🔴 Cancelada</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="div_motivo_cancelamento" style="display: none;">
+                        <label class="form-label">Motivo do Cancelamento</label>
+                        <textarea class="form-control" id="motivo_cancelamento" name="motivo_cancelamento" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarAlteracaoStatus()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let modalAlterarStatus;
+let modalMudarEtapa;
+
+document.addEventListener('DOMContentLoaded', function() {
+    modalAlterarStatus = new bootstrap.Modal(document.getElementById('modalAlterarStatus'));
+    modalMudarEtapa = new bootstrap.Modal(document.getElementById('modalMudarEtapa'));
+    
+    // Mostrar/ocultar campo de motivo ao selecionar cancelada
+    document.getElementById('novo_status').addEventListener('change', function() {
+        const divMotivo = document.getElementById('div_motivo_cancelamento');
+        if (this.value === 'cancelada') {
+            divMotivo.style.display = 'block';
+            document.getElementById('motivo_cancelamento').required = true;
+        } else {
+            divMotivo.style.display = 'none';
+            document.getElementById('motivo_cancelamento').required = false;
+        }
+    });
+
+    const btn = document.querySelector('.btn-alterar-status');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            const opId = this.getAttribute('data-op-id');
+            const statusAtual = this.getAttribute('data-status-atual');
+            alterarStatus(opId, statusAtual);
+        });
+    }
+
+    const btnEtapa = document.querySelector('.btn-mudar-etapa');
+    if (btnEtapa) {
+        btnEtapa.addEventListener('click', function() {
+            const opId = this.getAttribute('data-op-id');
+            const etapaAtualId = this.getAttribute('data-etapa-atual-id');
+            document.getElementById('op_id_etapa').value = opId;
+            if (etapaAtualId) {
+                document.getElementById('etapa_nova_id').value = etapaAtualId;
+            }
+            document.getElementById('etapa_observacao').value = '';
+            modalMudarEtapa.show();
+        });
+    }
+});
+
+function alterarStatus(opId, statusAtual) {
+    document.getElementById('op_id').value = opId;
+    document.getElementById('novo_status').value = statusAtual;
+    modalAlterarStatus.show();
+}
+
+function confirmarAlteracaoStatus() {
+    const opId = document.getElementById('op_id').value;
+    const novoStatus = document.getElementById('novo_status').value;
+    const motivoCancelamento = document.getElementById('motivo_cancelamento').value;
+    
+    const formData = new FormData();
+    formData.append('status', novoStatus);
+    if (novoStatus === 'cancelada') {
+        formData.append('motivo_cancelamento', motivoCancelamento);
+    }
+    
+    fetch(`/industria/ordem-producao/alterar-status/${opId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.sucesso) {
+            location.reload();
+        } else {
+            alert('Erro ao alterar status: ' + (data.erro || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao alterar status: ' + error);
+    });
+}
+
+function confirmarMudancaEtapa() {
+    const opId = document.getElementById('op_id_etapa').value;
+    const etapaNovaId = document.getElementById('etapa_nova_id').value;
+    const observacao = document.getElementById('etapa_observacao').value;
+
+    const formData = new FormData();
+    formData.append('etapa_nova_id', etapaNovaId);
+    if (observacao) formData.append('observacao', observacao);
+
+    fetch(`/industria/ordem-producao/${opId}/mudar-etapa`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.sucesso) {
+            location.reload();
+        } else {
+            alert('Erro ao mudar etapa: ' + (data.erro || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao mudar etapa: ' + error);
+    });
+}
+</script>
+
+<style>
+.fw-bold {
+    font-weight: 600;
+    color: #495057;
+}
+
+.border-bottom {
+    border-bottom: 2px solid #dee2e6 !important;
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+    font-size: 0.9em;
+}
+
+.badge {
+    font-size: 0.9em;
+    padding: 5px 10px;
+}
+</style>
+{% endblock %}

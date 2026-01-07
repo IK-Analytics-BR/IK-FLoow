@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if condicao else 'Nova' }} Condição de Pagamento{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Cabeçalho -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    {{ 'Editar' if condicao else 'Nova' }} Condição de Pagamento
+                </h4>
+                <a href="{{ url_for('condicoes_pagamento.lista') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                </a>
+            </div>
+            
+            <!-- Formulário -->
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('condicoes_pagamento.salvar') }}" method="POST">
+                        {% if condicao %}
+                        <input type="hidden" name="id" value="{{ condicao.id }}">
+                        {% endif %}
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" required
+                                       value="{{ condicao.name if condicao else '' }}"
+                                       placeholder="Ex: 30/60/90 dias">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Dias (separados por vírgula)</label>
+                                <input type="text" name="days" class="form-control"
+                                       value="{{ condicao.days if condicao else '' }}"
+                                       placeholder="Ex: 30,60,90">
+                                <small class="text-muted">0 = à vista, 30 = 30 dias, etc.</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check mt-2">
+                                    <input type="checkbox" name="active" class="form-check-input" id="active"
+                                           {{ 'checked' if not condicao or condicao.active else '' }}>
+                                    <label class="form-check-label" for="active">Ativa</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mt-1">
+                            <div class="col-12">
+                                <label class="form-label">Descrição</label>
+                                <textarea name="description" class="form-control" rows="2"
+                                          placeholder="Ex: Pagamento em 3 parcelas de 30, 60 e 90 dias">{{ condicao.description if condicao else '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Exemplos -->
+                        <div class="alert alert-info mt-4">
+                            <strong><i class="fas fa-info-circle me-1"></i> Exemplos de configuração:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>À vista:</strong> dias = 0</li>
+                                <li><strong>30 dias:</strong> dias = 30</li>
+                                <li><strong>30/60 dias:</strong> dias = 30,60</li>
+                                <li><strong>30/60/90 dias:</strong> dias = 30,60,90</li>
+                                <li><strong>7/14/21/28 dias:</strong> dias = 7,14,21,28</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ url_for('condicoes_pagamento.lista') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

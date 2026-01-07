@@ -1,0 +1,68 @@
+<!-- Aba de Dados de Vendas -->
+<div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-tags me-1"></i> Dados de Vendas
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="cost_price" name="cost_price" placeholder="Preço de Custo" value="{{ produto.cost_price if produto and produto.cost_price else '' }}" step="0.01" min="0" onchange="calculateSalePrice()">
+                                <label for="cost_price">Preço de Custo (R$)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="margin" name="margin" placeholder="Margem (%)" value="{{ produto.margin if produto and produto.margin else '50' }}" step="0.1" min="0" onchange="calculateSalePrice()">
+                                <label for="margin">Margem (%)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="price" name="price" placeholder="Preço de Venda" value="{{ produto.price if produto and produto.price else '' }}" step="0.01" min="0" required>
+                                <label for="price" class="required-field">Preço de Venda (R$)</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="max_discount" name="max_discount" placeholder="Desconto Máximo" value="{{ produto.max_discount if produto and produto.max_discount else '' }}" step="0.1" min="0" max="100">
+                                <label for="max_discount">Desconto Máximo Permitido (%)</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="form-floating mb-3">
+                                <textarea class="form-control" id="main_customers" name="main_customers" placeholder="Clientes Principais" style="height: 100px">{{ produto.main_customers if produto and produto.main_customers else '' }}</textarea>
+                                <label for="main_customers">Clientes Principais</label>
+                            </div>
+                            <div class="form-text">Informe os principais clientes que consomem este produto (opcional, para relatórios e BI).</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4 info-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i> Informações de Vendas
+                </div>
+                <div class="card-body">
+                    <p>Configure aqui os dados relacionados à venda do produto.</p>
+                    <p><strong>Preço de Custo:</strong> Valor que você paga pelo produto.</p>
+                    <p><strong>Margem:</strong> Percentual de lucro desejado.</p>
+                    <p><strong>Preço de Venda:</strong> Valor que será cobrado do cliente.</p>
+                    <p><strong>Desconto Máximo:</strong> Limite de desconto que pode ser concedido.</p>
+                    <p>O sistema calcula automaticamente o preço de venda com base no custo e na margem.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

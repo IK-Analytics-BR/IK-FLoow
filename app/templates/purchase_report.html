@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Compras - Sistema de Gestão de Suprimentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ title }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('reports.reports_dashboard') }}">Relatórios</a></li>
+        <li class="breadcrumb-item active">Relatórios de Compras</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+            <div class="float-end">
+                <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="printReport()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" action="{{ url_for('reports.purchase_reports') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="type" class="form-label">Tipo de Relatório</label>
+                        <select class="form-select" id="type" name="type" onchange="this.form.submit()">
+                            <option value="orders" {% if report_type == 'orders' %}selected{% endif %}>Pedidos de Compra</option>
+                            <option value="invoices" {% if report_type == 'invoices' %}selected{% endif %}>Notas Fiscais</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="period" class="form-label">Período</label>
+                        <select class="form-select" id="period" name="period" onchange="updatePeriodFields()">
+                            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Mensal</option>
+                            <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Trimestral</option>
+                            <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Anual</option>
+                            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="yearField">
+                        <label for="year" class="form-label">Ano</label>
+                        <select class="form-select" id="year" name="year">
+                            {% for y in range(now().year-5, now().year+1) %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="monthField">
+                        <label for="month" class="form-label">Mês</label>
+                        <select class="form-select" id="month" name="month">
+                            {% for m in range(1, 13) %}
+                            <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="applyFilter">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row mt-3" id="customDateFields" style="display: none;">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Data Final</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label for="supplier_id" class="form-label">Fornecedor</label>
+                        <select class="form-select" id="supplier_id" name="supplier_id" onchange="this.form.submit()">
+                            <option value="">Todos os fornecedores</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if supplier_id|int == supplier.id %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        {% if report_type == 'orders' %}
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-primary text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Pedidos</h5>
+                        <h2 class="card-text">{{ report_data.items|length }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Pedidos de compra no período</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Valor Total</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Valor total dos pedidos</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-info text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Ticket Médio</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total / report_data.items|length) if report_data.items|length > 0 else '0.00' }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Valor médio por pedido</div>
+                    </div>
+                </div>
+            </div>
+        {% elif report_type == 'invoices' %}
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-primary text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Notas</h5>
+                        <h2 class="card-text">{{ report_data.items|length }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Notas fiscais no período</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Valor Total</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Valor total das notas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-info text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Impostos</h5>
+                        <h2 class="card-text">R$ {{ "%.2f"|format(report_data.total_tax) }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-white">Total de impostos</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-warning text-dark mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">% Impostos</h5>
+                        <h2 class="card-text">{{ "%.2f"|format(report_data.total_tax / report_data.total * 100) if report_data.total > 0 else '0.00' }}%</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="small text-dark">Percentual de impostos</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-table me-1"></i>
+                    {% if report_type == 'orders' %}
+                        Pedidos de Compra no Período
+                    {% elif report_type == 'invoices' %}
+                        Notas Fiscais no Período
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="reportTable">
+                            <thead>
+                                {% if report_type == 'orders' %}
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Data</th>
+                                    <th>Fornecedor</th>
+                                    <th>Valor Total</th>
+                                    <th>Status</th>
+                                    <th>Data Prevista</th>
+                                    <th>Data Recebimento</th>
+                                </tr>
+                                {% elif report_type == 'invoices' %}
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Série</th>
+                                    <th>Data Emissão</th>
+                                    <th>Fornecedor</th>
+                                    <th>Valor Total</th>
+                                    <th>Impostos</th>
+                                    <th>Status</th>
+                                </tr>
+                                {% endif %}
+                            </thead>
+                            <tbody>
+                                {% if report_type == 'orders' %}
+                                    {% for item in report_data.items %}
+                                    <tr class="
+                                        {% if item.status == 'draft' %}table-secondary{% endif %}
+                                        {% if item.status == 'sent' %}table-info{% endif %}
+                                        {% if item.status == 'confirmed' %}table-primary{% endif %}
+                                        {% if item.status == 'partially_received' %}table-warning{% endif %}
+                                        {% if item.status == 'received' %}table-success{% endif %}
+                                        {% if item.status == 'canceled' %}table-danger{% endif %}
+                                    ">
+                                        <td>{{ item.order_number }}</td>
+                                        <td>{{ item.order_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.supplier_name }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.total_amount) if item.total_amount else '0.00' }}</td>
+                                        <td>
+                                            {% if item.status == 'draft' %}
+                                                <span class="badge bg-secondary">Rascunho</span>
+                                            {% elif item.status == 'sent' %}
+                                                <span class="badge bg-info">Enviado</span>
+                                            {% elif item.status == 'confirmed' %}
+                                                <span class="badge bg-primary">Confirmado</span>
+                                            {% elif item.status == 'partially_received' %}
+                                                <span class="badge bg-warning">Parcialmente Recebido</span>
+                                            {% elif item.status == 'received' %}
+                                                <span class="badge bg-success">Recebido</span>
+                                            {% elif item.status == 'canceled' %}
+                                                <span class="badge bg-danger">Cancelado</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ item.expected_date.strftime('%d/%m/%Y') if item.expected_date else '-' }}</td>
+                                        <td>{{ item.received_date.strftime('%d/%m/%Y') if item.received_date else '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% elif report_type == 'invoices' %}
+                                    {% for item in report_data.items %}
+                                    <tr class="
+                                        {% if item.status == 'pending' %}table-warning{% endif %}
+                                        {% if item.status == 'verified' %}table-info{% endif %}
+                                        {% if item.status == 'processed' %}table-success{% endif %}
+                                        {% if item.status == 'canceled' %}table-danger{% endif %}
+                                    ">
+                                        <td>{{ item.invoice_number }}</td>
+                                        <td>{{ item.invoice_series }}</td>
+                                        <td>{{ item.issue_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ item.supplier_name }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.tax_amount) }}</td>
+                                        <td>
+                                            {% if item.status == 'pending' %}
+                                                <span class="badge bg-warning">Pendente</span>
+                                            {% elif item.status == 'verified' %}
+                                                <span class="badge bg-info">Verificada</span>
+                                            {% elif item.status == 'processed' %}
+                                                <span class="badge bg-success">Processada</span>
+                                            {% elif item.status == 'canceled' %}
+                                                <span class="badge bg-danger">Cancelada</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    {% if report_type == 'orders' %}
+                                    <th colspan="3">Total</th>
+                                    <th>R$ {{ "%.2f"|format(report_data.total) }}</th>
+                                    <th colspan="3"></th>
+                                    {% elif report_type == 'invoices' %}
+                                    <th colspan="4">Total</th>
+                                    <th>R$ {{ "%.2f"|format(report_data.total) }}</th>
+                                    <th>R$ {{ "%.2f"|format(report_data.total_tax) }}</th>
+                                    <th></th>
+                                    {% endif %}
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    {% if report_type == 'orders' %}
+                        Pedidos por Fornecedor
+                    {% elif report_type == 'invoices' %}
+                        Notas Fiscais por Fornecedor
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartOne" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    {% if report_type == 'orders' %}
+                        Pedidos por Status
+                    {% elif report_type == 'invoices' %}
+                        Notas Fiscais por Status
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <canvas id="chartTwo" width="100%" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Atualizar campos de período
+        updatePeriodFields();
+        
+        // Gráficos
+        {% if report_type == 'orders' %}
+            // Gráfico de pedidos por fornecedor
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var supplierLabels = [];
+                var supplierData = [];
+                var supplierColors = [];
+                
+                {% for supplier, amount in report_data.supplier_data.items() %}
+                    supplierLabels.push("{{ supplier }}");
+                    supplierData.push({{ amount }});
+                    // Gerar cor aleatória
+                    var r = Math.floor(Math.random() * 200) + 55;
+                    var g = Math.floor(Math.random() * 200) + 55;
+                    var b = Math.floor(Math.random() * 200) + 55;
+                    supplierColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+                {% endfor %}
+                
+                new Chart(ctxOne, {
+                    type: "pie",
+                    data: {
+                        labels: supplierLabels,
+                        datasets: [{
+                            backgroundColor: supplierColors,
+                            data: supplierData
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.raw || 0;
+                                        var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        var percentage = Math.round((value / total) * 100);
+                                        return label + ': R$ ' + value.toFixed(2) + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de pedidos por status
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                new Chart(ctxTwo, {
+                    type: "bar",
+                    data: {
+                        labels: ["Rascunho", "Enviado", "Confirmado", "Parcialmente Recebido", "Recebido", "Cancelado"],
+                        datasets: [{
+                            label: "Quantidade",
+                            backgroundColor: [
+                                "rgba(108, 117, 125, 0.8)",
+                                "rgba(23, 162, 184, 0.8)",
+                                "rgba(13, 110, 253, 0.8)",
+                                "rgba(255, 193, 7, 0.8)",
+                                "rgba(40, 167, 69, 0.8)",
+                                "rgba(220, 53, 69, 0.8)"
+                            ],
+                            borderColor: [
+                                "rgba(108, 117, 125, 1)",
+                                "rgba(23, 162, 184, 1)",
+                                "rgba(13, 110, 253, 1)",
+                                "rgba(255, 193, 7, 1)",
+                                "rgba(40, 167, 69, 1)",
+                                "rgba(220, 53, 69, 1)"
+                            ],
+                            borderWidth: 1,
+                            data: [
+                                {{ report_data.status_data.draft }},
+                                {{ report_data.status_data.sent }},
+                                {{ report_data.status_data.confirmed }},
+                                {{ report_data.status_data.partially_received }},
+                                {{ report_data.status_data.received }},
+                                {{ report_data.status_data.canceled }}
+                            ]
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% elif report_type == 'invoices' %}
+            // Gráfico de notas fiscais por fornecedor
+            var ctxOne = document.getElementById("chartOne");
+            if (ctxOne) {
+                var supplierLabels = [];
+                var supplierData = [];
+                var supplierColors = [];
+                
+                {% for supplier, amount in report_data.supplier_data.items() %}
+                    supplierLabels.push("{{ supplier }}");
+                    supplierData.push({{ amount }});
+                    // Gerar cor aleatória
+                    var r = Math.floor(Math.random() * 200) + 55;
+                    var g = Math.floor(Math.random() * 200) + 55;
+                    var b = Math.floor(Math.random() * 200) + 55;
+                    supplierColors.push("rgba(" + r + ", " + g + ", " + b + ", 0.8)");
+                {% endfor %}
+                
+                new Chart(ctxOne, {
+                    type: "pie",
+                    data: {
+                        labels: supplierLabels,
+                        datasets: [{
+                            backgroundColor: supplierColors,
+                            data: supplierData
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.raw || 0;
+                                        var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        var percentage = Math.round((value / total) * 100);
+                                        return label + ': R$ ' + value.toFixed(2) + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de notas fiscais por status
+            var ctxTwo = document.getElementById("chartTwo");
+            if (ctxTwo) {
+                new Chart(ctxTwo, {
+                    type: "bar",
+                    data: {
+                        labels: ["Pendente", "Verificada", "Processada", "Cancelada"],
+                        datasets: [{
+                            label: "Quantidade",
+                            backgroundColor: [
+                                "rgba(255, 193, 7, 0.8)",
+                                "rgba(23, 162, 184, 0.8)",
+                                "rgba(40, 167, 69, 0.8)",
+                                "rgba(220, 53, 69, 0.8)"
+                            ],
+                            borderColor: [
+                                "rgba(255, 193, 7, 1)",
+                                "rgba(23, 162, 184, 1)",
+                                "rgba(40, 167, 69, 1)",
+                                "rgba(220, 53, 69, 1)"
+                            ],
+                            borderWidth: 1,
+                            data: [
+                                {{ report_data.status_data.pending }},
+                                {{ report_data.status_data.verified }},
+                                {{ report_data.status_data.processed }},
+                                {{ report_data.status_data.canceled }}
+                            ]
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+    
+    // Função para atualizar campos de período
+    function updatePeriodFields() {
+        var period = $('#period').val();
+        
+        if (period === 'monthly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'quarterly') {
+            $('#yearField').show();
+            $('#monthField').show();
+            $('#customDateFields').hide();
+        } else if (period === 'yearly') {
+            $('#yearField').show();
+            $('#monthField').hide();
+            $('#customDateFields').hide();
+        } else if (period === 'custom') {
+            $('#yearField').hide();
+            $('#monthField').hide();
+            $('#customDateFields').show();
+        }
+    }
+    
+    // Função para exportar para PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // Criar novo documento PDF
+        const doc = new jsPDF();
+        
+        // Título
+        doc.setFontSize(18);
+        doc.text('{{ title }}', 14, 22);
+        
+        // Informações do relatório
+        doc.setFontSize(10);
+        doc.text('Data do relatório: ' + new Date().toLocaleDateString(), 14, 30);
+        
+        {% if report_type == 'orders' %}
+            doc.text('Total de pedidos: {{ report_data.items|length }}', 14, 35);
+            doc.text('Valor total: R$ {{ "%.2f"|format(report_data.total) }}', 14, 40);
+        {% elif report_type == 'invoices' %}
+            doc.text('Total de notas fiscais: {{ report_data.items|length }}', 14, 35);
+            doc.text('Valor total: R$ {{ "%.2f"|format(report_data.total) }}', 14, 40);
+            doc.text('Total de impostos: R$ {{ "%.2f"|format(report_data.total_tax) }}', 14, 45);
+        {% endif %}
+        
+        // Tabela de dados
+        doc.autoTable({
+            html: '#reportTable',
+            startY: 50,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            footStyles: { fillColor: [52, 152, 219], textColor: 255 },
+            styles: { fontSize: 8 }
+        });
+        
+        // Salvar o PDF
+        doc.save('relatorio_compras_{{ report_type }}.pdf');
+    }
+    
+    // Função para exportar para Excel
+    function exportToExcel() {
+        // Criar uma nova planilha
+        const wb = XLSX.utils.book_new();
+        
+        // Converter a tabela para uma planilha
+        const ws = XLSX.utils.table_to_sheet(document.getElementById('reportTable'));
+        
+        // Adicionar a planilha ao livro
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+        
+        // Salvar o arquivo
+        XLSX.writeFile(wb, 'relatorio_compras_{{ report_type }}.xlsx');
+    }
+    
+    // Função para imprimir o relatório
+    function printReport() {
+        window.print();
+    }
+</script>
+
+<style media="print">
+    @page {
+        size: landscape;
+    }
+    
+    .card-header, .breadcrumb, form, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    table {
+        width: 100% !important;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+    }
+</style>
+{% endblock %}
