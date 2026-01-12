@@ -357,6 +357,15 @@
                                                     <td><strong>TOTAL:</strong></td>
                                                     <td class="text-end"><h5 class="mb-0">R$ {{ "%.2f"|format(totais.servico + totais.materia_prima + totais.consumo_interno) }}</h5></td>
                                                 </tr>
+                                                {% if totais_fx and fx_currency_code %}
+                                                {% set currency_label = 'R$' if fx_currency_code == 'BRL' else fx_currency_code %}
+                                                <tr class="table-primary">
+                                                    <td><strong>TOTAL ({{ currency_label }}):</strong></td>
+                                                    <td class="text-end">
+                                                        <h6 class="mb-0">{{ currency_label }} {{ "%.2f"|format(totais_fx.servico + totais_fx.materia_prima + totais_fx.consumo_interno) }}</h6>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
                                             </table>
                                         </div>
                                         <div class="col-md-4">

@@ -18,7 +18,17 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="fas fa-coins me-2"></i>Cotações do dia</span>
-            <small class="text-muted">Base: {{ fx_base_currency }} | Data: {{ fx_date.strftime('%d/%m/%Y') if fx_date else '-' }}</small>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted me-2">Base: {{ fx_base_currency }} | Data: {{ fx_date.strftime('%d/%m/%Y') if fx_date else '-' }}</small>
+                <form method="post" action="{{ url_for('bem_vindo_atualizar_fx') }}" class="d-inline">
+                    <input type="hidden" name="tipo" value="atual">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Cotação atual</button>
+                </form>
+                <form method="post" action="{{ url_for('bem_vindo_atualizar_fx') }}" class="d-inline ms-1">
+                    <input type="hidden" name="tipo" value="encerrada">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Cotação encerrada (D-1)</button>
+                </form>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">

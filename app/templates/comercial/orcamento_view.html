@@ -4,6 +4,8 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    {% set currency_code = (orcamento.fx_target_currency_code or 'BRL') %}
+    {% set currency_label = 'R$' if currency_code == 'BRL' else currency_code %}
     <!-- Cabeçalho -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -124,6 +126,63 @@
                 </div>
             </div>
 
+            <!-- Condição de Pagamento / Parcelas -->
+            {% if duplicatas is defined and duplicatas %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-credit-card me-2 text-primary"></i>Condição de Pagamento</h5>
+                </div>
+                <div class="card-body">
+                    {% if orcamento.condicao_pagamento %}
+                    <p class="mb-3"><strong>Resumo:</strong> {{ orcamento.condicao_pagamento }}</p>
+                    {% endif %}
+
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center">Parcela</th>
+                                    <th class="text-center">Vencimento</th>
+                                    <th class="text-end">Valor</th>
+                                    <th>Forma Pagamento</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dup in duplicatas %}
+                                <tr>
+                                    <td class="text-center">{{ dup.numero }}</td>
+                                    <td class="text-center">{{ dup.vencimento.strftime('%d/%m/%Y') if dup.vencimento else '-' }}</td>
+                                    <td class="text-end">{{ currency_label }} {{ "{:,.2f}".format(dup.valor or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
+                                    <td>{{ dup.forma_pagamento or '' }}</td>
+                                    <td class="text-center">
+                                        {% set st = (dup.status or '')|lower %}
+                                        <span class="badge
+                                            {% if st == 'pago' %} bg-success
+                                            {% elif st == 'atrasado' %} bg-danger
+                                            {% elif st == 'pendente' %} bg-warning text-dark
+                                            {% else %} bg-secondary{% endif %}">
+                                            {{ dup.status or 'Pendente' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% elif orcamento.condicao_pagamento %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-credit-card me-2 text-primary"></i>Condição de Pagamento</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ orcamento.condicao_pagamento }}</p>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Dados do Cliente -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
@@ -188,7 +247,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">{{ item.quantidade }} {{ item.unidade }}</td>
-                                    <td class="text-end">R$ {{ "{:,.2f}".format(item.preco_unitario).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
+                                    <td class="text-end">{{ currency_label }} {{ "{:,.2f}".format(item.preco_unitario).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
                                     <td class="text-center">
                                         {% if item.percentual_desconto %}
                                             {{ item.percentual_desconto }}%
@@ -196,7 +255,7 @@
                                             -
                                         {% endif %}
                                     </td>
-                                    <td class="text-end fw-semibold">R$ {{ "{:,.2f}".format(item.valor_total).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
+                                    <td class="text-end fw-semibold">{{ currency_label }} {{ "{:,.2f}".format(item.valor_total).replace(",", "X").replace(".", ",").replace("X", ".") }}</td>
                                 </tr>
                                 {% else %}
                                 <tr>
@@ -341,20 +400,20 @@
                     
                     <div class="d-flex justify-content-between mb-2">
                         <span>Subtotal:</span>
-                        <span>R$ {{ "{:,.2f}".format(orcamento.valor_produtos or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                        <span>{{ currency_label }} {{ "{:,.2f}".format(orcamento.valor_produtos or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                     </div>
                     
                     {% if orcamento.valor_desconto and orcamento.valor_desconto > 0 %}
                     <div class="d-flex justify-content-between mb-2">
                         <span>Desconto ({{ orcamento.percentual_desconto or 0 }}%):</span>
-                        <span>- R$ {{ "{:,.2f}".format(orcamento.valor_desconto).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                        <span>- {{ currency_label }} {{ "{:,.2f}".format(orcamento.valor_desconto).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                     </div>
                     {% endif %}
                     
                     {% if orcamento.valor_frete and orcamento.valor_frete > 0 %}
                     <div class="d-flex justify-content-between mb-2">
                         <span>Frete:</span>
-                        <span>R$ {{ "{:,.2f}".format(orcamento.valor_frete).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                        <span>{{ currency_label }} {{ "{:,.2f}".format(orcamento.valor_frete).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                     </div>
                     {% endif %}
                     
@@ -362,8 +421,78 @@
                     
                     <div class="d-flex justify-content-between">
                         <span class="h5 mb-0">TOTAL:</span>
-                        <span class="h4 mb-0 fw-bold">R$ {{ "{:,.2f}".format(orcamento.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                        <span class="h4 mb-0 fw-bold">{{ currency_label }} {{ "{:,.2f}".format(orcamento.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- Moeda e Cotação -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-coins me-2 text-primary"></i>Moeda e Cotação</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Moeda do orçamento:</td>
+                            <td class="fw-semibold">{{ currency_label }} ({{ currency_code }})</td>
+                        </tr>
+                        {% if orcamento.fx_rate_value %}
+                            {% set fx_base = orcamento.fx_base_currency_code or 'BRL' %}
+                            {% set fx_target = orcamento.fx_target_currency_code or currency_code %}
+                            {% set fx_rate = orcamento.fx_rate_value|float %}
+                            {% if fx_oficial and fx_oficial.rate %}
+                            {% set fx_oficial_rate = fx_oficial.rate|float %}
+                            <tr>
+                                <td class="text-muted">Cotação oficial do dia:</td>
+                                <td>
+                                    1 {{ fx_base }} = {{ "{:.6f}".format(fx_oficial_rate).replace(",", "X").replace(".", ",").replace("X", ".") }} {{ fx_target }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="text-muted">Cotação utilizada neste orçamento:</td>
+                                <td>
+                                    1 {{ fx_base }} = {{ "{:.6f}".format(fx_rate).replace(",", "X").replace(".", ",").replace("X", ".") }} {{ fx_target }}
+                                </td>
+                            </tr>
+                            {% if fx_oficial and fx_oficial.rate and fx_oficial_rate > 0 %}
+                            {% set diff_pct = ((fx_rate - fx_oficial_rate) / fx_oficial_rate * 100.0) %}
+                            <tr>
+                                <td class="text-muted">Variação vs oficial:</td>
+                                <td>
+                                    {{ "{:+.2f}".format(diff_pct).replace(",", "X").replace(".", ",").replace("X", ".") }}%
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if fx_rate > 0 and orcamento.valor_total %}
+                            <tr>
+                                <td class="text-muted">Total aprox. em {{ fx_base }}:</td>
+                                <td>
+                                    {% set total_base = (orcamento.valor_total|float) / fx_rate %}
+                                    {{ 'R$' if fx_base == 'BRL' else fx_base }} {{ "{:,.2f}".format(total_base).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if orcamento.fx_rate_date %}
+                            <tr>
+                                <td class="text-muted">Data da taxa:</td>
+                                <td>{{ orcamento.fx_rate_date.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if orcamento.fx_rate_source %}
+                            <tr>
+                                <td class="text-muted">Fonte:</td>
+                                <td>{{ orcamento.fx_rate_source }}</td>
+                            </tr>
+                            {% endif %}
+                        {% else %}
+                            <tr>
+                                <td class="text-muted">Cotação utilizada:</td>
+                                <td>Sem conversão de moeda (valores em {{ currency_label }}).</td>
+                            </tr>
+                        {% endif %}
+                    </table>
                 </div>
             </div>
 
@@ -378,6 +507,12 @@
                             <td class="text-muted">Vendedor:</td>
                             <td class="fw-semibold">{{ orcamento.vendedor_nome }}</td>
                         </tr>
+                        {% if orcamento.vendedor2_nome %}
+                        <tr>
+                            <td class="text-muted">Vendedor 2:</td>
+                            <td>{{ orcamento.vendedor2_nome }}</td>
+                        </tr>
+                        {% endif %}
                         <tr>
                             <td class="text-muted">Empresa:</td>
                             <td>{{ orcamento.empresa_nome }}</td>
@@ -408,6 +543,32 @@
                             <td>{{ orcamento.condicao_pagamento }}</td>
                         </tr>
                         {% endif %}
+                        {% if orcamento.comissao_vendedor1_percent or orcamento.comissao_vendedor1_valor %}
+                        <tr>
+                            <td class="text-muted">Comissão Vendedor 1:</td>
+                            <td>
+                                {% if orcamento.comissao_vendedor1_percent %}
+                                    {{ "{:,.2f}".format(orcamento.comissao_vendedor1_percent|float).replace(",", "X").replace(".", ",").replace("X", ".") }}%
+                                {% endif %}
+                                {% if orcamento.comissao_vendedor1_valor %}
+                                    ({{ currency_label }} {{ "{:,.2f}".format(orcamento.comissao_vendedor1_valor|float).replace(",", "X").replace(".", ",").replace("X", ".") }})
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.comissao_vendedor2_percent or orcamento.comissao_vendedor2_valor %}
+                        <tr>
+                            <td class="text-muted">Comissão Vendedor 2:</td>
+                            <td>
+                                {% if orcamento.comissao_vendedor2_percent %}
+                                    {{ "{:,.2f}".format(orcamento.comissao_vendedor2_percent|float).replace(",", "X").replace(".", ",").replace("X", ".") }}%
+                                {% endif %}
+                                {% if orcamento.comissao_vendedor2_valor %}
+                                    ({{ currency_label }} {{ "{:,.2f}".format(orcamento.comissao_vendedor2_valor|float).replace(",", "X").replace(".", ",").replace("X", ".") }})
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
                         {% if orcamento.frete_por_conta %}
                         <tr>
                             <td class="text-muted">Frete:</td>
@@ -419,10 +580,40 @@
                             </td>
                         </tr>
                         {% endif %}
+                        {% if orcamento.obs_frete %}
+                        <tr>
+                            <td class="text-muted">Obs. Frete:</td>
+                            <td>{{ orcamento.obs_frete }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.perfil_transporte %}
+                        <tr>
+                            <td class="text-muted">Perfil Transporte:</td>
+                            <td>{{ orcamento.perfil_transporte }}</td>
+                        </tr>
+                        {% endif %}
                         {% if orcamento.transportadora_nome %}
                         <tr>
                             <td class="text-muted">Transportadora:</td>
                             <td>{{ orcamento.transportadora_nome }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if orcamento.volumes_quantidade or orcamento.peso_bruto or orcamento.peso_liquido %}
+                        <tr>
+                            <td class="text-muted">Volumes/Pesos:</td>
+                            <td>
+                                {% if orcamento.volumes_quantidade %}
+                                    {{ orcamento.volumes_quantidade }} vol.
+                                {% endif %}
+                                {% if orcamento.peso_bruto %}
+                                    {% if orcamento.volumes_quantidade %} · {% endif %}
+                                    Peso bruto: {{ orcamento.peso_bruto }} kg
+                                {% endif %}
+                                {% if orcamento.peso_liquido %}
+                                    {% if orcamento.volumes_quantidade or orcamento.peso_bruto %} · {% endif %}
+                                    Peso líquido: {{ orcamento.peso_liquido }} kg
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endif %}
                     </table>
@@ -519,7 +710,7 @@
                         <textarea name="mensagem" class="form-control" rows="4" 
                                   placeholder="Escreva uma mensagem para o cliente (opcional)...">Prezado(a) cliente,
 
-Segue em anexo o orcamento solicitado no valor de R$ {{ "%.2f"|format(orcamento.valor_total|float) }}.
+Segue em anexo o orcamento solicitado no valor de {{ currency_label }} {{ "%.2f"|format(orcamento.valor_total|float) }}.
 
 Este orcamento tem validade ate {{ orcamento.data_validade.strftime('%d/%m/%Y') if orcamento.data_validade else 'data a combinar' }}.
 

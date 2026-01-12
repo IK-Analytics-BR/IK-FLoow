@@ -33,6 +33,7 @@ def cash_flow_dashboard():
     period = request.args.get('period', 'month')
     date_str = request.args.get('date')
     bank_account_id = request.args.get('bank_account_id')
+    company_id = request.args.get('company_id')
     
     # Definir datas de início e fim com base no período
     today = datetime.datetime.now().date()
@@ -72,9 +73,13 @@ def cash_flow_dashboard():
     
     # Construir a consulta base para o fluxo de caixa
     query = """
-        SELECT cf.*, ba.name as bank_account_name
+        SELECT 
+            cf.*, 
+            ba.name AS bank_account_name,
+            e.nome_fantasia AS company_name
         FROM cash_flow cf
         JOIN bank_accounts ba ON cf.bank_account_id = ba.id
+        LEFT JOIN empresas e ON cf.company_id = e.id
         WHERE cf.date BETWEEN %s AND %s
     """
     params = [start_date, end_date]
@@ -83,6 +88,11 @@ def cash_flow_dashboard():
     if bank_account_id:
         query += " AND cf.bank_account_id = %s"
         params.append(bank_account_id)
+
+    # Adicionar filtro de empresa, se fornecido
+    if company_id:
+        query += " AND cf.company_id = %s"
+        params.append(company_id)
     
     # Ordenação
     query += " ORDER BY cf.date, cf.id"
@@ -121,26 +131,50 @@ def cash_flow_dashboard():
         daily_data[date_str]['balance'] = running_balance
     
     # Buscar contas a pagar vencendo no período
-    payables = db.fetch_all("""
-        SELECT ap.*, s.name as supplier_name
+    query_payables = """
+        SELECT ap.*, s.name AS supplier_name
         FROM accounts_payable ap
         JOIN suppliers s ON ap.supplier_id = s.id
         WHERE ap.due_date BETWEEN %s AND %s
         AND ap.status IN ('pending', 'overdue')
         AND ap.active = TRUE
-        ORDER BY ap.due_date
-    """, (start_date, end_date))
+    """
+    params_payables = [start_date, end_date]
+
+    if company_id:
+        query_payables += " AND ap.company_id = %s"
+        params_payables.append(company_id)
+
+    query_payables += " ORDER BY ap.due_date"
+
+    payables = db.fetch_all(query_payables, tuple(params_payables))
     
     # Buscar contas a receber vencendo no período
-    receivables = db.fetch_all("""
-        SELECT ar.*, c.name as customer_name
+    query_receivables = """
+        SELECT ar.*, c.name AS customer_name
         FROM accounts_receivable ar
         JOIN customers c ON ar.customer_id = c.id
         WHERE ar.due_date BETWEEN %s AND %s
         AND ar.status IN ('pending', 'overdue')
         AND ar.active = TRUE
-        ORDER BY ar.due_date
-    """, (start_date, end_date))
+    """
+    params_receivables = [start_date, end_date]
+
+    if company_id:
+        query_receivables += " AND ar.company_id = %s"
+        params_receivables.append(company_id)
+
+    query_receivables += " ORDER BY ar.due_date"
+
+    receivables = db.fetch_all(query_receivables, tuple(params_receivables))
+
+    # Buscar empresas para filtro por empresa
+    companies = db.fetch_all("""
+        SELECT id, nome_fantasia
+        FROM empresas
+        WHERE ativo = TRUE
+        ORDER BY nome_fantasia
+    """)
     
     return render_template(
         'cash_flow_dashboard.html',
@@ -158,6 +192,8 @@ def cash_flow_dashboard():
         payables=payables,
         receivables=receivables,
         bank_account_id=bank_account_id,
+        companies=companies,
+        company_id=company_id,
         active_page='cash_flow'
     )
 
@@ -170,6 +206,7 @@ def cash_flow_projection():
     # Obter parâmetros
     months = int(request.args.get('months', '3'))
     bank_account_id = request.args.get('bank_account_id')
+    company_id = request.args.get('company_id')
     
     # Definir datas
     today = datetime.datetime.now().date()
@@ -177,7 +214,7 @@ def cash_flow_projection():
     
     # Buscar contas a pagar futuras
     query_payables = """
-        SELECT ap.*, s.name as supplier_name, 'expense' as flow_type
+        SELECT ap.*, s.name AS supplier_name, 'expense' AS flow_type
         FROM accounts_payable ap
         JOIN suppliers s ON ap.supplier_id = s.id
         WHERE ap.due_date BETWEEN %s AND %s
@@ -190,10 +227,15 @@ def cash_flow_projection():
     if bank_account_id:
         query_payables += " AND ap.bank_account_id = %s"
         params_payables.append(bank_account_id)
+
+    # Adicionar filtro de empresa, se fornecido
+    if company_id:
+        query_payables += " AND ap.company_id = %s"
+        params_payables.append(company_id)
     
     # Buscar contas a receber futuras
     query_receivables = """
-        SELECT ar.*, c.name as customer_name, 'income' as flow_type
+        SELECT ar.*, c.name AS customer_name, 'income' AS flow_type
         FROM accounts_receivable ar
         JOIN customers c ON ar.customer_id = c.id
         WHERE ar.due_date BETWEEN %s AND %s
@@ -206,6 +248,11 @@ def cash_flow_projection():
     if bank_account_id:
         query_receivables += " AND ar.bank_account_id = %s"
         params_receivables.append(bank_account_id)
+
+    # Adicionar filtro de empresa, se fornecido
+    if company_id:
+        query_receivables += " AND ar.company_id = %s"
+        params_receivables.append(company_id)
     
     # Executar as consultas
     payables = db.fetch_all(query_payables, tuple(params_payables))

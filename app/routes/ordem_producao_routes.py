@@ -30,6 +30,11 @@ try:
 except ImportError:
     from app.utils.permissoes_helper import tem_permissao
 
+try:
+    from app.services.exchange_rate_service import ExchangeRateService
+except ImportError:
+    from services.exchange_rate_service import ExchangeRateService
+
 # Decorators para permissões granulares de Indústria
 def industria_ops_visualizar_required(f):
     @wraps(f)
@@ -90,6 +95,38 @@ except ImportError:
 
 # Criar blueprint
 ordem_producao_bp = Blueprint('ordem_producao', __name__, url_prefix='/industria/ordem-producao')
+
+
+def calcular_fx_para_empresa(db, empresa_id):
+    if not empresa_id:
+        return None
+    try:
+        empresa = db.fetch_one(
+            "SELECT moeda_funcional FROM empresas WHERE id = %s",
+            (empresa_id,),
+        )
+    except Exception as e:
+        print(f"[INDUSTRIA FX] Erro ao buscar empresa {empresa_id}: {e}")
+        return None
+    if not empresa:
+        return None
+    moeda_funcional = (empresa.get('moeda_funcional') or '').strip().upper()[:3]
+    if not moeda_funcional:
+        return None
+    try:
+        svc = ExchangeRateService()
+        rate_date = date.today()
+        rate_value = svc.get_rate(rate_date, moeda_funcional)
+        return {
+            'base_currency': svc.base_currency.upper(),
+            'target_currency': moeda_funcional,
+            'rate_date': rate_date,
+            'rate_value': float(rate_value),
+            'rate_source': 'ExchangeRatesAPI.io',
+        }
+    except Exception as e:
+        print(f"[INDUSTRIA FX] Erro ao obter taxa de câmbio para empresa {empresa_id} ({moeda_funcional}): {e}")
+        return None
 
 
 @ordem_producao_bp.route('/producao/gantt')
@@ -1017,10 +1054,12 @@ def listar_ops():
         query = """
             SELECT
                 v.*,
+                op.empresa_id,
                 o.numero AS orcamento_numero,
                 og.id AS grupo_id,
                 og.orcamento_id
             FROM vw_ordens_producao_resumo v
+            INNER JOIN ordens_producao op ON op.id = v.id
             LEFT JOIN orcamento_op_itens oi ON oi.ordem_producao_id = v.id
             LEFT JOIN orcamento_op_grupos og ON og.id = oi.grupo_id
             LEFT JOIN orcamentos o ON o.id = og.orcamento_id
@@ -1039,6 +1078,32 @@ def listar_ops():
         query += " ORDER BY created_at DESC"
         
         ops = db.fetch_all(query, tuple(params) if params else None)
+        
+        fx_cache = {}
+        for op in ops or []:
+            empresa_id = op.get('empresa_id')
+            if not empresa_id:
+                op['custo_total_fx'] = None
+                op['fx_currency_code'] = None
+                continue
+            if empresa_id not in fx_cache:
+                fx_cache[empresa_id] = calcular_fx_para_empresa(db, empresa_id)
+            fx_info = fx_cache.get(empresa_id)
+            if fx_info and op.get('custo_total_atual') is not None:
+                try:
+                    valor_brl = float(op.get('custo_total_atual') or 0)
+                except (TypeError, ValueError):
+                    valor_brl = 0.0
+                rate = fx_info.get('rate_value') or 0
+                if rate:
+                    op['custo_total_fx'] = valor_brl * rate
+                    op['fx_currency_code'] = fx_info.get('target_currency')
+                else:
+                    op['custo_total_fx'] = None
+                    op['fx_currency_code'] = None
+            else:
+                op['custo_total_fx'] = None
+                op['fx_currency_code'] = None
         
         # Buscar clientes para filtro
         clientes = db.fetch_all("SELECT id, name FROM customers WHERE active = TRUE ORDER BY name")
@@ -1885,6 +1950,10 @@ def visualizar_op(id):
             flash('Ordem de produção não encontrada!', 'danger')
             return redirect(url_for('ordem_producao.listar_ops'))
 
+        empresa_row = db.fetch_one("SELECT empresa_id FROM ordens_producao WHERE id = %s", (id,))
+        empresa_id = empresa_row['empresa_id'] if empresa_row else None
+        fx_info = calcular_fx_para_empresa(db, empresa_id) if empresa_id else None
+
         # Etapas de chão de fábrica
         etapa_atual = db.fetch_one("""
             SELECT e.id, e.nome, e.ordem
@@ -1992,13 +2061,28 @@ def visualizar_op(id):
             'consumo_interno': sum(float(i['custo_total']) for i in itens_por_tipo['consumo_interno'])
         }
         
+        totais_fx = None
+        fx_currency_code = None
+        if fx_info:
+            target_code = (fx_info.get('target_currency') or '').upper()
+            rate = fx_info.get('rate_value') or 0
+            if target_code and target_code != 'BRL' and rate:
+                fx_currency_code = target_code
+                totais_fx = {
+                    'servico': totais['servico'] * rate,
+                    'materia_prima': totais['materia_prima'] * rate,
+                    'consumo_interno': totais['consumo_interno'] * rate,
+                }
+        
         return render_template('industria/ordem_producao_visualizar.html',
                              op=op,
                              etapa_atual=etapa_atual,
                              etapas=etapas,
                              etapas_log=etapas_log,
                              itens_por_tipo=itens_por_tipo,
-                             totais=totais)
+                             totais=totais,
+                             fx_currency_code=fx_currency_code,
+                             totais_fx=totais_fx)
         
     except Exception as e:
         flash(f'Erro ao carregar ordem de produção: {str(e)}', 'danger')

@@ -102,7 +102,15 @@
                         <label class="form-label">Filial</label>
                         <select class="form-select" name="empresa_id" id="empresa_id" required>
                             {% for emp in empresas %}
-                            <option value="{{ emp.id }}" {{ 'selected' if orcamento and orcamento.empresa_id|int == emp.id|int }}>{{ emp.razao_social }}</option>
+                            <option value="{{ emp.id }}"
+                                {% if orcamento and orcamento.empresa_id|int == emp.id|int %}
+                                    selected
+                                {% elif not orcamento and empresa_padrao is defined and empresa_padrao|int == emp.id|int %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ emp.razao_social }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -264,7 +272,7 @@
                     </div>
                 </div>
                 <hr class="my-2">
-                <div class="row g-1">
+                <div class="row g-1 mb-2">
                     <div class="col-6">
                         <label class="form-label">Produtos</label>
                         <input type="text" class="form-control text-end" id="total_produtos" value="0,00" readonly>
@@ -272,6 +280,43 @@
                     <div class="col-6">
                         <label class="form-label fw-bold">TOTAL</label>
                         <input type="text" class="form-control text-end fw-bold field-highlight" id="total_documento" value="0,00" readonly style="font-size:1rem;">
+                    </div>
+                </div>
+
+                <!-- Bloco de Câmbio (FX) -->
+                <div class="border-top pt-2 mt-1">
+                    <div class="row g-1 align-items-end">
+                        <div class="col-5">
+                            <label class="form-label">Moeda da Empresa</label>
+                            <input type="text" class="form-control text-center" id="fx_target_currency_display"
+                                   value="{{ orcamento.fx_target_currency_code if orcamento and orcamento.fx_target_currency_code else '' }}" readonly>
+                        </div>
+                        <div class="col-7">
+                            <label class="form-label">
+                                Taxa FX
+                                {% if orcamento and orcamento.fx_base_currency_code and orcamento.fx_target_currency_code %}
+                                    ({{ orcamento.fx_base_currency_code }} → {{ orcamento.fx_target_currency_code }})
+                                {% endif %}
+                            </label>
+                            <input type="number" class="form-control text-end" name="fx_rate_value" id="fx_rate_value"
+                                   step="0.00000001"
+                                   value="{% if orcamento and orcamento.fx_rate_value is not none %}{{ '%.8f'|format(orcamento.fx_rate_value) }}{% endif %}">
+                        </div>
+                    </div>
+                    {% if orcamento and orcamento.fx_rate_date %}
+                    <div class="row mt-1">
+                        <div class="col-12">
+                            <small class="text-muted">
+                                Taxa de {{ orcamento.fx_rate_date.strftime('%d/%m/%Y') }}
+                                {% if orcamento.fx_rate_source %}- Fonte: {{ orcamento.fx_rate_source }}{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="row mt-1">
+                        <div class="col-12">
+                            <small class="text-muted" id="fx_resumo_valores"></small>
+                        </div>
                     </div>
                 </div>
             </div>

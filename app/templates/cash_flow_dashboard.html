@@ -49,24 +49,37 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4 col-lg-3">
+                                <label for="company_id" class="form-label">Empresa</label>
+                                <select class="form-select" id="company_id" name="company_id">
+                                    <option value="">Todas as empresas</option>
+                                    {% for company in companies %}
+                                    <option value="{{ company.id }}" {% if company_id and company_id|int == company.id %}selected{% endif %}>
+                                        {{ company.nome_fantasia }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
                     </form>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
-                    <a href="{{ url_for('cash_flow.cash_flow_dashboard', period=period, date=prev_date, bank_account_id=bank_account_id) }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('cash_flow.cash_flow_dashboard', period=period, date=prev_date, bank_account_id=bank_account_id, company_id=company_id) }}" class="btn btn-outline-secondary">
                         <i class="fas fa-chevron-left"></i> Anterior
                     </a>
                     <div>
-                        <a href="{{ url_for('cash_flow.cash_flow_projection') }}" class="btn btn-info">
+                        <a href="{{ url_for('cash_flow.cash_flow_projection', bank_account_id=bank_account_id, company_id=company_id) }}" class="btn btn-info">
                             <i class="fas fa-chart-line"></i> Projeção
                         </a>
-                        <a href="{{ url_for('cash_flow.cash_flow_report') }}" class="btn btn-info">
+                        <a href="{{ url_for('cash_flow.cash_flow_report', bank_account_id=bank_account_id, company_id=company_id) }}" class="btn btn-info">
                             <i class="fas fa-chart-bar"></i> Relatórios
                         </a>
-                        <a href="{{ url_for('cash_flow.cash_flow_simulation') }}" class="btn btn-info">
+                        <a href="{{ url_for('cash_flow.cash_flow_simulation', bank_account_id=bank_account_id, company_id=company_id) }}" class="btn btn-info">
                             <i class="fas fa-calculator"></i> Simulação
                         </a>
                     </div>
-                    <a href="{{ url_for('cash_flow.cash_flow_dashboard', period=period, date=next_date, bank_account_id=bank_account_id) }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('cash_flow.cash_flow_dashboard', period=period, date=next_date, bank_account_id=bank_account_id, company_id=company_id) }}" class="btn btn-outline-secondary">
                         Próximo <i class="fas fa-chevron-right"></i>
                     </a>
                 </div>
@@ -140,8 +153,10 @@
                                     <th>Data</th>
                                     <th>Descrição</th>
                                     <th>Conta</th>
+                                    <th>Empresa</th>
                                     <th>Tipo</th>
-                                    <th>Valor</th>
+                                    <th>Valor (Moeda)</th>
+                                    <th>Valor (BRL)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,6 +165,7 @@
                                     <td>{{ item.date.strftime('%d/%m/%Y') }}</td>
                                     <td>{{ item.description }}</td>
                                     <td>{{ item.bank_account_name }}</td>
+                                    <td>{{ item.company_name or '-' }}</td>
                                     <td>
                                         {% if item.type == 'income' %}
                                             <span class="badge bg-success">Entrada</span>
@@ -157,8 +173,15 @@
                                             <span class="badge bg-danger">Saída</span>
                                         {% endif %}
                                     </td>
+                                    <td>
+                                        {% if item.currency_code %}
+                                            {{ item.currency_code }} {{ "%.2f"|format(item.amount_currency or item.amount) }}
+                                        {% else %}
+                                            BRL {{ "%.2f"|format(item.amount) }}
+                                        {% endif %}
+                                    </td>
                                     <td class="{{ 'text-success' if item.type == 'income' else 'text-danger' }}">
-                                        R$ {{ "%.2f"|format(item.amount) }}
+                                        R$ {{ "%.2f"|format(item.amount_base if item.amount_base is not none else item.amount) }}
                                     </td>
                                 </tr>
                                 {% endfor %}

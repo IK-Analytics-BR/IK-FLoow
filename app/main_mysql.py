@@ -518,18 +518,27 @@ def bem_vindo():
     """Página inicial após login - menu, logo e cotações do dia."""
     db = get_db()
 
-    # Data de referência: última data disponível em exchange_rates ou ontem, se não houver
+    # Data de referência: pode ser forçada via querystring (fx_date),
+    # senão usa a última data disponível em exchange_rates ou ontem, se não houver.
     from datetime import date, timedelta
 
     rate_date = None
-    try:
-        row = db.fetch_one(
-            "SELECT MAX(rate_date) AS d FROM exchange_rates",
-        )
-        if row and row.get('d'):
-            rate_date = row['d']
-    except Exception as e:
-        print(f"[FX] Aviso: falha ao buscar data máxima de câmbio: {e}")
+    rate_date_param = request.args.get('fx_date')
+    if rate_date_param:
+        try:
+            rate_date = date.fromisoformat(rate_date_param)
+        except ValueError:
+            rate_date = None
+
+    if not rate_date:
+        try:
+            row = db.fetch_one(
+                "SELECT MAX(rate_date) AS d FROM exchange_rates",
+            )
+            if row and row.get('d'):
+                rate_date = row['d']
+        except Exception as e:
+            print(f"[FX] Aviso: falha ao buscar data máxima de câmbio: {e}")
 
     if not rate_date:
         rate_date = date.today() - timedelta(days=1)
@@ -564,10 +573,121 @@ def bem_vindo():
         print(f"[FX] Aviso: falha ao buscar cotações para bem_vindo: {e}")
         moedas = []
 
+    # Controlar habilitação dos botões de atualização manual
+    today = date.today()
+    if today.weekday() == 0:
+        prev_close_date = today - timedelta(days=3)
+    else:
+        prev_close_date = today - timedelta(days=1)
+
+    fx_can_update_today = True
+    fx_can_update_prev_close = True
+
+    try:
+        row_today = db.fetch_one(
+            """SELECT COUNT(*) AS cnt
+                FROM exchange_rates
+               WHERE rate_date = %s
+                 AND base_currency_code = %s""",
+            (today, base_code),
+        )
+        if row_today and (row_today.get('cnt') or 0) > 0:
+            fx_can_update_today = False
+    except Exception as e:
+        print(f"[FX] Aviso: falha ao verificar cotações de hoje: {e}")
+
+    try:
+        row_prev = db.fetch_one(
+            """SELECT COUNT(*) AS cnt
+                FROM exchange_rates
+               WHERE rate_date = %s
+                 AND base_currency_code = %s""",
+            (prev_close_date, base_code),
+        )
+        if row_prev and (row_prev.get('cnt') or 0) > 0:
+            fx_can_update_prev_close = False
+    except Exception as e:
+        print(f"[FX] Aviso: falha ao verificar cotações de fechamento (D-1): {e}")
+
     return render_template('bem_vindo.html',
                            fx_date=rate_date,
                            fx_base_currency=base_code,
-                           fx_currencies=moedas)
+                           fx_currencies=moedas,
+                           fx_can_update_today=fx_can_update_today,
+                           fx_can_update_prev_close=fx_can_update_prev_close)
+
+
+@app.route('/bem-vindo/atualizar-fx', methods=['POST'])
+@login_required
+def bem_vindo_atualizar_fx():
+    """Permite atualizar manualmente as cotações na tela inicial.
+
+    - tipo = 'atual'     -> busca cotação do dia (hoje)
+    - tipo = 'encerrada' -> busca cotação de fechamento (D-1, ou sexta se hoje for segunda)
+    """
+    from datetime import date, timedelta
+
+    tipo = (request.form.get('tipo') or '').strip()
+    today = date.today()
+
+    if tipo == 'atual':
+        target_date = today
+        label = 'atual'
+    else:
+        # Cotação de fechamento do dia anterior (D-1). Se hoje for segunda,
+        # usamos a sexta-feira anterior.
+        if today.weekday() == 0:
+            target_date = today - timedelta(days=3)
+        else:
+            target_date = today - timedelta(days=1)
+        label = 'encerrada'
+
+    try:
+        db = get_db()
+        fx_service = ExchangeRateService()
+        base_code = fx_service.base_currency.upper()
+
+        # Se já existir qualquer taxa para esta data/base, não chamar API novamente
+        row = db.fetch_one(
+            """SELECT COUNT(*) AS cnt
+                FROM exchange_rates
+               WHERE rate_date = %s
+                 AND base_currency_code = %s""",
+            (target_date, base_code),
+        )
+        if row and (row.get('cnt') or 0) > 0:
+            flash(
+                f"Cotações {label} já existentes para a data "
+                f"{target_date.strftime('%d/%m/%Y')}.", 'info'
+            )
+        else:
+            result_fx = fx_service.update_daily_rates(rate_date=target_date)
+            if result_fx.get('success'):
+                msg = (
+                    f"Cotações {label} atualizadas para {result_fx.get('count', 0)} "
+                    f"moeda(s) na data {target_date.strftime('%d/%m/%Y')}."
+                )
+                flash(msg, 'success')
+            else:
+                msg = result_fx.get('message') or 'Falha ao atualizar cotações.'
+                flash(msg, 'warning')
+            print(f"[FX] Atualização manual de câmbio ({label}) no bem_vindo: {result_fx}")
+    except Exception as e:
+        print(f"[FX] Erro ao atualizar câmbio manualmente ({tipo}): {e}")
+        flash('Erro ao atualizar cotações. Verifique os logs.', 'danger')
+
+    # Redirecionar para a tela bem_vindo já apontando para a data usada
+    return redirect(url_for('bem_vindo', fx_date=target_date.isoformat()))
+
+
+@app.route('/apresentacao-ikflow')
+def apresentacao_ikflow():
+    """Apresentação pública do IK Flow / IK Analytics (não exige login)."""
+    try:
+        return render_template('apresentacao_ikflow.html')
+    except Exception as e:
+        print(f"[IKFLOW] Erro ao renderizar apresentacao_ikflow: {e}")
+        return render_template('apresentacao_ikflow.html')
 
 @app.route('/em-desenvolvimento')
 @app.route('/em-desenvolvimento/<path:funcionalidade>')

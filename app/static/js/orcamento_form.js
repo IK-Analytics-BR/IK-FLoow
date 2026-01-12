@@ -12,6 +12,23 @@ let linhaClienteSelecionada = -1;
 let linhaProdutoSelecionada = -1;
 let linhaTransportadoraSelecionada = -1;
 
+// FX - taxa de câmbio aplicada ao orçamento (base -> moeda da empresa)
+let fxRateValue = null;
+let fxBaseCurrency = null;
+let fxTargetCurrency = null;
+let pendingFxData = null; // dados da FX aguardando confirmacao no modal
+
+// Retorna o código de moeda a ser usado para exibição (aba Pagamento, totais, etc.)
+function getDisplayCurrencyCode() {
+    if (fxTargetCurrency && typeof fxTargetCurrency === 'string' && fxTargetCurrency.trim() !== '') {
+        return fxTargetCurrency.toUpperCase();
+    }
+    if (fxBaseCurrency && typeof fxBaseCurrency === 'string' && fxBaseCurrency.trim() !== '') {
+        return fxBaseCurrency.toUpperCase();
+    }
+    return 'BRL';
+}
+
 // =====================================================
 // INICIALIZACAO
 // =====================================================
@@ -33,6 +50,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Bind eventos
     bindEventos();
+
+    // Inicializar FX para empresa selecionada
+    inicializarFxEmpresa();
     
     // Bind teclas de atalho globais
     bindAtalhosGlobais();
@@ -360,6 +380,37 @@ function bindEventos() {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', () => calcularTotais());
     });
+
+    // Edicao manual da taxa FX no bloco de Totais: manter variavel global sincronizada e atualizar resumo
+    const fxRateInput = document.getElementById('fx_rate_value');
+    if (fxRateInput) {
+        fxRateInput.addEventListener('input', () => {
+            const raw = fxRateInput.value;
+            const v = parseFloat(String(raw).replace(',', '.'));
+            if (!isNaN(v) && v > 0) {
+                fxRateValue = v;
+            } else {
+                fxRateValue = null;
+            }
+
+            // Atualizar textos de moeda/resumo usando a nova taxa manual
+            atualizarRotulosMoeda(fxBaseCurrency || 'BRL', fxTargetCurrency, fxRateValue, {
+                fx_rate_date: null,
+                fx_rate_source: fxRateValue ? 'manual' : null
+            });
+        });
+    }
+
+    // Mudança de empresa - atualizar FX
+    const empresaSelect = document.getElementById('empresa_id');
+    if (empresaSelect) {
+        empresaSelect.addEventListener('change', () => {
+            const empresaId = empresaSelect.value;
+            if (empresaId) {
+                atualizarFxParaEmpresa(empresaId);
+            }
+        });
+    }
     
     // Evento de mudança de vendedor - sincronizar com aba de comissão
     const vendedor1Select = document.getElementById('vendedor_id');
@@ -408,6 +459,282 @@ function bindEventos() {
             calcularComissoes();
         });
     }
+}
+
+// =====================================================
+// FX - TAXA DE CÂMBIO POR EMPRESA
+// =====================================================
+function inicializarFxEmpresa() {
+    const empresaSelect = document.getElementById('empresa_id');
+    if (!empresaSelect) return;
+
+    const empresaId = empresaSelect.value;
+    if (empresaId) {
+        atualizarFxParaEmpresa(empresaId);
+    }
+}
+
+function atualizarFxParaEmpresa(empresaId) {
+    if (!empresaId) return;
+    console.log('[FX] Buscando taxa para empresa', empresaId);
+
+    fetch(`/orcamentos/api/fx-empresa?empresa_id=${encodeURIComponent(empresaId)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data || data.success === false) {
+                console.warn('[FX] Falha ao obter FX para empresa', empresaId, data);
+                fxRateValue = null;
+                fxBaseCurrency = null;
+                fxTargetCurrency = null;
+                atualizarCamposFxNaTela(null);
+                return;
+            }
+            const base = (data.fx_base_currency_code || 'BRL').toUpperCase();
+            const target = (data.fx_target_currency_code || data.moeda_funcional || '').toUpperCase();
+            const rateVal = typeof data.fx_rate_value === 'number'
+                ? data.fx_rate_value
+                : parseFloat(data.fx_rate_value || '0');
+
+            // Se não tiver moeda alvo definida, apenas atualiza display e sai
+            if (!target) {
+                fxRateValue = null;
+                fxBaseCurrency = null;
+                fxTargetCurrency = null;
+                atualizarCamposFxNaTela(data);
+                atualizarRotulosMoeda(null, null, null, data);
+                return;
+            }
+
+            const dataStr = data.fx_rate_date ? data.fx_rate_date : '';
+            const sourceStr = data.fx_rate_source || '';
+
+            // Guardar dados em memoria e abrir modal customizado para confirmacao/edicao
+            pendingFxData = {
+                empresaId,
+                base,
+                target,
+                rateVal: (rateVal && !isNaN(rateVal) && rateVal > 0) ? rateVal : null,
+                fx_rate_date: dataStr,
+                fx_rate_source: sourceStr,
+                moeda_funcional: data.moeda_funcional
+            };
+            abrirModalFxEmpresa();
+        })
+        .catch(err => {
+            console.error('[FX] Erro ao buscar FX para empresa', empresaId, err);
+            fxRateValue = null;
+            fxBaseCurrency = null;
+            fxTargetCurrency = null;
+            atualizarCamposFxNaTela(null);
+            atualizarRotulosMoeda(null, null, null, null);
+        });
+}
+
+function atualizarCamposFxNaTela(data) {
+    const targetInput = document.getElementById('fx_target_currency_display');
+    const rateInput = document.getElementById('fx_rate_value');
+
+    if (targetInput) {
+        targetInput.value = fxTargetCurrency || (data && data.moeda_funcional ? String(data.moeda_funcional).toUpperCase() : '');
+    }
+
+    if (rateInput) {
+        if (typeof fxRateValue === 'number' && !isNaN(fxRateValue) && fxRateValue > 0) {
+            rateInput.value = fxRateValue.toFixed(8);
+        } else if (data && data.fx_rate_value) {
+            const v = parseFloat(data.fx_rate_value);
+            rateInput.value = isNaN(v) ? '' : v.toFixed(8);
+        } else {
+            rateInput.value = '';
+        }
+    }
+}
+
+function aplicarFxAoPreco(precoBase) {
+    const valor = typeof precoBase === 'number' ? precoBase : parseFloat(precoBase) || 0;
+    if (!fxRateValue || isNaN(fxRateValue) || fxRateValue <= 0) {
+        return valor;
+    }
+    return valor * fxRateValue;
+}
+
+// Atualiza textos/labels indicando a moeda dos valores do orçamento
+function atualizarRotulosMoeda(baseCurrency, targetCurrency, rateValue, rawData) {
+    const resumoFxEl = document.getElementById('fx_resumo_valores');
+    const labelTotal = document.querySelector('label[for="total_documento"]') || document.querySelector('#total_documento')?.closest('div')?.querySelector('label');
+    const resumoTotalLabel = document.querySelector('#resumo_total_com_impostos')?.closest('div')?.querySelector('span.small');
+
+    // Texto padrão quando não há FX aplicado
+    if (!targetCurrency || !rateValue || isNaN(rateValue) || rateValue <= 0) {
+        if (resumoFxEl) resumoFxEl.textContent = '';
+        if (labelTotal) labelTotal.textContent = 'TOTAL';
+        if (resumoTotalLabel) resumoTotalLabel.textContent = 'TOTAL:';
+        return;
+    }
+
+    const base = (baseCurrency || 'BRL').toUpperCase();
+    const target = targetCurrency.toUpperCase();
+    const dataStr = rawData && rawData.fx_rate_date ? rawData.fx_rate_date : '';
+    const fonteStr = rawData && rawData.fx_rate_source ? rawData.fx_rate_source : '';
+
+    if (labelTotal) {
+        labelTotal.textContent = `TOTAL (${target})`;
+    }
+
+    if (resumoTotalLabel) {
+        resumoTotalLabel.textContent = `TOTAL (${target}):`;
+    }
+
+    if (resumoFxEl) {
+        let txt = `Valores deste orçamento em ${target}, cotação 1 ${base} = ${rateValue.toFixed(6)} ${target}`;
+        if (dataStr) {
+            txt += `, data ${dataStr}`;
+        }
+        if (fonteStr) {
+            txt += ` (fonte: ${fonteStr})`;
+        }
+        resumoFxEl.textContent = txt;
+    }
+}
+
+// Abre o modal de FX da empresa, preenchendo os campos com os dados de pendingFxData
+function abrirModalFxEmpresa() {
+    if (!pendingFxData) {
+        return;
+    }
+
+    const modalEl = document.getElementById('modalFxEmpresa');
+
+    // Fallback: se o modal nao existir ou Bootstrap nao estiver disponivel, usar prompt simples
+    if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        const base = pendingFxData.base || 'BRL';
+        const target = pendingFxData.target || (pendingFxData.moeda_funcional || '').toUpperCase();
+        const defaultRate = pendingFxData.rateVal || '';
+        let msg = `Moeda da empresa: ${target || 'N/D'}`;
+        msg += `\nInforme a cotação (1 ${base} = ? ${target || ''})`;
+        const entrada = window.prompt(msg, defaultRate ? String(defaultRate) : '');
+        if (entrada === null) {
+            // cancelado
+            pendingFxData = null;
+            return;
+        }
+        const v = parseFloat(String(entrada).replace(',', '.'));
+        if (isNaN(v) || v <= 0) {
+            alert('Informe uma taxa FX válida (maior que zero).');
+            pendingFxData = null;
+            return;
+        }
+
+        fxBaseCurrency = base;
+        fxTargetCurrency = target;
+        fxRateValue = v;
+
+        atualizarCamposFxNaTela({
+            fx_base_currency_code: fxBaseCurrency,
+            fx_target_currency_code: fxTargetCurrency,
+            fx_rate_value: fxRateValue,
+            fx_rate_date: pendingFxData.fx_rate_date,
+            fx_rate_source: pendingFxData.fx_rate_source || 'manual',
+            moeda_funcional: pendingFxData.moeda_funcional
+        });
+        atualizarRotulosMoeda(fxBaseCurrency, fxTargetCurrency, fxRateValue, {
+            fx_rate_date: pendingFxData.fx_rate_date,
+            fx_rate_source: pendingFxData.fx_rate_source || 'manual'
+        });
+
+        pendingFxData = null;
+        return;
+    }
+
+    const moedaEl = document.getElementById('fx_modal_moeda');
+    const baseSpan = document.getElementById('fx_modal_base');
+    const targetSpan = document.getElementById('fx_modal_target');
+    const rateInput = document.getElementById('fx_modal_rate_input');
+    const infoEl = document.getElementById('fx_modal_info');
+
+    const base = pendingFxData.base || 'BRL';
+    const target = pendingFxData.target || (pendingFxData.moeda_funcional || '').toUpperCase();
+    const rateVal = pendingFxData.rateVal;
+
+    if (moedaEl) {
+        moedaEl.textContent = target ? `${target}` : 'Sem moeda funcional definida para a empresa.';
+    }
+    if (baseSpan) baseSpan.textContent = base;
+    if (targetSpan) targetSpan.textContent = target || '';
+    if (rateInput) {
+        if (rateVal && !isNaN(rateVal) && rateVal > 0) {
+            rateInput.value = rateVal.toFixed(8);
+        } else {
+            rateInput.value = '';
+        }
+    }
+
+    if (infoEl) {
+        let info = '';
+        if (pendingFxData.fx_rate_date) {
+            info += `Taxa de ${pendingFxData.fx_rate_date}`;
+        }
+        if (pendingFxData.fx_rate_source) {
+            info += info ? ` · Fonte: ${pendingFxData.fx_rate_source}` : `Fonte: ${pendingFxData.fx_rate_source}`;
+        }
+        if (!info) {
+            info = 'Defina a taxa que deseja aplicar para este orçamento.';
+        }
+        infoEl.textContent = info;
+    }
+
+    // Ligar botao de aplicar (apenas uma vez)
+    const confirmBtn = document.getElementById('fx_modal_confirm_btn');
+    if (confirmBtn && !confirmBtn._fxBound) {
+        confirmBtn.addEventListener('click', confirmarFxEmpresa);
+        confirmBtn._fxBound = true;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+// Confirmar/aplicar a FX escolhida no modal
+function confirmarFxEmpresa() {
+    const modalEl = document.getElementById('modalFxEmpresa');
+    const rateInput = document.getElementById('fx_modal_rate_input');
+    if (!pendingFxData || !modalEl || !rateInput) {
+        return;
+    }
+
+    const raw = rateInput.value;
+    const v = parseFloat(String(raw).replace(',', '.'));
+    if (isNaN(v) || v <= 0) {
+        alert('Informe uma taxa FX válida (maior que zero).');
+        rateInput.focus();
+        return;
+    }
+
+    const base = pendingFxData.base || 'BRL';
+    const target = pendingFxData.target || (pendingFxData.moeda_funcional || '').toUpperCase();
+
+    // Aplicar FX globalmente
+    fxBaseCurrency = base;
+    fxTargetCurrency = target;
+    fxRateValue = v;
+
+    atualizarCamposFxNaTela({
+        fx_base_currency_code: fxBaseCurrency,
+        fx_target_currency_code: fxTargetCurrency,
+        fx_rate_value: fxRateValue,
+        fx_rate_date: pendingFxData.fx_rate_date,
+        fx_rate_source: pendingFxData.fx_rate_source || 'manual',
+        moeda_funcional: pendingFxData.moeda_funcional
+    });
+    atualizarRotulosMoeda(fxBaseCurrency, fxTargetCurrency, fxRateValue, {
+        fx_rate_date: pendingFxData.fx_rate_date,
+        fx_rate_source: pendingFxData.fx_rate_source || 'manual'
+    });
+
+    // Fechar modal e limpar estado pendente
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+    pendingFxData = null;
 }
 
 function debounce(func, wait) {
@@ -622,23 +949,27 @@ function pesquisarProdutos() {
             data.forEach((p, idx) => {
                 const nome = p.nome || p.name || p.description || '';
                 const codigo = p.codigo || p.internal_code || p.id;
-                const preco = parseFloat(p.preco || p.sale_price || p.price || 0);
+                const precoBase = parseFloat(p.preco || p.sale_price || p.price || 0);
+                const precoConvertido = aplicarFxAoPreco(precoBase);
                 const unidade = p.unidade || p.unit || 'UN';
                 const estoque = p.estoque || p.stock_quantity || 0;
+
+                const currencyCode = fxTargetCurrency || 'BRL';
+                const currencyLabel = currencyCode === 'BRL' ? 'R$' : currencyCode;
                 
                 html += `<tr style="cursor:pointer" class="produto-row" 
                             data-idx="${idx}"
                             data-id="${p.id}" 
                             data-codigo="${codigo}" 
                             data-nome="${nome.replace(/"/g, '&quot;')}" 
-                            data-preco="${preco}" 
+                            data-preco="${precoBase}" 
                             data-unidade="${unidade}"
                             onmouseover="this.classList.add('table-info')"
                             onmouseout="if(!this.classList.contains('table-primary')) this.classList.remove('table-info')">
                     <td>${codigo}</td>
                     <td>${nome}</td>
                     <td>${unidade}</td>
-                    <td class="text-end">R$ ${preco.toFixed(2).replace('.', ',')}</td>
+                    <td class="text-end">${currencyLabel} ${precoConvertido.toFixed(2).replace('.', ',')}</td>
                     <td class="text-end">${estoque}</td>
                 </tr>`;
             });
@@ -688,7 +1019,7 @@ function selecionarProdutoDestacado() {
         const id = row.dataset.id;
         const codigo = row.dataset.codigo;
         const nome = row.dataset.nome;
-        const preco = parseFloat(row.dataset.preco);
+        const precoBase = parseFloat(row.dataset.preco);
         const unidade = row.dataset.unidade;
         
         // Resetar seleção antes de fechar
@@ -711,8 +1042,9 @@ function selecionarProdutoDestacado() {
         if (produtoCodigoEl) produtoCodigoEl.value = codigo || id;
         if (produtoNomeEl) produtoNomeEl.value = nome;
         if (unidadeEl) unidadeEl.value = unidade;
-        if (precoListaEl) precoListaEl.value = preco.toFixed(2);
-        if (precoUnitarioEl) precoUnitarioEl.value = preco.toFixed(2);
+        const precoConvertido = aplicarFxAoPreco(precoBase);
+        if (precoListaEl) precoListaEl.value = precoConvertido.toFixed(2);
+        if (precoUnitarioEl) precoUnitarioEl.value = precoConvertido.toFixed(2);
         if (quantidadeEl) quantidadeEl.value = '1';
         if (percDescontoEl) percDescontoEl.value = '0';
         calcularItemTotal();
@@ -744,8 +1076,9 @@ function selecionarProduto(id, codigo, nome, preco, unidade) {
     if (produtoCodigoEl) produtoCodigoEl.value = codigo || id;
     if (produtoNomeEl) produtoNomeEl.value = nome;
     if (unidadeEl) unidadeEl.value = unidade;
-    if (precoListaEl) precoListaEl.value = preco.toFixed(2);
-    if (precoUnitarioEl) precoUnitarioEl.value = preco.toFixed(2);
+    const precoConvertido = aplicarFxAoPreco(preco);
+    if (precoListaEl) precoListaEl.value = precoConvertido.toFixed(2);
+    if (precoUnitarioEl) precoUnitarioEl.value = precoConvertido.toFixed(2);
     if (quantidadeEl) quantidadeEl.value = '1';
     if (percDescontoEl) percDescontoEl.value = '0';
     calcularItemTotal();
@@ -1538,12 +1871,13 @@ function renderizarParcelasPagamento() {
     
     let html = '';
     let total = 0;
+    const currencyCode = getDisplayCurrencyCode();
     
     duplicatasOrcamento.forEach((parcela, index) => {
         const valorNum = parseFloat(parcela.valor) || 0;
         total += valorNum;
         const dataFormatada = new Date(parcela.vencimento + 'T00:00:00').toLocaleDateString('pt-BR');
-        const valorFormatado = valorNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const valorFormatado = valorNum.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
         
         html += `<tr data-index="${index}">
             <td class="text-center">${parcela.numero}/${duplicatasOrcamento.length}</td>
@@ -1564,7 +1898,7 @@ function renderizarParcelasPagamento() {
     // Atualizar total
     const totalEl = document.getElementById('totalParcelas');
     if (totalEl) {
-        totalEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        totalEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
     }
 }
 
@@ -1585,13 +1919,15 @@ function atualizarResumoPagamento(valorTotal) {
     const totalParcEl = document.getElementById('resumo_total_parcelado');
     const diferencaEl = document.getElementById('resumo_diferenca');
     const valorTotalEl = document.getElementById('pagamento_valor_total');
-    
-    if (totalOrcEl) totalOrcEl.textContent = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    if (totalParcEl) totalParcEl.textContent = totalParcelado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    if (valorTotalEl) valorTotalEl.value = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    
+
+    const currencyCode = getDisplayCurrencyCode();
+
+    if (totalOrcEl) totalOrcEl.textContent = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
+    if (totalParcEl) totalParcEl.textContent = totalParcelado.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
+    if (valorTotalEl) valorTotalEl.value = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
+
     if (diferencaEl) {
-        diferencaEl.textContent = diferenca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        diferencaEl.textContent = diferenca.toLocaleString('pt-BR', { style: 'currency', currency: currencyCode });
         diferencaEl.className = diferenca === 0 ? 'badge bg-success' : 'badge bg-danger';
     }
 }

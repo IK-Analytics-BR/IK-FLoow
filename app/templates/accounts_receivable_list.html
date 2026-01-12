@@ -56,6 +56,16 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-3 mt-3 mt-md-0">
+                    <select id="companyFilter" class="form-select" onchange="applyFilters()">
+                        <option value="">Todas as empresas</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if company_id and company_id|int == company.id %}selected{% endif %}>
+                            {{ company.nome_fantasia }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             
             <div class="table-responsive">
@@ -64,7 +74,9 @@
                         <tr>
                             <th>Descrição</th>
                             <th>Cliente</th>
-                            <th>Valor</th>
+                            <th>Empresa</th>
+                            <th>Valor (Moeda)</th>
+                            <th>Valor (BRL)</th>
                             <th>Vencimento</th>
                             <th>Status</th>
                             <th>Ações</th>
@@ -84,7 +96,17 @@
                                 {% endif %}
                             </td>
                             <td>{{ receivable.customer_name }}</td>
-                            <td>R$ {{ "%.2f"|format(receivable.total_amount) }}</td>
+                            <td>{{ receivable.company_name or '-' }}</td>
+                            <td>
+                                {% if receivable.currency_code %}
+                                    {{ receivable.currency_code }} {{ "%.2f"|format(receivable.total_amount_currency or receivable.total_amount) }}
+                                {% else %}
+                                    BRL {{ "%.2f"|format(receivable.total_amount) }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                R$ {{ "%.2f"|format(receivable.total_amount_base if receivable.total_amount_base is not none else receivable.total_amount) }}
+                            </td>
                             <td>
                                 {{ receivable.due_date.strftime('%d/%m/%Y') }}
                                 {% if receivable.installments > 1 %}
@@ -149,7 +171,14 @@
                                             </div>
                                             <div class="modal-body">
                                                 <p>Conta: <strong>{{ receivable.description }}</strong></p>
-                                                <p>Valor: <strong>R$ {{ "%.2f"|format(receivable.total_amount) }}</strong></p>
+                                                <p>Valor: <strong>
+                                                    {% if receivable.currency_code %}
+                                                        {{ receivable.currency_code }} {{ "%.2f"|format(receivable.total_amount_currency or receivable.total_amount) }}
+                                                        (R$ {{ "%.2f"|format(receivable.total_amount_base if receivable.total_amount_base is not none else receivable.total_amount) }})
+                                                    {% else %}
+                                                        R$ {{ "%.2f"|format(receivable.total_amount) }}
+                                                    {% endif %}
+                                                </strong></p>
                                                 
                                                 <form action="{{ url_for('accounts_receivable.accounts_receivable_receive_installment', installment_id=receivable.id) }}" method="post" id="receiptForm{{ receivable.id }}">
                                                     <div class="mb-3">
@@ -158,7 +187,7 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="receipt_amount" class="form-label">Valor Recebido</label>
-                                                        <input type="text" class="form-control" id="receipt_amount" name="receipt_amount" value="{{ "%.2f"|format(receivable.total_amount) }}">
+                                                        <input type="text" class="form-control" id="receipt_amount" name="receipt_amount" value="{{ "%.2f"|format(receivable.total_amount_base if receivable.total_amount_base is not none else receivable.total_amount) }}">
                                                     </div>
                                                     <div class="mb-3">
                                                         <label for="payment_method" class="form-label">Forma de Recebimento</label>
@@ -236,11 +265,15 @@
         var status = document.getElementById('statusFilter').value;
         var period = document.getElementById('periodFilter').value;
         var customer = document.getElementById('customerFilter').value;
+        var company = document.getElementById('companyFilter').value;
         
         var url = "{{ url_for('accounts_receivable.accounts_receivable_list') }}?status=" + status + "&period=" + period;
         
         if (customer) {
             url += "&customer_id=" + customer;
+        }
+        if (company) {
+            url += "&company_id=" + company;
         }
         
         window.location.href = url;
@@ -260,11 +293,11 @@
         if (ctxDueDate) {
             // Dados do gráfico calculados pelo servidor
             var chartData = {
-                overdue: {{ receivables|selectattr('status', 'equalto', 'overdue')|sum(attribute='total_amount')|default(0) }},
-                today: {{ receivables|selectattr('due_date', 'equalto', now().date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
-                week: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=7)).date())|selectattr('due_date', 'gt', now().date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
-                month: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=30)).date())|selectattr('due_date', 'gt', (now() + timedelta(days=7)).date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }},
-                future: {{ receivables|selectattr('due_date', 'gt', (now() + timedelta(days=30)).date())|selectattr('status', 'equalto', 'pending')|sum(attribute='total_amount')|default(0) }}
+                overdue: {{ receivables|selectattr('status', 'equalto', 'overdue')|map(attribute='total_amount_base')|select('!=', None)|sum|default(0) if receivables else 0 }},
+                today: {{ receivables|selectattr('due_date', 'equalto', now().date())|selectattr('status', 'equalto', 'pending')|map(attribute='total_amount_base')|select('!=', None)|sum|default(0) if receivables else 0 }},
+                week: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=7)).date())|selectattr('due_date', 'gt', now().date())|selectattr('status', 'equalto', 'pending')|map(attribute='total_amount_base')|select('!=', None)|sum|default(0) if receivables else 0 }},
+                month: {{ receivables|selectattr('due_date', 'le', (now() + timedelta(days=30)).date())|selectattr('due_date', 'gt', (now() + timedelta(days=7)).date())|selectattr('status', 'equalto', 'pending')|map(attribute='total_amount_base')|select('!=', None)|sum|default(0) if receivables else 0 }},
+                future: {{ receivables|selectattr('due_date', 'gt', (now() + timedelta(days=30)).date())|selectattr('status', 'equalto', 'pending')|map(attribute='total_amount_base')|select('!=', None)|sum|default(0) if receivables else 0 }}
             };
             
             new Chart(ctxDueDate, {

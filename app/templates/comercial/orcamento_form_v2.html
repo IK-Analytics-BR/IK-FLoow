@@ -155,6 +155,33 @@
     </form>
 </div>
 
+<!-- Modal FX Empresa (confirmar/editar taxa após seleção da filial) -->
+<div class="modal fade" id="modalFxEmpresa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-warning text-dark">
+                <h6 class="modal-title"><i class="fas fa-coins me-2"></i>Moeda da Empresa</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body small">
+                <div class="mb-2">
+                    <strong>Empresa / Moeda:</strong>
+                    <div id="fx_modal_moeda" class="mt-1"></div>
+                </div>
+                <div class="mb-2">
+                    <label for="fx_modal_rate_input" class="form-label mb-1">Taxa FX (1 <span id="fx_modal_base"></span> = ? <span id="fx_modal_target"></span>)</label>
+                    <input type="number" step="0.00000001" class="form-control text-end" id="fx_modal_rate_input">
+                </div>
+                <div class="text-muted mt-1" id="fx_modal_info"></div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning btn-sm" id="fx_modal_confirm_btn">Aplicar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Busca Cliente -->
 <div class="modal fade" id="modalBuscaCliente" tabindex="-1">
     <div class="modal-dialog modal-lg">

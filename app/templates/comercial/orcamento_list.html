@@ -63,8 +63,8 @@
         <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center">
-                    <div class="text-muted small">Valor Total</div>
-                    <div class="h5 mb-0 text-dark">R$ {{ "{:,.2f}".format(stats.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</div>
+                    <div class="text-muted small">Valor Total (todas as moedas)</div>
+                    <div class="h5 mb-0 text-dark">{{ "{:,.2f}".format(stats.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</div>
                 </div>
             </div>
         </div>
@@ -162,8 +162,10 @@
                                 </td>
                                 <td>{{ o.vendedor_nome }}</td>
                                 <td class="text-center">{{ o.qtd_itens }}</td>
+                                {% set row_currency_code = o.fx_target_currency_code or 'BRL' %}
+                                {% set row_currency_label = 'R$' if row_currency_code == 'BRL' else row_currency_code %}
                                 <td class="text-end fw-semibold">
-                                    R$ {{ "{:,.2f}".format(o.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                    {{ row_currency_label }} {{ "{:,.2f}".format(o.valor_total or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}
                                 </td>
                                 <td class="text-center">
                                     {{ o.data_emissao.strftime('%d/%m/%Y') if o.data_emissao else '-' }}

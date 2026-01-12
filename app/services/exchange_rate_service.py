@@ -150,9 +150,11 @@ class ExchangeRateService:
         rates = self._fetch_from_api(rate_date, symbols=symbols_to_fetch)
 
         inserted = 0
+        missing_codes: list[str] = []
         for code in symbols_to_fetch:
             if code not in rates:
                 logger.warning("Sem taxa para %s em %s", code, rate_date)
+                missing_codes.append(code)
                 continue
             rate_value = float(rates[code])
             insert_sql = (
@@ -162,6 +164,13 @@ class ExchangeRateService:
             )
             db.execute(insert_sql, (rate_date, base, code, rate_value, 'ExchangeRatesAPI.io'))
             inserted += 1
+
+        for code in missing_codes:
+            try:
+                self.get_rate(rate_date, code)
+                inserted += 1
+            except Exception as e:
+                logger.error("[FX] Falha ao buscar taxa individual para %s na data %s: %s", code, rate_date, e)
 
         return {
             'success': True,

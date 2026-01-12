@@ -95,7 +95,14 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <strong>R$ {{ "%.2f"|format(op.custo_total_atual or 0) }}</strong>
+                                            {% set currency_code = op.fx_currency_code or 'BRL' %}
+                                            {% set currency_label = 'R$' if currency_code == 'BRL' else currency_code %}
+                                            {% if op.custo_total_fx is not none %}
+                                                {% set valor_exibido = op.custo_total_fx %}
+                                            {% else %}
+                                                {% set valor_exibido = op.custo_total_atual or 0 %}
+                                            {% endif %}
+                                            <strong>{{ currency_label }} {{ "%.2f"|format(valor_exibido) }}</strong>
                                             {% if op.variacao_custo_percentual and op.variacao_custo_percentual != 0 %}
                                             <br>
                                             <small class="{% if op.variacao_custo_percentual > 0 %}text-danger{% else %}text-success{% endif %}">

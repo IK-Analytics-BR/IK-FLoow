@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <title>Apresentação – IK Flow / IK Analytics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root {
+            /* Paleta aproximada baseada nas logos IK Analytics / IK Flow */
+            --ik-teal: #00a6b4;
+            --ik-teal-dark: #008494;
+            --ik-navy: #003b73;
+            --ik-orange: #ff6a00;
+
+            --bg: #f3f6fb;
+            --bg-alt: #e4ecf7;
+            --card: #ffffff;
+            --text: #1f2933;
+            --muted: #6b7785;
+            --border: #d0d7e2;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(
+                circle at top,
+                #f9fafb 0%,
+                #dde5f2 42%,
+                #cbd5e8 100%
+            );
+            color: var(--text);
+            line-height: 1.5;
+            scroll-snap-type: y mandatory;
+            padding-top: 25vh; /* compensa a altura do menu fixo (~25% da tela) */
+        }
+
+        /* Menu fixo para navegação entre slides */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 25vh;
+            max-height: 180px;
+            min-height: 90px;
+            z-index: 50;
+            background: transparent;
+            border-bottom: none;
+        }
+
+        .top-nav-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 32px 8px 32px;
+            gap: 18px;
+        }
+
+        .top-nav-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 650;
+            color: var(--ik-navy);
+        }
+
+        .top-nav-logo {
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .top-nav-links {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 13px;
+        }
+
+        .top-nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 4px 10px;
+            border-radius: 999px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .top-nav-links a:hover {
+            background: rgba(148, 163, 184, 0.15);
+            color: var(--ik-navy);
+        }
+
+        .top-nav-links a.is-active {
+            background: rgba(0, 166, 180, 0.18);
+            color: var(--ik-navy);
+            font-weight: 600;
+        }
+
+        .slide {
+            min-height: 100vh;
+            padding: 24px 1.5vw 32px 1.5vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+        }
+
+        /* Remove logo duplicada de dentro dos cards (fica apenas no menu) */
+        .slide-header .logos-left {
+            display: none;
+        }
+
+        /* Esconde o texto de tag no topo dos cards */
+        .slide-header .slide-tag {
+            display: none;
+        }
+
+        .slide-inner {
+            width: min(96vw, 1440px);
+            min-height: 90vh;
+            margin: 0 auto;
+            border-radius: 26px;
+            border: 1px solid var(--border);
+            box-shadow:
+                0 32px 90px rgba(15, 23, 42, 0.2),
+                0 0 0 1px rgba(148, 163, 184, 0.12);
+            padding: 40px 56px 32px 56px;
+            display: grid;
+            grid-template-rows: 0.15fr 0.75fr 0.10fr;
+            gap: 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Tema padrão (usado apenas se nenhum tema específico for aplicado) */
+        .slide-inner {
+            background: linear-gradient(135deg, #ffffff 0%, #f4f7fc 55%, #edf3ff 100%);
+        }
+
+        /* Alternância de fundos por slide usando a paleta da IK Analytics */
+        .slide--teal .slide-inner {
+            background: radial-gradient(circle at top left,
+                rgba(0, 166, 180, 0.16),
+                #f5fafb 55%,
+                #e1f4f5 100%);
+        }
+
+        .slide--navy .slide-inner {
+            background: radial-gradient(circle at top right,
+                rgba(0, 59, 115, 0.14),
+                #f4f6ff 55%,
+                #dde5ff 100%);
+        }
+
+        .slide-inner::before {
+            content: "";
+            position: absolute;
+            inset: -120px;
+            background:
+                radial-gradient(circle at 0% 0%, rgba(0, 166, 180, 0.22), transparent 55%),
+                radial-gradient(circle at 100% 0%, rgba(0, 59, 115, 0.18), transparent 55%),
+                radial-gradient(circle at 0% 100%, rgba(255, 106, 0, 0.10), transparent 55%);
+            opacity: 0.85;
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+        .slide-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            gap: 28px;
+            align-items: stretch;
+        }
+
+        .slide-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-visual {
+            display: block;
+        }
+
+        .slide-content--reverse .slide-text {
+            order: 2;
+        }
+
+        .slide-content--reverse .slide-visual {
+            order: 1;
+        }
+
+        .slide-header {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 0;
+        }
+
+        .logos-left,
+        .logos-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo {
+            height: 50px;
+            object-fit: contain;
+        }
+
+        .logo-small {
+            height: 44px;
+        }
+
+        .slide-tag {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--muted);
+        }
+
+        .slide-number {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        h1, h2 {
+            margin: 0 0 12px 0;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+            color: var(--ik-navy);
+        }
+
+        h1 {
+            font-size: clamp(34px, 4.4vw, 54px);
+        }
+
+        h2 {
+            font-size: clamp(26px, 3.4vw, 40px);
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 17px;
+            max-width: 700px;
+        }
+
+        ul {
+            margin: 16px 0 0 0;
+            padding-left: 18px;
+            font-size: 17px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(0, 166, 180, 0.4);
+            padding: 4px 11px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--ik-teal-dark);
+        }
+
+        .pill-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--ik-teal), var(--ik-orange));
+            box-shadow: 0 0 10px rgba(0, 166, 180, 0.9);
+        }
+
+        .illustration-wrapper {
+            border-radius: 16px;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #f3f6fc, #dde6f6);
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            box-shadow:
+                0 18px 55px rgba(15, 23, 42, 0.18),
+                0 0 0 1px rgba(148, 163, 184, 0.18);
+            height: 100%;
+        }
+
+        .illustration {
+            width: 100%;
+            height: 100%;
+            min-height: 260px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .slide-footer {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 0;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-logo {
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.6);
+        }
+
+        .dot.active {
+            background: linear-gradient(135deg, var(--ik-teal), var(--ik-orange));
+            box-shadow: 0 0 10px rgba(0, 166, 180, 0.9);
+        }
+
+        @media (max-width: 840px) {
+            .slide {
+                padding: 20px 16px 32px 16px;
+            }
+            .slide-inner {
+                padding: 18px 18px 18px 18px;
+            }
+            .slide-content {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .slide-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            .logo {
+                height: 30px;
+            }
+            .logo-small {
+                height: 26px;
+            }
+        }
+
+        /* ===============================
+           UPGRADE VISUAL – IK FLOW
+           =============================== */
+
+        /* Tipografia mais elegante */
+        h1, h2 {
+            line-height: 1.25;
+        }
+
+        .subtitle {
+            line-height: 1.6;
+        }
+
+        /* Animação de entrada baseada em scroll (padrão: para cima) */
+        .slide-inner {
+            opacity: 0;
+            transform: translateY(26px) scale(0.99);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .slide--visible .slide-inner {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Variações de animação por slide */
+        .slide--anim-up .slide-inner {
+            transform: translateY(26px) scale(0.99);
+        }
+
+        .slide--anim-up.slide--visible .slide-inner {
+            transform: translateY(0) scale(1);
+        }
+
+        .slide--anim-left .slide-inner {
+            transform: translateX(-32px) scale(0.98);
+        }
+
+        .slide--anim-left.slide--visible .slide-inner {
+            transform: translateX(0) scale(1);
+        }
+
+        .slide--anim-right .slide-inner {
+            transform: translateX(32px) scale(0.98);
+        }
+
+        .slide--anim-right.slide--visible .slide-inner {
+            transform: translateX(0) scale(1);
+        }
+
+        .slide--anim-zoom .slide-inner {
+            transform: scale(0.94);
+        }
+
+        .slide--anim-zoom.slide--visible .slide-inner {
+            transform: scale(1);
+        }
+
+        .slide--anim-tilt-left .slide-inner {
+            transform: translateY(18px) scale(0.97) rotate(-1.2deg);
+        }
+
+        .slide--anim-tilt-left.slide--visible .slide-inner {
+            transform: translateY(0) scale(1) rotate(0deg);
+        }
+
+        .slide--anim-tilt-right .slide-inner {
+            transform: translateY(18px) scale(0.97) rotate(1.2deg);
+        }
+
+        .slide--anim-tilt-right.slide--visible .slide-inner {
+            transform: translateY(0) scale(1) rotate(0deg);
+        }
+
+        .slide-text h1,
+        .slide-text h2 {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.7s ease 0.05s, transform 0.7s ease 0.05s;
+        }
+
+        .slide--visible .slide-text h1,
+        .slide--visible .slide-text h2 {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .slide-text .subtitle {
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.7s ease 0.15s, transform 0.7s ease 0.15s;
+        }
+
+        .slide--visible .slide-text .subtitle {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Bullets entrando um a um */
+        .slide-text ul li {
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .slide--visible .slide-text ul li:nth-child(1) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.18s;
+        }
+
+        .slide--visible .slide-text ul li:nth-child(2) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.30s;
+        }
+
+        .slide--visible .slide-text ul li:nth-child(3) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.42s;
+        }
+
+        .slide--visible .slide-text ul li:nth-child(4) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.54s;
+        }
+
+        .slide--visible .slide-text ul li:nth-child(5) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.66s;
+        }
+
+        /* Imagem/visual entrando depois do texto */
+        .slide-visual {
+            opacity: 0;
+            transform: translateY(18px) scale(0.97);
+            transition: opacity 0.8s ease 0.25s, transform 0.8s ease 0.25s;
+        }
+
+        .slide--visible .slide-visual {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Versão lenta das animações para alguns slides-chave */
+        .slide--slow .slide-inner {
+            transition-duration: 1.1s, 1.1s;
+        }
+
+        .slide--slow .slide-text h1,
+        .slide--slow .slide-text h2 {
+            transition-duration: 1s, 1s;
+        }
+
+        .slide--slow .slide-text .subtitle {
+            transition-duration: 1s, 1s;
+        }
+
+        .slide--slow .slide-text ul li {
+            transition-duration: 0.9s, 0.9s;
+        }
+
+        .slide--slow .slide-visual {
+            transition-duration: 1.2s, 1.2s;
+        }
+
+        /* Destaque visual nos títulos */
+        h1::after,
+        h2::after {
+            content: "";
+            display: block;
+            width: 48px;
+            height: 3px;
+            margin-top: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--ik-teal), var(--ik-orange));
+        }
+
+        /* Listas mais sofisticadas */
+        ul {
+            padding-left: 0;
+        }
+
+        li {
+            list-style: none;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--ik-teal), var(--ik-orange));
+        }
+
+        /* Ilustrações com leve zoom */
+        .illustration-wrapper img {
+            transition: transform 0.6s ease;
+        }
+
+        .illustration-wrapper:hover img {
+            transform: scale(1.04);
+        }
+
+        /* Footer mais limpo */
+        .slide-footer {
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            padding-top: 10px;
+        }
+
+        /* Bloco de contato padronizado */
+        .contact-box {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 166, 180, 0.25);
+            font-size: 14px;
+        }
+
+        .contact-box a {
+            color: var(--ik-teal);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .contact-box a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="top-nav-inner">
+            <div class="top-nav-left">
+                <img src="../static/img/logo_ikflow.png" alt="IK Flow" class="top-nav-logo" />
+            </div>
+            <div class="top-nav-links">
+                <a href="#slide1">Início</a>
+                <a href="#slide2">Multipaís</a>
+                <a href="#slide3">Multi-moeda</a>
+                <a href="#slide4">Fiscal</a>
+                <a href="#slide5">Docs</a>
+                <a href="#slide6">Produção</a>
+                <a href="#slide7">Fábrica</a>
+                <a href="#slide8">Logística</a>
+                <a href="#slide9">Finanças</a>
+                <a href="#slide10">Governança</a>
+                <a href="#slide11">Benefícios</a>
+                <a href="#slide12">Personalização</a>
+                <a href="#contato">Contato</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Slide 1 – Visão Geral -->
+    <section class="slide slide--teal slide--anim-up slide--slow" id="slide1">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <!-- Logo do sistema IK Flow -->
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    
+                    <h1>IK Flow – Visão Geral do Sistema</h1>
+                    <p class="subtitle">
+                        Plataforma corporativa da IK Analytics para indústrias que operam em múltiplos países,
+                        integrando produção, logística, fiscal e financeiro em um único ambiente global.
+                    </p>
+                    <ul>
+                        <li>Integra produção, logística, fiscal e financeiro em uma única base.</li>
+                        <li>Padroniza processos em todos os países, com flexibilidade para regras locais.</li>
+                        <li>Suporta crescimento e escalabilidade de grupos industriais multinacionais.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide01_global.svg"
+                        alt="Visão global do IK Flow"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Visão Geral · IK Flow</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">1 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 2 – Operação Multipaís -->
+    <section class="slide slide--navy slide--anim-left" id="slide2">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Operação Multipaís</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Operação Multipaís em uma Única Plataforma</h2>
+                    <p class="subtitle">
+                        Estruture seu grupo industrial por país, planta e filial, mantendo padronização global
+                        e autonomia local em um único sistema.
+                    </p>
+                    <ul>
+                        <li>Estrutura por grupo, país, planta e filial na mesma base.</li>
+                        <li>Regras específicas por país sem perder o padrão global de processo.</li>
+                        <li>Visão consolidada em tempo real de todas as operações.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide02_multicountry.svg"
+                        alt="Operação em múltiplos países"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Operação Multipaís</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot active"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">2 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 3 – Multi-moeda e Multi-idioma -->
+    <section class="slide slide--teal slide--anim-right" id="slide3">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Multi-moeda &amp; Multi-idioma</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Multi-moeda e Multi-idioma</h2>
+                    <p class="subtitle">
+                        Suporte nativo a moedas locais e corporativas, além de interface e documentos em múltiplos idiomas.
+                    </p>
+                    <ul>
+                        <li>Cadastros e relatórios em múltiplas moedas (local e corporativa).</li>
+                        <li>Interface e documentos em mais de um idioma, por usuário ou unidade.</li>
+                        <li>Conversão automática de taxas, reduzindo erros manuais.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide03_multicurrency.svg"
+                        alt="Multi-moeda e multi-idioma"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Multi-moeda &amp; Multi-idioma</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot active"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">3 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 4 – Adequação Fiscal por País -->
+    <section class="slide slide--navy slide--anim-zoom slide--slow" id="slide4">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Fiscal &amp; Compliance</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Adequação Fiscal por País</h2>
+                    <p class="subtitle">
+                        Motor fiscal configurável para atender às legislações de cada país em que a indústria opera.
+                    </p>
+                    <ul>
+                        <li>Motor fiscal configurável por legislação de cada país.</li>
+                        <li>Tratamento de impostos locais (ICMS, IPI, IVA, retenções etc.).</li>
+                        <li>Atualização centralizada de regras fiscais, reduzindo riscos.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide04_tax.svg"
+                        alt="Adequação fiscal por país"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Fiscal &amp; Compliance</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot active"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">4 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 5 – Documentos Fiscais e Obrigações -->
+    <section class="slide slide--teal slide--anim-tilt-left" id="slide5">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Documentos Fiscais</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Documentos Fiscais e Obrigações</h2>
+                    <p class="subtitle">
+                        Emissão e controle de documentos fiscais eletrônicos, com suporte a obrigações legais de cada país.
+                    </p>
+                    <ul>
+                        <li>Emissão integrada de notas fiscais eletrônicas e equivalentes.</li>
+                        <li>Geração de arquivos e livros fiscais conforme exigências locais.</li>
+                        <li>Suporte a auditorias com trilha completa de dados.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide05_documents.svg"
+                        alt="Documentos fiscais e obrigações"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Documentos Fiscais</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot active"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">5 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 6 – Gestão Industrial Integrada -->
+    <section class="slide slide--navy slide--anim-right" id="slide6">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Gestão Industrial</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Gestão Industrial Integrada</h2>
+                    <p class="subtitle">
+                        Planejamento e controle de produção para diferentes modelos produtivos, em todos os países.
+                    </p>
+                    <ul>
+                        <li>Planejamento e controle de produção (MPS/MRP/APS).</li>
+                        <li>Ordens de produção, apontamentos e consumo de materiais.</li>
+                        <li>Aderente a diferentes modelos produtivos (discreto, processo, misto).</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide06_factory.svg"
+                        alt="Gestão industrial integrada"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Gestão Industrial</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot active"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                </div>
+                <span class="slide-number">6 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 7 – Chão de Fábrica e Qualidade -->
+    <section class="slide slide--teal slide--anim-left" id="slide7">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Chão de Fábrica</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Chão de Fábrica e Qualidade</h2>
+                    <p class="subtitle">
+                        Monitoramento em tempo real da produção, desempenho e qualidade em todas as plantas.
+                    </p>
+                    <ul>
+                        <li>Coleta de dados em tempo real no chão de fábrica.</li>
+                        <li>Monitoramento de produtividade, OEE e paradas.</li>
+                        <li>Rastreabilidade de lote/série e controles de qualidade.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide07_shopfloor.svg"
+                        alt="Chão de fábrica e qualidade"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Chão de Fábrica</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot active"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <span class="slide-number">7 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 8 – Estoques e Logística Internacional -->
+    <section class="slide slide--navy slide--anim-tilt-right" id="slide8">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Estoques &amp; Logística</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Estoques e Logística Internacional</h2>
+                    <p class="subtitle">
+                        Gestão de estoques, armazéns e movimentações entre países, com visibilidade de custos logísticos.
+                    </p>
+                    <ul>
+                        <li>Gestão de estoques por planta, armazém e país.</li>
+                        <li>Controle de transferências internacionais e custos logísticos.</li>
+                        <li>Suporte a regimes aduaneiros e documentos de exportação/importação.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide08_logistics.svg"
+                        alt="Estoques e logística internacional"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Estoques &amp; Logística</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot active"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <span class="slide-number">8 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 9 – Finanças e Consolidação Global -->
+    <section class="slide slide--teal slide--anim-up slide--slow" id="slide9">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Finanças Globais</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Finanças e Consolidação Global</h2>
+                    <p class="subtitle">
+                        Contabilidade integrada por país, com visão corporativa consolidada em múltiplas moedas.
+                    </p>
+                    <ul>
+                        <li>Contabilidade integrada por país, com plano de contas corporativo.</li>
+                        <li>Consolidação automática de resultados em múltiplas moedas.</li>
+                        <li>Relatórios gerenciais globais e por unidade de negócio.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide09_finance.svg"
+                        alt="Finanças e consolidação global"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Finanças Globais</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot active"></span><span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <span class="slide-number">9 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 10 – Governança e Segurança -->
+    <section class="slide slide--navy slide--anim-zoom" id="slide10">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Governança &amp; Segurança</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Governança e Segurança</h2>
+                    <p class="subtitle">
+                        Controle de acessos, trilha de auditoria e aplicação padronizada das políticas corporativas.
+                    </p>
+                    <ul>
+                        <li>Perfis de acesso por país, função e área.</li>
+                        <li>Trilhas de auditoria completas para operações sensíveis.</li>
+                        <li>Políticas corporativas aplicadas de forma padronizada.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide10_governance.svg"
+                        alt="Governança e segurança"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Governança &amp; Segurança</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot active"></span>
+                    <span class="dot"></span>
+                </div>
+                <span class="slide-number">10 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 11 – Benefícios para Indústrias Multinacionais -->
+    <section class="slide slide--teal slide--anim-right" id="slide11">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Benefícios</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Benefícios para Indústrias Multinacionais</h2>
+                    <p class="subtitle">
+                        Redução de riscos, aumento de visibilidade e maior agilidade na tomada de decisão global.
+                    </p>
+                    <ul>
+                        <li>Redução de riscos fiscais e de compliance em cada país.</li>
+                        <li>Aumento de visibilidade sobre produção, custos e margens.</li>
+                        <li>Menos sistemas paralelos, mais agilidade na decisão.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide11_benefits.svg"
+                        alt="Benefícios para indústrias multinacionais"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Benefícios</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot active"></span>
+                </div>
+                <span class="slide-number">11 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 12 – Próximos Passos -->
+    <section class="slide slide--navy slide--anim-left slide--slow" id="slide12">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Personalização</span>
+                </div>
+            </header>
+
+            <div class="slide-content slide-content--reverse">
+                <div class="slide-text">
+                    <h2>Personalização com a IK Analytics</h2>
+                    <p class="subtitle">
+                        Desenhamos o IK Flow em conjunto com a sua equipe, adaptando processos, telas e integrações
+                        ao método de trabalho de cada planta e país.
+                    </p>
+                    <ul>
+                        <li>Entendimento detalhado dos fluxos atuais por área, país e unidade produtiva.</li>
+                        <li>Parametrização e personalizações do IK Flow aderentes a esses processos.</li>
+                        <li>Provas de conceito e ajustes finos antes da entrada em produção.</li>
+                    </ul>
+                </div>
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide12_nextsteps.svg"
+                        alt="Próximos passos com a IK Analytics"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Personalização</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot active"></span>
+                </div>
+                <span class="slide-number">12 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <!-- Slide 13 – Contato Final -->
+    <section class="slide slide--teal slide--anim-zoom slide--slow" id="contato">
+        <div class="slide-inner">
+            <header class="slide-header">
+                <div class="logos-left">
+                    <img src="../static/img/logo_ikflow.png"
+                         alt="IK Flow" class="logo" />
+                </div>
+                <div class="logos-right">
+                    <span class="slide-tag">Contato</span>
+                </div>
+            </header>
+
+            <div class="slide-content">
+                <div class="slide-text">
+                    <h2>Contato IK Analytics</h2>
+                    <p class="subtitle">
+                        Fale com a IK Analytics para conhecer em detalhes o IK Flow e montar
+                        um projeto de implantação aderente à sua operação industrial.
+                    </p>
+
+                    <div class="contact-box">
+                        <strong>Contato IK Analytics</strong><br>
+                        Email:
+                        <a href="mailto:aritana@ikanalytics.com.br">
+                            aritana@ikanalytics.com.br
+                        </a><br>
+                        Tel.:
+                        <a href="tel:+5567981750909">
+                            +55 (67) 98175-0909
+                        </a>
+                    </div>
+                </div>
+
+                <div class="slide-visual illustration-wrapper">
+                    <img
+                        class="illustration"
+                        src="../static/img/apresentacao_ikflow/ikflow_slide13_contact.svg"
+                        alt="Contato IK Analytics"
+                    />
+                </div>
+            </div>
+
+            <footer class="slide-footer">
+                <div class="footer-left">
+                    <img src="../static/uploads/logos/empresa_20251025_123345.png"
+                         alt="IK Analytics" class="footer-logo" />
+                    <span>Contato</span>
+                </div>
+                <div class="progress-dots">
+                    <span class="dot active"></span>
+                </div>
+                <span class="slide-number">13 / 13</span>
+            </footer>
+        </div>
+    </section>
+
+    <script src="../static/js/apresentacao_ikflow_scroll.js"></script>
+</body>
+</html>

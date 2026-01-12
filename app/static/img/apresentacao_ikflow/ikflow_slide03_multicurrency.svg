@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f4f6ff"/>
+      <stop offset="50%" stop-color="#e3f4f6"/>
+      <stop offset="100%" stop-color="#d9e5ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg3)"/>
+  <circle cx="460" cy="320" r="170" fill="#ffffff" opacity="0.95"/>
+  <circle cx="1110" cy="320" r="150" fill="#ffffff" opacity="0.9"/>
+  <circle cx="820" cy="620" r="200" fill="#ffffff" opacity="0.9"/>
+  <circle cx="460" cy="320" r="90" fill="#00a6b4" opacity="0.9"/>
+  <circle cx="1110" cy="320" r="80" fill="#003b73" opacity="0.9"/>
+  <circle cx="820" cy="620" r="110" fill="#ff6a00" opacity="0.9"/>
+  <text x="460" y="333" text-anchor="middle" font-family="system-ui" font-size="52" fill="#ffffff" opacity="0.95">$</text>
+  <text x="1110" y="335" text-anchor="middle" font-family="system-ui" font-size="48" fill="#ffffff" opacity="0.95">€</text>
+  <text x="820" y="635" text-anchor="middle" font-family="system-ui" font-size="52" fill="#ffffff" opacity="0.95">R$</text>
+  <rect x="280" y="520" width="380" height="220" rx="26" fill="#ffffff" opacity="0.95"/>
+  <rect x="305" y="545" width="220" height="14" rx="7" fill="#003b73"/>
+  <rect x="305" y="580" width="260" height="10" rx="5" fill="#9ca8c0"/>
+  <rect x="305" y="610" width="260" height="10" rx="5" fill="#c0cada"/>
+  <rect x="305" y="650" width="300" height="14" rx="7" fill="#00a6b4"/>
+  <rect x="305" y="690" width="260" height="12" rx="6" fill="#ff6a00"/>
+</svg>

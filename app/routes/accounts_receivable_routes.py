@@ -31,13 +31,19 @@ def accounts_receivable_list():
     status = request.args.get('status', 'all')
     period = request.args.get('period', 'all')
     customer_id = request.args.get('customer_id')
+    company_id = request.args.get('company_id')
     
     # Construir a consulta base
     query = """
-        SELECT ar.*, c.name as customer_name, ba.name as bank_account_name
+        SELECT 
+            ar.*, 
+            c.name AS customer_name, 
+            ba.name AS bank_account_name,
+            e.nome_fantasia AS company_name
         FROM accounts_receivable ar
         JOIN customers c ON ar.customer_id = c.id
         JOIN bank_accounts ba ON ar.bank_account_id = ba.id
+        LEFT JOIN empresas e ON ar.company_id = e.id
         WHERE ar.active = TRUE
     """
     params = []
@@ -59,9 +65,13 @@ def accounts_receivable_list():
     if customer_id:
         query += " AND ar.customer_id = %s"
         params.append(customer_id)
+
+    if company_id:
+        query += " AND ar.company_id = %s"
+        params.append(company_id)
     
-    # Ordenação
-    query += " ORDER BY ar.due_date ASC"
+    # Ordenação: mais recentes / vencimentos mais distantes primeiro
+    query += " ORDER BY ar.due_date DESC"
     
     # Executar a consulta
     receivables = db.fetch_all(query, tuple(params))
@@ -79,6 +89,14 @@ def accounts_receivable_list():
         WHERE active = TRUE AND status = 'active'
         ORDER BY name
     """)
+
+    # Buscar empresas para filtro por empresa
+    companies = db.fetch_all("""
+        SELECT id, nome_fantasia
+        FROM empresas
+        WHERE ativo = TRUE
+        ORDER BY nome_fantasia
+    """)
     
     return render_template(
         'accounts_receivable_list.html',
@@ -88,6 +106,8 @@ def accounts_receivable_list():
         status=status,
         period=period,
         customer_id=customer_id,
+        companies=companies,
+        company_id=company_id,
         active_page='accounts_receivable'
     )
 

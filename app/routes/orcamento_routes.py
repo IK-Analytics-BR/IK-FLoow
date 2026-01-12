@@ -15,10 +15,12 @@ try:
     from app.utils.auth import login_required, get_usuario_logado
     from app.utils.search_utils import parse_star_search, build_multi_part_like_where
     from app.utils.permissoes_helper import tem_permissao
+    from app.services.exchange_rate_service import ExchangeRateService
 except ImportError:
     from database import get_db
     from utils.search_utils import parse_star_search, build_multi_part_like_where
     from utils.permissoes_helper import tem_permissao
+    from services.exchange_rate_service import ExchangeRateService
 from functools import wraps
 from flask import flash
 
@@ -98,6 +100,54 @@ def get_empresa_padrao():
     """Retorna o ID da empresa padrão"""
     return session.get('empresa_id', 1)
 
+
+def calcular_fx_para_empresa(db, empresa_id):
+    """Calcula a taxa de câmbio base -> moeda funcional da empresa.
+
+    Usa o ExchangeRateService configurado no sistema. Retorna um dict com:
+      - base_currency
+      - target_currency
+      - rate_date (datetime.date)
+      - rate_value (float)
+      - rate_source (str)
+
+    Em caso de erro ou se a empresa não tiver moeda funcional, retorna None.
+    """
+    if not empresa_id:
+        return None
+
+    try:
+        empresa = db.fetch_one(
+            "SELECT moeda_funcional FROM empresas WHERE id = %s",
+            (empresa_id,),
+        )
+    except Exception as e:
+        print(f"[ORCAMENTO FX] Erro ao buscar empresa {empresa_id}: {e}")
+        return None
+
+    if not empresa:
+        return None
+
+    moeda_funcional = (empresa.get('moeda_funcional') or '').strip().upper()[:3]
+    if not moeda_funcional:
+        return None
+
+    try:
+        svc = ExchangeRateService()
+        rate_date = datetime.now().date()
+        rate_value = svc.get_rate(rate_date, moeda_funcional)
+        return {
+            'base_currency': svc.base_currency.upper(),
+            'target_currency': moeda_funcional,
+            'rate_date': rate_date,
+            'rate_value': float(rate_value),
+            'rate_source': 'ExchangeRatesAPI.io',
+        }
+    except Exception as e:
+        # Não impedir o salvamento do orçamento por falha de câmbio; apenas registrar aviso
+        print(f"[ORCAMENTO FX] Erro ao obter taxa de câmbio para empresa {empresa_id} ({moeda_funcional}): {e}")
+        return None
+
 def formatar_moeda(valor):
     """Formata valor para moeda brasileira"""
     if valor is None:
@@ -168,6 +218,268 @@ def _copiar_itens_template_para_op(db, op_id, template_id, quantidade_produto_fi
     """, (str(custo_total_atual), op_id))
 
     return custo_total_atual
+
+
+def _gerar_contas_receber_para_orcamento(db, orcamento_id):
+    """Gera uma conta a receber e suas parcelas a partir de um orçamento aprovado.
+
+    Regras principais:
+    - Usa as duplicatas de orcamento_duplicatas como base para as parcelas.
+    - Define a moeda do título como a moeda funcional da empresa (empresas.moeda_funcional)
+      quando existir; caso contrário, usa BRL.
+    - Grava também valores convertidos para a moeda base do sistema (ExchangeRateService.base_currency).
+    - Seleciona a conta bancária a partir da forma de pagamento (payment_methods_config.bank_account_id)
+      e, em último caso, da empresa (empresas.bank_account_id).
+    """
+    # Verificar se a coluna bank_account_id existe na tabela empresas
+    has_empresas_bank_account = False
+    try:
+        col_info = db.fetch_one(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'empresas'
+              AND column_name = 'bank_account_id'
+            """
+        )
+        has_empresas_bank_account = bool(col_info and int(col_info.get('cnt') or 0) > 0)
+    except Exception:
+        has_empresas_bank_account = False
+
+    try:
+        if has_empresas_bank_account:
+            orc = db.fetch_one(
+                """
+                SELECT 
+                    o.id,
+                    o.numero,
+                    o.cliente_id,
+                    o.empresa_id,
+                    o.valor_total,
+                    o.data_emissao,
+                    o.data_validade,
+                    o.forma_pagamento_id,
+                    e.moeda_funcional,
+                    e.bank_account_id AS empresa_bank_account_id
+                FROM orcamentos o
+                LEFT JOIN empresas e ON o.empresa_id = e.id
+                WHERE o.id = %s
+                """,
+                [orcamento_id],
+            )
+        else:
+            orc = db.fetch_one(
+                """
+                SELECT 
+                    o.id,
+                    o.numero,
+                    o.cliente_id,
+                    o.empresa_id,
+                    o.valor_total,
+                    o.data_emissao,
+                    o.data_validade,
+                    o.forma_pagamento_id,
+                    e.moeda_funcional,
+                    NULL AS empresa_bank_account_id
+                FROM orcamentos o
+                LEFT JOIN empresas e ON o.empresa_id = e.id
+                WHERE o.id = %s
+                """,
+                [orcamento_id],
+            )
+    except Exception as e:
+        print(f"[ORCAMENTO->CR] Erro ao buscar dados do orcamento {orcamento_id}: {e}")
+        return
+
+    if not orc:
+        print(f"[ORCAMENTO->CR] Orcamento {orcamento_id} não encontrado, não gerando contas a receber.")
+        return
+
+    if not orc.get('cliente_id'):
+        print(f"[ORCAMENTO->CR] Orcamento {orcamento_id} sem cliente, não gerando contas a receber.")
+        return
+
+    # Buscar duplicatas (parcelas) do orçamento
+    try:
+        duplicatas = db.fetch_all(
+            """
+            SELECT numero, vencimento, valor
+            FROM orcamento_duplicatas
+            WHERE orcamento_id = %s AND status <> 'cancelado'
+            ORDER BY numero
+            """,
+            [orcamento_id],
+        ) or []
+    except Exception as e:
+        print(f"[ORCAMENTO->CR] Erro ao buscar duplicatas do orcamento {orcamento_id}: {e}")
+        duplicatas = []
+
+    from datetime import date as _date
+
+    if not duplicatas:
+        # Fallback: criar uma única parcela com o valor total
+        duplicatas = [{
+            'numero': 1,
+            'vencimento': orc.get('data_validade') or orc.get('data_emissao') or _date.today(),
+            'valor': orc.get('valor_total') or 0,
+        }]
+
+    installments = len(duplicatas)
+
+    # Forma de pagamento / conta bancária
+    forma_pagamento_id = orc.get('forma_pagamento_id')
+    pm_config = None
+    if forma_pagamento_id:
+        try:
+            pm_config = db.fetch_one(
+                "SELECT id, code, name, bank_account_id FROM payment_methods_config WHERE id = %s",
+                [forma_pagamento_id],
+            )
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Erro ao buscar payment_methods_config {forma_pagamento_id}: {e}")
+
+    bank_account_id = None
+    if pm_config and pm_config.get('bank_account_id'):
+        bank_account_id = pm_config['bank_account_id']
+    if not bank_account_id:
+        bank_account_id = orc.get('empresa_bank_account_id')
+
+    if not bank_account_id:
+        print(f"[ORCAMENTO->CR] Orcamento {orcamento_id} sem conta bancária vinculada, não gerando contas a receber.")
+        return
+
+    pm_code = (pm_config.get('code') if pm_config else '') or ''
+    pm_code_lower = pm_code.lower()
+    allowed_pm = {'cash', 'credit_card', 'debit_card', 'pix', 'boleto', 'transfer', 'check'}
+    if pm_code_lower in allowed_pm:
+        payment_method = pm_code_lower
+    else:
+        payment_method = 'other'
+
+    # Moeda e câmbio
+    from decimal import Decimal
+
+    moeda_funcional = (orc.get('moeda_funcional') or '').strip().upper()[:3]
+    try:
+        svc = ExchangeRateService()
+        base_currency = svc.base_currency.upper()
+    except Exception as e:
+        print(f"[ORCAMENTO->CR] Aviso: falha ao instanciar ExchangeRateService: {e}")
+        svc = None
+        base_currency = 'BRL'
+
+    currency_code = moeda_funcional or base_currency or 'BRL'
+
+    # Precisamos apenas da taxa fx_rate_to_base; os valores em moeda serão calculados por parcela
+    total_amount_currency = Decimal(str(orc.get('valor_total') or 0))
+    fx_rate_to_base = Decimal('1')
+    total_amount_base = total_amount_currency
+
+    rate_date = orc.get('data_emissao') or _date.today()
+
+    if svc and currency_code != base_currency:
+        try:
+            rate_base_to_target = Decimal(str(svc.get_rate(rate_date, currency_code)))
+            if rate_base_to_target != 0:
+                # 1 target = 1 / rate_base_to_target base
+                fx_rate_to_base = (Decimal('1') / rate_base_to_target).quantize(Decimal('0.00000001'))
+                total_amount_base = (total_amount_currency * fx_rate_to_base).quantize(Decimal('0.01'))
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Erro ao obter taxa de câmbio para {currency_code} em {rate_date}: {e}")
+            fx_rate_to_base = Decimal('1')
+            total_amount_base = total_amount_currency
+
+    issue_date = orc.get('data_emissao') or rate_date
+
+    # Gerar UMA conta a receber para CADA duplicata (parcela), com installments=1
+    generated_ids = []
+    descricao_base = f"Orçamento {orc.get('numero') or orcamento_id}"
+    observacao_base = f"Gerado automaticamente a partir do orçamento {orc.get('numero') or orcamento_id}."
+
+    for dup in duplicatas:
+        try:
+            numero_parcela = int(dup.get('numero') or 1)
+        except Exception:
+            numero_parcela = 1
+
+        valor_parcela = Decimal(str(dup.get('valor') or 0))
+        amount_currency = valor_parcela
+        amount_base = (amount_currency * fx_rate_to_base).quantize(Decimal('0.01'))
+        vencimento = dup.get('vencimento') or rate_date
+
+        descricao = f"{descricao_base} - Parcela {numero_parcela}"
+        observacao = observacao_base
+
+        # Criar o título principal (conta a receber) para esta parcela
+        try:
+            receivable_id = db.insert(
+                """
+                INSERT INTO accounts_receivable (
+                    customer_id, invoice_number, description, total_amount,
+                    installments, issue_date, due_date, payment_method,
+                    bank_account_id, status, notes, origin,
+                    company_id, total_amount_currency, fx_rate_to_base, total_amount_base, currency_code
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    orc['cliente_id'],
+                    orc.get('numero'),
+                    descricao,
+                    str(amount_currency),
+                    1,  # cada título representa uma única parcela
+                    issue_date,
+                    vencimento,
+                    payment_method,
+                    bank_account_id,
+                    'pending',
+                    observacao,
+                    'sale',
+                    orc.get('empresa_id'),
+                    str(amount_currency),
+                    str(fx_rate_to_base),
+                    str(amount_base),
+                    currency_code,
+                ),
+            )
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Erro ao criar conta a receber (parcela {numero_parcela}) para orcamento {orcamento_id}: {e}")
+            continue
+
+        if not receivable_id:
+            print(f"[ORCAMENTO->CR] Falha ao criar conta a receber (parcela {numero_parcela}) para orcamento {orcamento_id}.")
+            continue
+
+        generated_ids.append(receivable_id)
+
+        # Criar a parcela vinculada a este título (sempre 1/1)
+        try:
+            db.insert(
+                """
+                INSERT INTO receivable_installments (
+                    receivable_id, installment_number, amount,
+                    amount_currency, fx_rate_to_base, amount_base,
+                    due_date, status
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    receivable_id,
+                    1,
+                    str(amount_currency),
+                    str(amount_currency),
+                    str(fx_rate_to_base),
+                    str(amount_base),
+                    vencimento,
+                    'pending',
+                ),
+            )
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Erro ao criar parcela (1/1) para conta a receber {receivable_id} do orcamento {orcamento_id}: {e}")
+
+    if generated_ids:
+        print(f"[ORCAMENTO->CR] {len(generated_ids)} conta(s) a receber geradas para orcamento {orcamento_id}: IDs {generated_ids}.")
+    else:
+        print(f"[ORCAMENTO->CR] Nenhuma conta a receber gerada para orcamento {orcamento_id} apesar de existirem duplicatas.")
 
 
 def _verificar_estoque_disponivel(db, produto_id, quantidade_necessaria):
@@ -578,7 +890,8 @@ def _gerar_ops_para_orcamento(db, orcamento_id, etapas_por_item=None):
         except Exception:
             pass
 
-        if tem_template and detalhe_item['tipo_op'] == 'producao':
+        # Para OPs que envolvem PRODUÇÃO (producao ou mista), copiar itens da ficha técnica
+        if tem_template and detalhe_item['tipo_op'] in ('producao', 'mista'):
             _copiar_itens_template_para_op(db, op_id, template_id, quantidade_a_produzir or quantidade_total)
 
         # Vincular OP ao orçamento
@@ -775,6 +1088,7 @@ def lista():
             o.data_validade,
             o.status,
             o.valor_total,
+            o.fx_target_currency_code,
             o.prazo_entrega,
             o.empresa_id,
             c.name AS cliente_nome,
@@ -1080,6 +1394,8 @@ def visualizar(id):
             c.cep AS cliente_cep,
             s.name AS vendedor_nome,
             s.phone AS vendedor_telefone,
+            s2.name AS vendedor2_nome,
+            s2.phone AS vendedor2_telefone,
             e.razao_social AS empresa_nome,
             e.cnpj AS empresa_cnpj,
             CONCAT(e.logradouro, ', ', COALESCE(e.numero, 's/n')) AS empresa_endereco,
@@ -1089,6 +1405,7 @@ def visualizar(id):
         FROM orcamentos o
         LEFT JOIN customers c ON o.cliente_id = c.id
         LEFT JOIN users s ON o.vendedor_id = s.id
+        LEFT JOIN users s2 ON o.vendedor2_id = s2.id
         LEFT JOIN empresas e ON o.empresa_id = e.id
         LEFT JOIN suppliers t ON o.transportadora_id = t.id
         WHERE o.id = %s
@@ -1099,7 +1416,7 @@ def visualizar(id):
         return redirect(url_for('orcamentos.lista'))
     
     orcamento = orcamento[0]
-    
+
     # Buscar itens
     itens = db.fetch_all("""
         SELECT oi.*, 
@@ -1112,6 +1429,40 @@ def visualizar(id):
         ORDER BY oi.sequencia
     """, [id])
     
+    # Buscar duplicatas / parcelas
+    duplicatas = db.fetch_all("""
+        SELECT numero, vencimento, valor, forma_pagamento, status
+        FROM orcamento_duplicatas
+        WHERE orcamento_id = %s
+        ORDER BY vencimento, numero
+    """, [id])
+
+    # Buscar taxa oficial do dia para comparação (se houver dados de FX no orçamento)
+    fx_oficial = None
+    try:
+        fx_rate_date = orcamento.get('fx_rate_date') if isinstance(orcamento, dict) else orcamento['fx_rate_date']
+        fx_base_code = orcamento.get('fx_base_currency_code') if isinstance(orcamento, dict) else orcamento['fx_base_currency_code']
+        fx_target_code = orcamento.get('fx_target_currency_code') if isinstance(orcamento, dict) else orcamento['fx_target_currency_code']
+    except Exception:
+        fx_rate_date = None
+        fx_base_code = None
+        fx_target_code = None
+
+    if fx_rate_date and fx_base_code and fx_target_code:
+        try:
+            fx_oficial = db.fetch_one(
+                """
+                SELECT rate, source
+                FROM exchange_rates
+                WHERE rate_date = %s
+                  AND base_currency_code = %s
+                  AND target_currency_code = %s
+                """,
+                [fx_rate_date, fx_base_code, fx_target_code],
+            )
+        except Exception as e:
+            print(f"[ORCAMENTO FX] Aviso ao buscar taxa oficial para visualização: {e}")
+
     # Buscar histórico
     historico = db.fetch_all("""
         SELECT h.id, h.orcamento_id, h.acao, h.descricao, h.dados_anteriores, h.dados_novos,
@@ -1153,8 +1504,10 @@ def visualizar(id):
     return render_template('comercial/orcamento_view.html',
         orcamento=orcamento,
         itens=itens or [],
+        duplicatas=duplicatas or [],
         historico=historico or [],
         producao_ops=producao_ops or [],
+        fx_oficial=fx_oficial,
         today=datetime.now().date()
     )
 
@@ -1269,6 +1622,23 @@ def salvar():
         observacoes = request.form.get('observacoes', '')
         observacoes_internas = request.form.get('observacoes_internas', '')
         acao = request.form.get('acao', 'salvar')  # salvar ou enviar
+
+        # =====================================================
+        # CAMPOS DE CÂMBIO (FX) - base -> moeda funcional da empresa
+        # =====================================================
+        fx_info = calcular_fx_para_empresa(db, empresa_id)
+        if fx_info:
+            fx_base_currency_code = fx_info['base_currency']
+            fx_target_currency_code = fx_info['target_currency']
+            fx_rate_date = fx_info['rate_date']
+            fx_rate_value = fx_info['rate_value']
+            fx_rate_source = fx_info['rate_source']
+        else:
+            fx_base_currency_code = None
+            fx_target_currency_code = None
+            fx_rate_date = None
+            fx_rate_value = None
+            fx_rate_source = None
         
         # Itens (JSON)
         itens_json = request.form.get('itens', '[]')
@@ -1318,7 +1688,8 @@ def salvar():
             dados_anteriores = db.fetch_one("""
                 SELECT 
                     cliente_id, vendedor_id, vendedor2_id, contato, tipo_pedido, canal_relacionamento,
-                    empresa_id, forma_pagamento_id, 
+                    empresa_id, fx_base_currency_code, fx_target_currency_code, fx_rate_date, fx_rate_value, fx_rate_source,
+                    forma_pagamento_id, 
                     transportadora_id, frete_por_conta, obs_frete, perfil_transporte,
                     especie, volumes_quantidade, peso_bruto, peso_liquido,
                     valor_total, percentual_desconto, valor_frete, 
@@ -1344,6 +1715,11 @@ def salvar():
                     condicao_pagamento = %s,
                     forma_pagamento_id = %s,
                     prazo_entrega = %s,
+                    fx_base_currency_code = %s,
+                    fx_target_currency_code = %s,
+                    fx_rate_date = %s,
+                    fx_rate_value = %s,
+                    fx_rate_source = %s,
                     -- Dados de transporte (Aba Transporte)
                     frete_por_conta = %s,
                     obs_frete = %s,
@@ -1392,6 +1768,7 @@ def salvar():
                 # Dados principais
                 cliente_id, vendedor_id, vendedor2_id, contato, tipo_pedido, canal_relacionamento,
                 empresa_id, data_validade, condicao_pagamento, forma_pagamento_id, prazo_entrega,
+                fx_base_currency_code, fx_target_currency_code, fx_rate_date, fx_rate_value, fx_rate_source,
                 # Transporte
                 frete_por_conta, obs_frete, perfil_transporte, transportadora_id,
                 especie, volumes_quantidade, peso_bruto, peso_liquido,
@@ -1410,9 +1787,9 @@ def salvar():
                 data_previsao_producao, data_previsao_entrega, dias_transporte, previsao_manual,
                 # Status
                 'enviado' if acao == 'enviar' else 'rascunho',
-                orcamento_id
+                orcamento_id,
             ])
-            
+
             print(f"[ORCAMENTO] UPDATE executado para ID={orcamento_id}")
             
             # Deletar itens antigos
@@ -1427,6 +1804,7 @@ def salvar():
                     -- Dados principais (Aba Dados)
                     cliente_id, vendedor_id, vendedor2_id, contato, tipo_pedido, canal_relacionamento,
                     empresa_id, data_validade, condicao_pagamento, forma_pagamento_id, prazo_entrega,
+                    fx_base_currency_code, fx_target_currency_code, fx_rate_date, fx_rate_value, fx_rate_source,
                     -- Dados de transporte (Aba Transporte)
                     frete_por_conta, obs_frete, perfil_transporte, transportadora_id,
                     especie, volumes_quantidade, peso_bruto, peso_liquido,
@@ -1447,6 +1825,7 @@ def salvar():
                     status, created_by
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
@@ -1459,6 +1838,7 @@ def salvar():
                 # Dados principais
                 cliente_id, vendedor_id, vendedor2_id, contato, tipo_pedido, canal_relacionamento,
                 empresa_id, data_validade, condicao_pagamento, forma_pagamento_id, prazo_entrega,
+                fx_base_currency_code, fx_target_currency_code, fx_rate_date, fx_rate_value, fx_rate_source,
                 # Transporte
                 frete_por_conta, obs_frete, perfil_transporte, transportadora_id,
                 especie, volumes_quantidade, peso_bruto, peso_liquido,
@@ -1549,6 +1929,11 @@ def salvar():
             'tipo_pedido': tipo_pedido,
             'canal_relacionamento': canal_relacionamento,
             'empresa_id': empresa_id,
+            'fx_base_currency_code': fx_base_currency_code,
+            'fx_target_currency_code': fx_target_currency_code,
+            'fx_rate_date': fx_rate_date.isoformat() if fx_rate_date else None,
+            'fx_rate_value': float(fx_rate_value) if fx_rate_value is not None else None,
+            'fx_rate_source': fx_rate_source,
             'forma_pagamento_id': forma_pagamento_id,
             # Aba Transporte
             'transportadora_id': transportadora_id,
@@ -1733,6 +2118,11 @@ def pre_aprovar(id):
         """, [get_usuario_logado(), id])
         
         registrar_historico(id, 'APROVACAO', 'Orçamento aprovado (sem itens para produção)')
+        # Gerar contas a receber a partir das duplicatas do orçamento
+        try:
+            _gerar_contas_receber_para_orcamento(db, id)
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Aviso: falha ao gerar contas a receber para orcamento {id}: {e}")
         flash('Orçamento aprovado com sucesso! Nenhum item requer ordem de produção.', 'success')
         return redirect(url_for('orcamentos.visualizar', id=id))
     
@@ -1803,6 +2193,12 @@ def aprovar(id):
         if total_ops == 0:
             msg_parts.append('Nenhuma OP necessária.')
         
+        # Gerar contas a receber a partir das duplicatas do orçamento
+        try:
+            _gerar_contas_receber_para_orcamento(db, id)
+        except Exception as e:
+            print(f"[ORCAMENTO->CR] Aviso: falha ao gerar contas a receber para orcamento {id}: {e}")
+
         flash(' | '.join(msg_parts), 'success')
         return redirect(url_for('ordem_producao.grupo_orcamento', orcamento_id=id))
 
@@ -2036,6 +2432,57 @@ def duplicar(id):
         print(f"[DUPLICAR] Erro: {e}")
         flash(f'Erro ao duplicar orçamento: {str(e)}', 'error')
         return redirect(url_for('orcamentos.visualizar', id=id))
+
+
+# =====================================================
+# API: FX POR EMPRESA
+# =====================================================
+
+@orcamento_bp.route('/api/fx-empresa')
+def api_fx_empresa():
+    """Retorna informações de câmbio (FX) para a empresa selecionada."""
+    db = get_db()
+    empresa_id = request.args.get('empresa_id')
+
+    try:
+        empresa_id_int = int(empresa_id) if empresa_id else None
+    except (TypeError, ValueError):
+        empresa_id_int = None
+
+    if not empresa_id_int:
+        return jsonify({'success': False, 'error': 'empresa_id inválido'}), 400
+
+    empresa = db.fetch_one(
+        "SELECT id, moeda_funcional FROM empresas WHERE id = %s",
+        (empresa_id_int,),
+    )
+    if not empresa:
+        return jsonify({'success': False, 'error': 'Empresa não encontrada'}), 404
+
+    fx_info = calcular_fx_para_empresa(db, empresa_id_int)
+    if not fx_info:
+        # Retorna apenas a moeda funcional (se houver), sem taxa
+        return jsonify({
+            'success': True,
+            'empresa_id': empresa['id'],
+            'moeda_funcional': empresa.get('moeda_funcional'),
+            'fx_base_currency_code': None,
+            'fx_target_currency_code': None,
+            'fx_rate_value': None,
+            'fx_rate_date': None,
+            'fx_rate_source': None,
+        })
+
+    return jsonify({
+        'success': True,
+        'empresa_id': empresa['id'],
+        'moeda_funcional': empresa.get('moeda_funcional'),
+        'fx_base_currency_code': fx_info['base_currency'],
+        'fx_target_currency_code': fx_info['target_currency'],
+        'fx_rate_value': fx_info['rate_value'],
+        'fx_rate_date': fx_info['rate_date'].isoformat() if fx_info['rate_date'] else None,
+        'fx_rate_source': fx_info['rate_source'],
+    })
 
 
 # =====================================================
