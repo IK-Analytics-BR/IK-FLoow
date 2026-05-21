@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <title>Questionário de Visita ao Cliente</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root {
+            --ik-teal: #00a6b4;
+            --ik-teal-dark: #008494;
+            --ik-navy: #003b73;
+            --ik-orange: #ff6a00;
+
+            --bg: #f3f6fb;
+            --bg-alt: #e4ecf7;
+            --card: #ffffff;
+            --text: #1f2933;
+            --muted: #6b7785;
+            --border: #d0d7e2;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #f9fafb 0%, #dde5f2 42%, #cbd5e8 100%);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 32px 8px;
+        }
+
+        .page-wrapper {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #ffffff 0%, #f4f7fc 55%, #edf3ff 100%);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(148, 163, 184, 0.16);
+            padding: 24px 26px 28px 26px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            margin: 0;
+            color: var(--ik-navy);
+        }
+
+        .header-title p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .steps-indicator {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .step-pill {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            background: rgba(148, 163, 184, 0.1);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .step-pill.is-active {
+            background: rgba(0, 166, 180, 0.16);
+            border-color: rgba(0, 166, 180, 0.4);
+            color: var(--ik-navy);
+            font-weight: 600;
+        }
+
+        .step-pill.is-completed::after {
+            content: "●";
+            margin-left: 6px;
+            font-size: 9px;
+            color: var(--ik-teal-dark);
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px 18px;
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px dashed rgba(148, 163, 184, 0.7);
+        }
+
+        .field-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .field-input,
+        .field-textarea {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding: 6px 9px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text);
+            background: #ffffff;
+        }
+
+        .field-textarea {
+            min-height: 72px;
+            resize: vertical;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.is-active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 650;
+            margin: 6px 0 2px 0;
+            color: var(--ik-navy);
+        }
+
+        .section-subtitle {
+            font-size: 12px;
+            margin: 0 0 12px 0;
+            color: var(--muted);
+        }
+
+        .questions-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px 18px;
+        }
+
+        .question-block {
+            padding: 8px 10px 10px 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(203, 213, 225, 0.9);
+        }
+
+        .question-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: #111827;
+        }
+
+        .question-hint {
+            font-size: 11px;
+            margin: 0 0 6px 0;
+            color: var(--muted);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .step-pill.is-disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 18px;
+        }
+
+        .actions-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            border-radius: 999px;
+            border: 1px solid transparent;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00a6b4, #008494);
+            color: #ffffff;
+        }
+
+        .btn-primary[disabled] {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .footer-note {
+            margin-top: 12px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 768px) {
+            .card { padding: 18px 16px 20px 16px; }
+            .header { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <form method="post" id="questionarioForm">
+        <div class="card">
+            <div class="header">
+                <div class="header-title">
+                    <h1>Questionário de Visita ao Cliente</h1>
+                    <p>Preencha junto com o cliente para mapear negócio, operações, estoque, vendas, logística, fiscal, financeiro e tecnologia.</p>
+                </div>
+            </div>
+
+            <div class="meta-grid">
+                <div>
+                    <div class="field-label">Nome da empresa / cliente</div>
+                    <input class="field-input" type="text" name="cliente_nome" value="{{ contexto.cliente_nome or '' }}" required>
+                </div>
+                <div>
+                    <div class="field-label">Nome do contato principal</div>
+                    <input class="field-input" type="text" name="contato_nome" value="{{ contexto.contato_nome or '' }}">
+                </div>
+                <div>
+                    <div class="field-label">E-mail para envio do PDF</div>
+                    <input class="field-input" type="email" name="cliente_email" value="{{ contexto.cliente_email or '' }}">
+                </div>
+                <div>
+                    <div class="field-label">CNPJ</div>
+                    <input class="field-input" type="text" name="cliente_cnpj" value="{{ contexto.cliente_cnpj or '' }}">
+                </div>
+                <div>
+                    <div class="field-label">Telefone / WhatsApp</div>
+                    <input class="field-input" type="text" name="cliente_telefone">
+                </div>
+                <div>
+                    <div class="field-label">Segmento principal</div>
+                    <input class="field-input" type="text" name="segmento_principal" placeholder="Indústria, serviços, comércio, varejo + atacado, distribuidora etc.">
+                </div>
+                <div>
+                    <div class="field-label">Possui varejo / loja própria?</div>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_varejo" value="sim" checked>
+                        Sim
+                    </label>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_varejo" value="nao">
+                        Não
+                    </label>
+                </div>
+                <div>
+                    <div class="field-label">Possui operação Comercial B2B / Distribuição?</div>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_b2b" value="sim" checked>
+                        Sim
+                    </label>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_b2b" value="nao">
+                        Não
+                    </label>
+                </div>
+                <div>
+                    <div class="field-label">Possui logística / entregas próprias?</div>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_logistica" value="sim" checked>
+                        Sim
+                    </label>
+                    <label class="field-label" style="font-weight: 400; display: block;">
+                        <input type="radio" name="aplica_logistica" value="nao">
+                        Não
+                    </label>
+                </div>
+                <input type="hidden" name="empresa_id" value="{{ contexto.empresa_id or '' }}">
+                <input type="hidden" name="cliente_id" value="{{ contexto.cliente_id or '' }}">
+                <input type="hidden" name="orcamento_id" value="{{ contexto.orcamento_id or '' }}">
+            </div>
+
+            <div class="steps-indicator" id="stepsIndicator">
+                <button type="button" class="step-pill is-active" data-step="1">1. Visão Geral</button>
+                <button type="button" class="step-pill" data-step="2">2. Produção / Operações</button>
+                <button type="button" class="step-pill" data-step="3">3. Estoque</button>
+                <button type="button" class="step-pill" data-step="4">4. Varejo / Loja</button>
+                <button type="button" class="step-pill" data-step="5">5. Comercial B2B / Distribuição</button>
+                <button type="button" class="step-pill" data-step="6">6. Logística / Entregas</button>
+                <button type="button" class="step-pill" data-step="7">7. Fiscal / Tributário</button>
+                <button type="button" class="step-pill" data-step="8">8. Financeiro</button>
+                <button type="button" class="step-pill" data-step="9">9. Tecnologia / Sistemas</button>
+                <button type="button" class="step-pill" data-step="10">10. Estratégia / Futuro</button>
+            </div>
+
+            <!-- Seção 1: Visão Geral do Negócio -->
+            <section class="section is-active" data-step="1">
+                <h2 class="section-title">1. Visão Geral do Negócio</h2>
+                <p class="section-subtitle">Contexto jurídico, estrutura societária, gargalos atuais e visão de expansão.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Quais empresas existem juridicamente?</p>
+                        <p class="question-hint">CNPJs, filiais, razão social x nome fantasia, se há mais de uma empresa no grupo.</p>
+                        <textarea class="field-textarea" name="visao_empresas_juridicas"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Contabilidade separada ou centralizada?</p>
+                        <p class="question-hint">Se cada CNPJ tem contabilidade própria ou se é tudo concentrado; como isso reflete na gestão.</p>
+                        <textarea class="field-textarea" name="visao_contabilidade"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Onde estão os principais gargalos hoje?</p>
+                        <p class="question-hint">Pontos que mais travam o dia a dia (produção, vendas, compras, financeiro, estoque, tecnologia etc.).</p>
+                        <textarea class="field-textarea" name="visao_gargalos"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">O que mais gera retrabalho manual?</p>
+                        <p class="question-hint">Digitação repetida, planilhas paralelas, conciliações manuais, recontagens, lançamentos duplicados.</p>
+                        <textarea class="field-textarea" name="visao_retrabalho"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Quais indicadores são críticos para a gestão?</p>
+                        <p class="question-hint">KPIs que a diretoria/gestores realmente acompanham (faturamento, margem, nível de serviço, perdas, produtividade etc.).</p>
+                        <textarea class="field-textarea" name="visao_indicadores"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Planos de expansão</p>
+                        <p class="question-hint">Novas cidades, lojas, franquias, novos canais (e-commerce, exportação), novos produtos ou linhas de negócio.</p>
+                        <textarea class="field-textarea" name="visao_expansao"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 2: Produção / Operações -->
+            <section class="section" data-step="2">
+                <h2 class="section-title">2. Produção / Operações</h2>
+                <p class="section-subtitle">Como o trabalho é organizado no chão de fábrica ou nas operações de serviços.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Como funciona o fluxo de produção/operações?</p>
+                        <p class="question-hint">Principais etapas, setores, responsáveis, apontamentos e controles usados hoje.</p>
+                        <textarea class="field-textarea" name="producao_fluxo"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Tipo de planejamento de produção/operação</p>
+                        <p class="question-hint">Se produzem por OP, previsão de vendas, pedido firme, lote mínimo, campanha, agenda de serviços etc.</p>
+                        <textarea class="field-textarea" name="producao_tipo_planejamento"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Fichas técnicas / receitas / procedimentos</p>
+                        <p class="question-hint">Se existem fichas técnicas por item/serviço, padrão de consumo, tempos e métodos.</p>
+                        <textarea class="field-textarea" name="producao_fichas_tecnicas"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Variações por cliente, canal ou linha</p>
+                        <p class="question-hint">Se há ajustes de processo, receita ou configuração conforme o cliente, canal ou contrato.</p>
+                        <textarea class="field-textarea" name="producao_variacoes_cliente"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Perdas, refugos e subprodutos</p>
+                        <p class="question-hint">Como são identificadas e registradas as perdas; se há reaproveitamento ou subprodutos.</p>
+                        <textarea class="field-textarea" name="producao_perdas_subprodutos"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Lotes, validade e rastreabilidade</p>
+                        <p class="question-hint">Se controlam lote, validade, número de série ou qualquer código que permita rastreamento/recall.</p>
+                        <textarea class="field-textarea" name="producao_lotes_rastreabilidade"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 3: Estoque -->
+            <section class="section" data-step="3">
+                <h2 class="section-title">3. Estoque – Matéria-prima e Produto Acabado</h2>
+                <p class="section-subtitle">Como são controlados insumos, almoxarifado, estoque intermediário e produto final.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Insumos e itens críticos</p>
+                        <p class="question-hint">Quais itens são mais sensíveis (custo alto, risco de falta, impacto na operação)?</p>
+                        <textarea class="field-textarea" name="estoque_insumos_criticos"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Controle de lote / validade da matéria-prima</p>
+                        <p class="question-hint">Como registram validade, lote, localização; que ferramentas usam para isso.</p>
+                        <textarea class="field-textarea" name="estoque_controle_mp"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Inventários e acuracidade</p>
+                        <p class="question-hint">Frequência de inventários, divergências típicas, se há inventário rotativo e quem executa.</p>
+                        <textarea class="field-textarea" name="estoque_inventario"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Organização do estoque de produto acabado</p>
+                        <p class="question-hint">Separação por local, tipo de produto, CNPJ, câmaras frias/depósitos, endereçamento, trânsito.</p>
+                        <textarea class="field-textarea" name="estoque_produto_acabado"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Perdas por validade, avarias ou furtos</p>
+                        <p class="question-hint">Como são registradas e analisadas; se há indicadores e responsabilidades claras.</p>
+                        <textarea class="field-textarea" name="estoque_perdas_validade"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Capacidade do sistema atual</p>
+                        <p class="question-hint">Se o sistema atual controla lote, validade, localização, bloqueios de estoque e relatórios de apoio.</p>
+                        <textarea class="field-textarea" name="estoque_sistema_atual"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 4: Varejo / Loja -->
+            <section class="section" data-step="4">
+                <h2 class="section-title">4. Varejo / Loja</h2>
+                <p class="section-subtitle">Pontos de venda próprios (loja, balcão, e-commerce direto, retirada no local).</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Sistemas usados na loja</p>
+                        <p class="question-hint">Se usa PDV separado, frente de caixa próprio, integração com ERP ou soluções manuais.</p>
+                        <textarea class="field-textarea" name="loja_sistema"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Integração de estoque loja x central</p>
+                        <p class="question-hint">Se há estoques separados, se o sistema enxerga ambos, como é o acerto entre loja e matriz.</p>
+                        <textarea class="field-textarea" name="loja_estoque_integrado"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Tipos de venda</p>
+                        <p class="question-hint">Produtos para consumo imediato, para revenda, para entrega; combos, kits, serviços.</p>
+                        <textarea class="field-textarea" name="loja_tipo_venda"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Formas de pagamento aceitas</p>
+                        <p class="question-hint">Dinheiro, cartão, PIX, vales, carteiras digitais, crediário próprio etc.</p>
+                        <textarea class="field-textarea" name="loja_pagamentos"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Controle de caixa</p>
+                        <p class="question-hint">Se há caixa por operador/turno, sangrias, fechamento diário, conferência com o financeiro.</p>
+                        <textarea class="field-textarea" name="loja_caixa"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Documentos fiscais emitidos no varejo</p>
+                        <p class="question-hint">Se emite NFC-e, SAT, cupom fiscal, NF-e consumidor ou outro modelo.</p>
+                        <textarea class="field-textarea" name="loja_fiscal"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Promoções, campanhas e combos</p>
+                        <p class="question-hint">Como são cadastradas e controladas; se há regras de desconto, brindes, programas de fidelidade.</p>
+                        <textarea class="field-textarea" name="loja_promocoes"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 5: Comercial B2B / Distribuição -->
+            <section class="section" data-step="5">
+                <h2 class="section-title">5. Comercial B2B / Distribuição</h2>
+                <p class="section-subtitle">Atendimento a clientes empresariais, canais de atacado e distribuidores.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Tipos de clientes atendidos</p>
+                        <p class="question-hint">Redes de varejo, pequenos comércios, food service, indústrias, distribuidores, representantes etc.</p>
+                        <textarea class="field-textarea" name="dist_clientes_tipo"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Política comercial</p>
+                        <p class="question-hint">Tabelas de preço, descontos por volume, bonificações, comissões e metas.</p>
+                        <textarea class="field-textarea" name="dist_politica_comercial"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Captação de pedidos</p>
+                        <p class="question-hint">Como os pedidos chegam (telefone, WhatsApp, vendedores externos, portal B2B, integrações).</p>
+                        <textarea class="field-textarea" name="dist_pedidos_captacao"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Separação e expedição</p>
+                        <p class="question-hint">Se fazem picking por rota, por cliente, por pedido; como controlam conferência e expedição.</p>
+                        <textarea class="field-textarea" name="dist_separacao"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Faturamento</p>
+                        <p class="question-hint">Como é feita a emissão de NF-e, se há consolidação de pedidos, regras específicas por cliente.</p>
+                        <textarea class="field-textarea" name="dist_faturamento"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Cobrança e inadimplência</p>
+                        <p class="question-hint">Como acompanham títulos em aberto, renegociações, protestos, bloqueios de crédito.</p>
+                        <textarea class="field-textarea" name="dist_cobranca"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 6: Logística / Entregas -->
+            <section class="section" data-step="6">
+                <h2 class="section-title">6. Logística / Entregas</h2>
+                <p class="section-subtitle">Frota própria, terceiros, roteirização e acompanhamento das entregas.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Frota própria e terceiros</p>
+                        <p class="question-hint">Se existe frota própria, quantidade e tipo de veículos, uso de transportadoras parceiras.</p>
+                        <textarea class="field-textarea" name="transp_frota"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Roteirização</p>
+                        <p class="question-hint">Se a roteirização é manual ou via sistema; critérios (distância, janelas de entrega, prioridade).</p>
+                        <textarea class="field-textarea" name="transp_roteirizacao"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Tipo de entregas</p>
+                        <p class="question-hint">Se trabalham com rotas fixas, entregas pontuais por pedido, agendamentos especiais etc.</p>
+                        <textarea class="field-textarea" name="transp_tipo_entregas"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Controle de custos logísticos</p>
+                        <p class="question-hint">Se há rateio de custos por cliente, rota, veículo; indicadores como custo por km ou por entrega.</p>
+                        <textarea class="field-textarea" name="transp_custos"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Documentos fiscais de transporte</p>
+                        <p class="question-hint">Emissão de CT-e, MDF-e, CIOT e outros documentos obrigatórios para o segmento.</p>
+                        <textarea class="field-textarea" name="transp_fiscal"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Temperatura, ocorrências e qualidade de entrega</p>
+                        <p class="question-hint">Uso de registro de temperatura, fotos, checklists, apontamentos de atrasos, avarias e devoluções.</p>
+                        <textarea class="field-textarea" name="transp_temperatura_ocorrencias"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 7: Fiscal / Tributário -->
+            <section class="section" data-step="7">
+                <h2 class="section-title">7. Fiscal / Tributário</h2>
+                <p class="section-subtitle">Regime tributário, CFOPs, particularidades fiscais do segmento e obrigações acessórias.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Regime tributário e CFOPs principais</p>
+                        <p class="question-hint">Simples, Lucro Presumido/Real, CFOPs mais usados em compras, vendas, transferências.</p>
+                        <textarea class="field-textarea" name="fiscal_regime"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">ICMS ST e particularidades do segmento</p>
+                        <p class="question-hint">Regras de substituição tributária, benefícios fiscais, regimes especiais, regimes específicos do setor.</p>
+                        <textarea class="field-textarea" name="fiscal_icms_st"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">SPED e obrigações acessórias</p>
+                        <p class="question-hint">Como hoje são gerados SPED Fiscal/Contribuições, EFD, livros, declarações, quem é responsável.</p>
+                        <textarea class="field-textarea" name="fiscal_sped"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Controle de créditos de impostos</p>
+                        <p class="question-hint">Se há controle de créditos de ICMS, PIS/COFINS, se usam alguma lógica automatizada via sistema.</p>
+                        <textarea class="field-textarea" name="fiscal_credito_icms"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Diferenças entre operações</p>
+                        <p class="question-hint">Tratamento fiscal diferente para varejo, atacado, serviços, transferências entre CNPJs, consignação etc.</p>
+                        <textarea class="field-textarea" name="fiscal_diferenciacao_operacoes"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 8: Financeiro -->
+            <section class="section" data-step="8">
+                <h2 class="section-title">8. Financeiro</h2>
+                <p class="section-subtitle">Rotinas de contas a pagar/receber, conciliação, custos e visão de resultado.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Contas a pagar e a receber</p>
+                        <p class="question-hint">Se são controladas no sistema atual, em planilhas ou em outro software; quem lança, quem confere.</p>
+                        <textarea class="field-textarea" name="fin_contas"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Conciliação bancária</p>
+                        <p class="question-hint">Se há conciliação automática por arquivo/integração ou se é manual; periodicidade e principais dores.</p>
+                        <textarea class="field-textarea" name="fin_conciliacao"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Centros de custo</p>
+                        <p class="question-hint">Se utilizam centros de custo (fábrica, loja, distribuidora, frota, projetos) e como essa visão é usada na gestão.</p>
+                        <textarea class="field-textarea" name="fin_centros_custo"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">DRE gerencial e margens</p>
+                        <p class="question-hint">Se possuem DRE por unidade/linha de negócio, visão de margem por produto, canal, cliente.</p>
+                        <textarea class="field-textarea" name="fin_dre"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Custo real de produção/serviço</p>
+                        <p class="question-hint">Se conseguem enxergar custo real (insumos, mão de obra, despesas indiretas), como é calculado e atualizado.</p>
+                        <textarea class="field-textarea" name="fin_custo_real"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 9: Tecnologia / Sistemas -->
+            <section class="section" data-step="9">
+                <h2 class="section-title">9. Tecnologia / Sistemas</h2>
+                <p class="section-subtitle">Sistemas utilizados, integrações, planilhas paralelas e relatórios desejados.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Sistema(s) utilizado(s) hoje</p>
+                        <p class="question-hint">ERP, PDV, WMS, sistemas de transporte, CRM, folha; o que funciona bem e o que não funciona.</p>
+                        <textarea class="field-textarea" name="tec_sistema_atual"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Planilhas, WhatsApp e controles paralelos</p>
+                        <p class="question-hint">Processos que hoje não passam por sistema e são feitos em Excel, WhatsApp, papel etc.</p>
+                        <textarea class="field-textarea" name="tec_planilhas_whatsapp"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Integrações necessárias</p>
+                        <p class="question-hint">Equipamentos (balanças, coletores, etiquetadoras), e-commerce, marketplaces, contabilidade, bancos.</p>
+                        <textarea class="field-textarea" name="tec_integracoes"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Relatórios e visões que hoje não conseguem tirar</p>
+                        <p class="question-hint">Quais informações decisivas hoje dependem de muito esforço manual ou simplesmente não existem.</p>
+                        <textarea class="field-textarea" name="tec_relatorios_faltantes"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 10: Estratégia / Futuro -->
+            <section class="section" data-step="10">
+                <h2 class="section-title">10. Estratégia / Futuro</h2>
+                <p class="section-subtitle">Visão ideal de sistema, principais dores e oportunidades de melhoria.</p>
+                <div class="questions-grid">
+                    <div class="question-block">
+                        <p class="question-title">Se o sistema fosse perfeito...</p>
+                        <p class="question-hint">Como seria o sistema ideal para o negócio? O que ele resolveria de ponta a ponta?</p>
+                        <textarea class="field-textarea" name="futuro_sistema_perfeito"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Principais dores hoje</p>
+                        <p class="question-hint">O que mais trava o crescimento, suga tempo da equipe ou gera insegurança nas decisões.</p>
+                        <textarea class="field-textarea" name="futuro_dores"></textarea>
+                    </div>
+                    <div class="question-block">
+                        <p class="question-title">Perdas e oportunidades ocultas</p>
+                        <p class="question-hint">Onde acreditam estar perdendo dinheiro sem perceber, ou onde veem grandes oportunidades pouco exploradas.</p>
+                        <textarea class="field-textarea" name="futuro_perdas_ocultas"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <div class="actions">
+                <div class="footer-note">As respostas serão salvas e um PDF será gerado ao final da visita.</div>
+                <div class="actions-right">
+                    <button type="button" class="btn btn-secondary" id="btnAnterior">Anterior</button>
+                    <button type="button" class="btn btn-primary" id="btnProximo">Próximo</button>
+                    <button type="submit" class="btn btn-primary" id="btnConcluir" disabled>Concluir &amp; Gerar PDF</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const steps = Array.from(document.querySelectorAll('.section'));
+    const pills = Array.from(document.querySelectorAll('.step-pill'));
+    const btnAnterior = document.getElementById('btnAnterior');
+    const btnProximo = document.getElementById('btnProximo');
+    const btnConcluir = document.getElementById('btnConcluir');
+
+    let currentStep = 1;
+
+    function getRadioValue(name) {
+        const el = document.querySelector('input[name="' + name + '"]:checked');
+        return el ? el.value : null;
+    }
+
+    function isStepApplicable(step) {
+        // 4 = Varejo/Loja, 5 = B2B/Distribuição, 6 = Logística/Entregas
+        if (step === 4 && getRadioValue('aplica_varejo') === 'nao') return false;
+        if (step === 5 && getRadioValue('aplica_b2b') === 'nao') return false;
+        if (step === 6 && getRadioValue('aplica_logistica') === 'nao') return false;
+        return true;
+    }
+
+    function getNextStep(fromStep) {
+        let s = fromStep + 1;
+        while (s <= steps.length && !isStepApplicable(s)) {
+            s++;
+        }
+        return s > steps.length ? steps.length : s;
+    }
+
+    function getPrevStep(fromStep) {
+        let s = fromStep - 1;
+        while (s >= 1 && !isStepApplicable(s)) {
+            s--;
+        }
+        return s < 1 ? 1 : s;
+    }
+
+    function getLastApplicableStep() {
+        let s = steps.length;
+        while (s > 1 && !isStepApplicable(s)) {
+            s--;
+        }
+        return s;
+    }
+
+    function showStep(step) {
+        // Normaliza para um passo aplicável
+        if (!isStepApplicable(step)) {
+            const direction = step > currentStep ? 1 : -1;
+            step = direction > 0 ? getNextStep(step - 1) : getPrevStep(step + 1);
+        }
+
+        currentStep = step;
+        steps.forEach(section => {
+            const s = parseInt(section.getAttribute('data-step'));
+            section.classList.toggle('is-active', s === currentStep);
+        });
+        pills.forEach(pill => {
+            const s = parseInt(pill.getAttribute('data-step'));
+            pill.classList.toggle('is-active', s === currentStep);
+            if (s < currentStep) pill.classList.add('is-completed');
+            if (!isStepApplicable(s)) {
+                pill.classList.add('is-disabled');
+            } else {
+                pill.classList.remove('is-disabled');
+            }
+        });
+
+        btnAnterior.disabled = currentStep === 1;
+        const lastApplicable = getLastApplicableStep();
+        if (currentStep === lastApplicable) {
+            btnProximo.classList.add('hidden');
+            btnConcluir.disabled = false;
+        } else {
+            btnProximo.classList.remove('hidden');
+            btnConcluir.disabled = true;
+        }
+    }
+
+    pills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            const step = parseInt(pill.getAttribute('data-step'));
+            if (pill.classList.contains('is-disabled')) return;
+            showStep(step);
+        });
+    });
+
+    btnAnterior.addEventListener('click', () => {
+        if (currentStep > 1) {
+            const prev = getPrevStep(currentStep);
+            showStep(prev);
+        }
+    });
+
+    btnProximo.addEventListener('click', () => {
+        const lastApplicable = getLastApplicableStep();
+        if (currentStep < lastApplicable) {
+            const next = getNextStep(currentStep);
+            showStep(next);
+        }
+    });
+
+    function onApplicabilityChange() {
+        const lastApplicable = getLastApplicableStep();
+        if (!isStepApplicable(currentStep)) {
+            // Se o passo atual deixou de ser aplicável, vai para o anterior ou próximo válido
+            const prev = getPrevStep(currentStep);
+            const next = getNextStep(currentStep);
+            const target = prev !== currentStep ? prev : next;
+            showStep(target);
+        } else {
+            // Apenas atualiza estado visual (pílulas, botões)
+            showStep(currentStep);
+        }
+    }
+
+    document.querySelectorAll('input[name="aplica_varejo"], input[name="aplica_b2b"], input[name="aplica_logistica"]').forEach(function (el) {
+        el.addEventListener('change', onApplicabilityChange);
+    });
+
+    // Inicializa exibindo a primeira seção
+    showStep(1);
+})();
+</script>
+</body>
+</html>

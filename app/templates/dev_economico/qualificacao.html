@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Qualificação Profissional - Dev Econômico MS{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-graduation-cap me-2"></i>{% if municipio_filtrado %}Qualificação — {{ municipio_filtrado.nome }}{% else %}Qualificação Profissional{% endif %}</h2>
+            <div class="subtitle">{% if municipio_filtrado %}Mercado de trabalho e capacitação em {{ municipio_filtrado.nome }}{% else %}Capacitação, cursos técnicos, parcerias institucionais e demanda do mercado{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+<div class="row g-3 mb-4">
+    {% if municipio_filtrado %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-users"></i></div><div><div class="kpi-value">{{ "{:,.0f}".format(municipio_filtrado.populacao) }}</div><div class="kpi-label">População</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_total) }} mi</div><div class="kpi-label">PIB Total</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-tag"></i></div><div><div class="kpi-value" style="font-size:1rem;">{{ municipio_filtrado.vocacao_principal }}</div><div class="kpi-label">Vocação</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-chart-line"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_per_capita) }}</div><div class="kpi-label">PIB per Capita</div></div></div></div>
+    </div>
+    {% else %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-briefcase"></i></div><div><div class="kpi-value">685 mil</div><div class="kpi-label">Empregos Formais</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-plus-circle"></i></div><div><div class="kpi-value">43.900</div><div class="kpi-label">Saldo 2024</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-school"></i></div><div><div class="kpi-value">12</div><div class="kpi-label">Instituições Parceiras</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-certificate"></i></div><div><div class="kpi-value">8.500+</div><div class="kpi-label">Certificados/Ano</div></div></div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Setores que mais empregam -->
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar me-2"></i>{% if municipio_filtrado %}Empregos — {{ municipio_filtrado.nome }} e Região{% else %}Setores que Mais Empregam{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Estoque de empregos formais{% endif %} — Fonte: CAGED/MTE</div>
+            </div>
+            <div class="card-body p-3">
+                {% if empregos %}
+                    {% for e in empregos %}
+                    <div class="dev-eco-list-item">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold" style="font-size:0.82rem;">{{ e.setor_descricao }}</span>
+                            <span class="fw-bold" style="color:#08a5b2;">{{ "{:,.0f}".format(e.estoque_total) }}</span>
+                        </div>
+                        <div class="dev-eco-progress"><div class="progress-bar bg-teal" style="width:{{ (e.estoque_total / 200000 * 100)|int }}%"></div></div>
+                        <div class="d-flex justify-content-between mt-1" style="font-size:0.7rem; color:#9ca3af;">
+                            <span>Saldo: {{ "{:+,.0f}".format(e.saldo_total) }}</span>
+                            <span>Salário médio: R$ {{ "{:,.0f}".format(e.salario_medio) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    {% set setores = [
+                        ('Comércio', 165000, 8200, 1850),
+                        ('Serviços', 210000, 12500, 2100),
+                        ('Agropecuária', 95000, 5800, 1680),
+                        ('Indústria de Transformação', 78000, 6200, 2350),
+                        ('Construção Civil', 42000, 4100, 2050),
+                        ('Administração Pública', 85000, 1200, 3800),
+                        ('Alojamento e Alimentação', 35000, 3500, 1520),
+                        ('Transporte e Armazenagem', 28000, 2800, 2450)
+                    ] %}
+                    {% for nome, estoque, saldo, salario in setores %}
+                    <div class="dev-eco-list-item">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold" style="font-size:0.82rem;">{{ nome }}</span>
+                            <span class="fw-bold" style="color:#08a5b2;">{{ "{:,.0f}".format(estoque) }}</span>
+                        </div>
+                        <div class="dev-eco-progress"><div class="progress-bar bg-teal" style="width:{{ (estoque / 210000 * 100)|int }}%"></div></div>
+                        <div class="d-flex justify-content-between mt-1" style="font-size:0.7rem; color:#9ca3af;">
+                            <span>Saldo: +{{ "{:,.0f}".format(saldo) }}</span>
+                            <span>Salário médio: R$ {{ "{:,.0f}".format(salario) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Parceiros e Cursos -->
+    <div class="col-md-6">
+        <div class="dev-eco-card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-handshake me-2"></i>Parceiros Institucionais</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set parceiros = [
+                    ('SENAI-MS', 'Cursos técnicos industriais, automação, mecânica, elétrica'),
+                    ('SENAC-MS', 'Comércio, serviços, gastronomia, turismo, TI'),
+                    ('SENAR-MS', 'Capacitação rural, agronegócio, gestão de propriedades'),
+                    ('SEBRAE-MS', 'Empreendedorismo, gestão, marketing, finanças'),
+                    ('UFMS', 'Graduação, pós-graduação, extensão e pesquisa'),
+                    ('UEMS', 'Universidade Estadual — cursos em 15 municípios'),
+                    ('IFMS', 'Instituto Federal — cursos técnicos e tecnológicos'),
+                    ('UNIGRAN / ANHANGUERA', 'Ensino superior privado — presencial e EAD')
+                ] %}
+                {% for nome, desc in parceiros %}
+                <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="font-size:0.82rem;">
+                    <i class="fas fa-university" style="color:#3b82f6; width:18px;"></i>
+                    <div>
+                        <span class="fw-semibold">{{ nome }}</span>
+                        <span style="color:#9ca3af;"> — {{ desc }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks me-2"></i>Ações Municipais</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set acoes = [
+                    'Mapear demanda de mão de obra por setor',
+                    'Firmar convênios com Sistema S (SENAI, SENAC, SENAR)',
+                    'Criar programa municipal de primeiro emprego',
+                    'Oferecer cursos de qualificação via SINE',
+                    'Incentivar estágios em empresas locais',
+                    'Capacitação digital para servidores públicos'
+                ] %}
+                {% for acao in acoes %}
+                <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="font-size:0.82rem;">
+                    <i class="fas fa-check-circle" style="color:#22c55e;"></i>
+                    <span>{{ acao }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

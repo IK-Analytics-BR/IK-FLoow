@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Atração de Investimentos - Dev Econômico MS{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-hand-holding-usd me-2"></i>{% if municipio_filtrado %}Investimentos — {{ municipio_filtrado.nome }}{% else %}Política de Atração de Investimentos{% endif %}</h2>
+            <div class="subtitle">{% if municipio_filtrado %}Investimentos e incentivos para {{ municipio_filtrado.nome }}{% else %}Incentivos fiscais, Sala do Investidor, desburocratização{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+<div class="row g-3 mb-4">
+    {% if municipio_filtrado %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_total) }} mi</div><div class="kpi-label">PIB Total</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-industry"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_industria) }} mi</div><div class="kpi-label">PIB Industrial</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-users"></i></div><div><div class="kpi-value">{{ "{:,.0f}".format(municipio_filtrado.populacao) }}</div><div class="kpi-label">População</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-chart-line"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_per_capita) }}</div><div class="kpi-label">PIB per Capita</div></div></div></div>
+    </div>
+    {% else %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div><div><div class="kpi-value">R$ 8,5 bi</div><div class="kpi-label">Investimentos Atraídos</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-building"></i></div><div><div class="kpi-value">312 mil</div><div class="kpi-label">Empresas Ativas</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-briefcase"></i></div><div><div class="kpi-value">43.900</div><div class="kpi-label">Saldo Empregos 2024</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-globe-americas"></i></div><div><div class="kpi-value">US$ 11,2 bi</div><div class="kpi-label">Exportações</div></div></div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Incentivos -->
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-gift me-2"></i>Incentivos Fiscais Disponíveis</h5>
+                <div class="subtitle">Programas estaduais e municipais</div>
+            </div>
+            <div class="card-body p-3">
+                {% set incentivos = [
+                    ('MS Empreendedor', 'Redução de ICMS para indústrias. Até 67% de incentivo por 15 anos.', 'Estadual'),
+                    ('ISS Reduzido', 'Alíquota reduzida de ISS para empresas de tecnologia e serviços.', 'Municipal'),
+                    ('IPTU Progressivo', 'Isenção de IPTU por até 10 anos para novas indústrias.', 'Municipal'),
+                    ('Terreno Industrial', 'Doação ou cessão de terrenos em distritos industriais.', 'Municipal'),
+                    ('FCO - Fundo Constitucional', 'Financiamento com juros subsidiados para Centro-Oeste.', 'Federal'),
+                    ('BNDES Automático', 'Linhas de crédito para investimento fixo e capital de giro.', 'Federal')
+                ] %}
+                {% for nome, desc, nivel in incentivos %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-bold" style="font-size:0.88rem;">{{ nome }}</div>
+                            <div style="font-size:0.75rem; color:#6b7280;">{{ desc }}</div>
+                        </div>
+                        <span class="dev-eco-badge badge-ativo">{{ nivel }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sala do Investidor -->
+    <div class="col-md-6">
+        <div class="dev-eco-card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-door-open me-2"></i>Sala do Investidor Digital</h5>
+                <div class="subtitle">Jornada simplificada para o investidor</div>
+            </div>
+            <div class="card-body p-3">
+                {% set etapas = [
+                    ('1. Consulta Prévia', 'Verificação de viabilidade do empreendimento', 'fas fa-search'),
+                    ('2. Alvará Rápido', 'Emissão de alvará em até 48h para baixo risco', 'fas fa-file-alt'),
+                    ('3. Incentivos', 'Análise e concessão de incentivos fiscais', 'fas fa-percentage'),
+                    ('4. Terreno/Área', 'Disponibilização de área em distrito industrial', 'fas fa-map-marked'),
+                    ('5. Licenciamento', 'Apoio no licenciamento ambiental e sanitário', 'fas fa-leaf'),
+                    ('6. Acompanhamento', 'Monitoramento pós-instalação e suporte contínuo', 'fas fa-headset')
+                ] %}
+                {% for titulo, desc, icone in etapas %}
+                <div class="d-flex align-items-center gap-3 p-2 mb-2 rounded" style="background:rgba(8,165,178,0.04); border:1px solid rgba(8,165,178,0.1);">
+                    <div class="kpi-icon bg-teal" style="width:36px; height:36px; min-width:36px; font-size:0.85rem;">
+                        <i class="{{ icone }}"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold" style="font-size:0.82rem;">{{ titulo }}</div>
+                        <div style="font-size:0.7rem; color:#9ca3af;">{{ desc }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Programas -->
+        {% if programas %}
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-clipboard-list me-2"></i>Programas em Andamento</h5>
+            </div>
+            <div class="card-body p-3">
+                {% for p in programas %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="fw-semibold" style="font-size:0.85rem;">{{ p.nome }}</span>
+                        <span class="dev-eco-badge badge-{{ p.status|lower|replace(' ', '') }}">{{ p.status }}</span>
+                    </div>
+                    <div class="dev-eco-progress">
+                        <div class="progress-bar bg-teal" style="width:{{ p.progresso }}%"></div>
+                    </div>
+                    <div style="font-size:0.7rem; color:#9ca3af;" class="mt-1">{{ p.progresso }}% concluído</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Investimentos Recentes -->
+{% if investimentos %}
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line me-2"></i>{% if municipio_filtrado %}Investimentos — {{ municipio_filtrado.nome }} e Região{% else %}Investimentos Recentes{% endif %}</h5>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0">
+                        <thead><tr><th class="text-start">Empresa</th><th>Município</th><th>Setor</th><th>Valor</th><th>Empregos</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for i in investimentos %}
+                            <tr{% if municipio_filtrado and i.get('is_selected') %} style="background:rgba(8,165,178,0.08);"{% endif %}>
+                                <td class="text-start fw-semibold">{{ i.empresa }}</td>
+                                <td>{{ i.municipio_nome or '-' }}{% if municipio_filtrado and i.get('is_selected') %} <i class="fas fa-star" style="color:#f59e0b;font-size:0.6rem;"></i>{% endif %}</td>
+                                <td>{{ i.setor }}</td>
+                                <td class="fw-bold" style="color:#08a5b2;">R$ {{ "{:,.0f}".format(i.valor / 1000) }} mi</td>
+                                <td>{{ "{:,.0f}".format(i.empregos_gerados) }}</td>
+                                <td><span class="dev-eco-badge badge-{{ i.status|lower|replace(' ', '') }}">{{ i.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

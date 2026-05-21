@@ -43,11 +43,18 @@
                     <td>{{ produto.name }}</td>
                     <td>{{ produto.description }}</td>
                     <td>
-                        {% if produto.category == 'bomba' %}Bomba
-                        {% elif produto.category == 'motor' %}Motor
-                        {% elif produto.category == 'compressor' %}Compressor
-                        {% elif produto.category == 'valvula' %}Válvula
-                        {% else %}{{ produto.category }}{% endif %}
+                        {% if produto.categoria_nome %}
+                            {{ produto.categoria_nome }}
+                            {% if produto.categoria_fiscal %}
+                                <span class="badge bg-secondary ms-1">{{ produto.categoria_fiscal }}</span>
+                            {% endif %}
+                        {% else %}
+                            {% if produto.category == 'bomba' %}Bomba
+                            {% elif produto.category == 'motor' %}Motor
+                            {% elif produto.category == 'compressor' %}Compressor
+                            {% elif produto.category == 'valvula' %}Válvula
+                            {% else %}{{ produto.category }}{% endif %}
+                        {% endif %}
                     </td>
                     <td class="price-column">{{ "%.2f"|format(produto.price) }}</td>
                     <td>

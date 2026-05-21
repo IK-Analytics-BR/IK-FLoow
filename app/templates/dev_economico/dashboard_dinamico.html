@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+{% block title %}Portal Dev Econômico MS{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}
+/* Dashboard layout dentro do template padrão */
+.dsh{display:flex;flex-direction:column;overflow:hidden;padding:0}
+.sel-badge{background:rgba(255,255,255,.12);border-radius:6px;padding:3px 10px;font-size:.72rem;font-weight:700;display:none}
+.sel-badge.on{display:inline-block}
+/* FILTROS compactos */
+.fbar{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:nowrap}
+.fbar select,.fbar input{border:1px solid #d1d5db;border-radius:5px;padding:2px 6px;font-size:.7rem;min-width:0;flex:1;max-width:160px}
+.fbar label{font-size:.6rem;font-weight:700;color:#6b7280;margin:0}
+.fg{display:flex;flex-direction:column;gap:0;flex:1;min-width:80px;max-width:160px}
+.btn-r{background:#ef4444;color:#fff;border:none;border-radius:5px;padding:3px 8px;font-size:.65rem;cursor:pointer;font-weight:700;white-space:nowrap}
+.btn-r:hover{background:#dc2626}
+.fbar .active-filter{background:#dbeafe;border-color:#3b82f6}
+/* KPIs ultra-compactos */
+.kstrip{display:flex;gap:3px;margin-bottom:4px;flex-shrink:0}
+.kpi{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 6px;text-align:center;flex:1;min-width:0;cursor:default;transition:all .12s}
+.kpi:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);transform:translateY(-1px)}
+.kpi .v{font-size:.85rem;font-weight:900;line-height:1.1}
+.kpi .l{font-size:.55rem;color:#9ca3af;line-height:1}
+.kpi .s{font-size:.5rem;color:#6b7280}
+/* GRID 4 painéis */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;min-height:0;height:55vh}
+.pnl{background:#fff;border:1px solid #e5e7eb;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.pnl-h{padding:4px 8px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fafbfc}
+.pnl-h h5{margin:0;font-size:.75rem;font-weight:700}
+.pnl-b{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 8px;min-height:0}
+/* Sub-abas dentro dos painéis */
+.stabs{display:flex;gap:2px;flex-shrink:0}
+.stab{padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb;background:#fff;font-size:.6rem;cursor:pointer;font-weight:600;transition:all .1s;white-space:nowrap}
+.stab.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.stab:hover:not(.on){background:#f1f5f9}
+/* Mapa */
+#map{width:100%;height:100%;border-radius:0}
+/* Ranking rows */
+.rrow{display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid #f9fafb;font-size:.7rem;cursor:pointer;transition:background .1s}
+.rrow:hover{background:#f0f9ff}
+.rrow.highlighted{background:#dbeafe;border-radius:4px}
+.rnum{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0}
+/* Badges */
+.bd{display:inline-block;padding:1px 6px;border-radius:10px;font-size:.55rem;font-weight:700}
+.bd-f{background:#dcfce7;color:#16a34a}.bd-e{background:#cffafe;color:#0891b2}
+.bd-s{background:#fef3c7;color:#d97706}.bd-r{background:#fee2e2;color:#dc2626}
+/* Score bars */
+.sb{height:4px;border-radius:2px;background:#e5e7eb;overflow:hidden;margin-top:2px}
+.sb-f{height:100%;border-radius:2px;transition:width .3s}
+/* Enc cards */
+.ec{background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:5px 6px;margin-bottom:3px;cursor:pointer;transition:all .1s}
+.ec:hover{border-color:#3b82f6;background:#eff6ff}
+.ec .t{font-weight:700;font-size:.7rem}.ec .u{font-size:.58rem;color:#6b7280}
+/* Chart click */
+.chart-clickable{cursor:pointer}
+.hidden{display:none!important}
+/* Setor filter active indicator */
+.setor-active{background:#eff6ff;border:2px solid #3b82f6;border-radius:6px;padding:2px 6px;font-size:.6rem;font-weight:700;color:#3b82f6;display:none;align-items:center;gap:4px;cursor:pointer}
+.setor-active.on{display:inline-flex}
+/* Visão estadual info */
+.estado-info{font-size:.62rem;color:#6b7280;text-align:center;padding:4px}
+.pos-badge{background:#0f172a;color:#fff;border-radius:4px;padding:1px 6px;font-size:.55rem;font-weight:800;margin-left:4px}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header padrão -->
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-chart-line me-2"></i>Dashboard Interativo</h2>
+            <div class="subtitle">Clique no mapa, gráficos ou filtros para explorar os dados</div>
+        </div>
+        <div>
+            <span class="sel-badge" id="selBadge"></span>
+            <span class="setor-active" id="setorTag" onclick="clearSetorFilter()"><span id="setorTagText"></span> ✕</span>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+
+<div class="dsh">
+
+<!-- FILTROS -->
+<div class="fbar">
+    <div class="fg"><label>Município</label><select id="fMun"><option value="">Todos (Estado)</option></select></div>
+    <div class="fg"><label>Região</label><select id="fReg"><option value="">Todas</option></select></div>
+    <div class="fg"><label>IAEM</label><select id="fIAEM"><option value="">Todos</option><option value="Expansão Forte">Expansão Forte</option><option value="Expansão">Expansão</option><option value="Estável">Estável</option><option value="Retração">Retração</option></select></div>
+    <div class="fg"><label>Vocação</label><input id="fVoc" placeholder="Soja, Celulose..."></div>
+    <button class="btn-r" onclick="resetAll()">✕ Limpar</button>
+</div>
+
+<!-- KPIs -->
+<div class="kstrip" id="kpis"></div>
+
+<!-- 4 PAINÉIS -->
+<div class="pgrid">
+    <!-- P1: MAPA -->
+    <div class="pnl">
+        <div class="pnl-h">
+            <h5><i class="fas fa-map-marked-alt me-1" style="color:#0d9488"></i><span id="mapTitle">Mapa MS</span></h5>
+            <div class="stabs">
+                <div class="stab on" onclick="setMapMode('iaem',this)">IAEM</div>
+                <div class="stab" onclick="setMapMode('pib',this)">PIB</div>
+                <div class="stab" onclick="setMapMode('pop',this)">Pop</div>
+            </div>
+        </div>
+        <div class="pnl-b" style="padding:0"><div id="map"></div></div>
+    </div>
+
+    <!-- P2: PIB + IAEM (sub-abas) -->
+    <div class="pnl">
+        <div class="pnl-h">
+            <h5 id="p2title"><i class="fas fa-chart-pie me-1" style="color:#8b5cf6"></i>PIB Setorial</h5>
+            <div class="stabs">
+                <div class="stab on" data-tab="t-pib" onclick="showTab(this,'p2')">PIB</div>
+                <div class="stab" data-tab="t-iaem" onclick="showTab(this,'p2')">IAEM</div>
+                <div class="stab" data-tab="t-comp" onclick="showTab(this,'p2')">Comparar</div>
+            </div>
+        </div>
+        <div class="pnl-b">
+            <div id="t-pib"><div style="height:100%;position:relative"><canvas id="cPib"></canvas></div></div>
+            <div id="t-iaem" class="hidden"></div>
+            <div id="t-comp" class="hidden"></div>
+        </div>
+    </div>
+
+    <!-- P3: RANKING -->
+    <div class="pnl">
+        <div class="pnl-h">
+            <h5 id="p3title"><i class="fas fa-trophy me-1" style="color:#f59e0b"></i>Ranking</h5>
+            <div class="stabs">
+                <div class="stab on" data-tab="t-rank-iaem" onclick="showTab(this,'p3')">IAEM</div>
+                <div class="stab" data-tab="t-rank-pib" onclick="showTab(this,'p3')">PIB</div>
+                <div class="stab" data-tab="t-rank-pop" onclick="showTab(this,'p3')">Pop</div>
+            </div>
+        </div>
+        <div class="pnl-b">
+            <div id="t-rank-iaem"></div>
+            <div id="t-rank-pib" class="hidden"></div>
+            <div id="t-rank-pop" class="hidden"></div>
+        </div>
+    </div>
+
+    <!-- P4: OPORTUNIDADES + DETALHES -->
+    <div class="pnl">
+        <div class="pnl-h">
+            <h5 id="p4title"><i class="fas fa-lightbulb me-1" style="color:#7c3aed"></i>Oportunidades</h5>
+            <div class="stabs">
+                <div class="stab on" data-tab="t-oport" onclick="showTab(this,'p4')">Gaps</div>
+                <div class="stab" data-tab="t-detalhe" onclick="showTab(this,'p4')">Detalhe</div>
+            </div>
+        </div>
+        <div class="pnl-b">
+            <div id="t-oport"></div>
+            <div id="t-detalhe" class="hidden"></div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let ALL=[], filtered=[], selId=null, map, markers=[], mapMode='iaem', cPib=null;
+let activeSetor=null; // cross-filter: setor PIB selecionado
+
+function n(v){return parseFloat(v)||0}
+function fmt(v){if(!v)return'0';v=Math.abs(v);if(v>=1e9)return(v/1e9).toFixed(1)+' bi';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+' mil';return v.toFixed(0)}
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+function bdCls(c){return c==='Expansão Forte'?'bd-f':c==='Expansão'?'bd-e':c==='Estável'?'bd-s':'bd-r'}
+function scoreColor(s){return s>=78?'#16a34a':s>=62?'#0891b2':s>=48?'#f59e0b':'#ef4444'}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded',()=>{
+    initMap();
+    loadData();
+    setupFilters();
+    // Restaurar município da URL ou localStorage
+    const urlMun=new URLSearchParams(location.search).get('municipio_id');
+    const savedMun=urlMun||localStorage.getItem('dev_eco_municipio_id');
+    if(savedMun){const id=parseInt(savedMun);if(ALL.find(m=>m.id===id))selectMun(id);else renderAll();}
+    else renderAll();
+    updateNavLinks();
+});
+
+// ============================================================
+// MAP
+// ============================================================
+function initMap(){
+    map=L.map('map',{zoomControl:false}).setView([-20.5,-54.6],6);
+    L.control.zoom({position:'topright'}).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM © CARTO',maxZoom:18}).addTo(map);
+}
+
+function renderMarkers(){
+    markers.forEach(m=>map.removeLayer(m));markers=[];
+    filtered.forEach(m=>{
+        if(!m.latitude||!m.longitude)return;
+        const s=n(m.iaem_score),p=n(m.pib_total),pop=n(m.populacao);
+        const color=mapMode==='iaem'?scoreColor(s):mapMode==='pib'?(p>=5e6?'#16a34a':p>=1e6?'#3b82f6':p>=5e5?'#f59e0b':'#ef4444'):(pop>=1e5?'#16a34a':pop>=3e4?'#3b82f6':pop>=1e4?'#f59e0b':'#ef4444');
+        const sz=mapMode==='pib'?Math.max(4,Math.min(16,Math.sqrt(p/80000))):mapMode==='pop'?Math.max(4,Math.min(16,Math.sqrt(pop/3000))):Math.max(4,Math.min(14,s/6));
+        const mk=L.circleMarker([m.latitude,m.longitude],{radius:sz,fillColor:color,color:selId===m.id?'#000':'#fff',weight:selId===m.id?2.5:1,opacity:1,fillOpacity:.8}).addTo(map);
+        mk.bindTooltip(`<b>${m.nome}</b><br>IAEM:${s.toFixed(0)} PIB:R$${fmt(p*1000)}<br>Pop:${pop.toLocaleString()} ${m.vocacao_principal||''}`,{direction:'top'});
+        mk.on('click',()=>selectMun(m.id));
+        markers.push(mk);
+    });
+}
+
+function setMapMode(mode,el){
+    mapMode=mode;
+    el.parentElement.querySelectorAll('.stab').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    renderMarkers();
+}
+
+// ============================================================
+// DATA
+// ============================================================
+function loadData(){
+    // Dados injetados diretamente pelo servidor (sem AJAX, sem problema de login)
+    ALL = {{ municipios_json|safe }};
+    console.log('[DSH] Dados inline. Total:',ALL.length,'IAEM>0:',ALL.filter(m=>n(m.iaem_score)>0).length);
+    if(ALL.length>0){const s=ALL[0];console.log('[DSH]',s.nome,'IAEM:',s.iaem_score,'Prob6m:',s.prob_6m,'Tend:',s.tendencia);}
+    filtered=[...ALL];
+    populateSelects();
+    if(!ALL.length)console.error('[DSH] Nenhum município carregado!');
+}
+
+function populateSelects(){
+    const s=document.getElementById('fMun');s.innerHTML='<option value="">Todos (Estado)</option>';
+    ALL.forEach(m=>s.innerHTML+=`<option value="${m.id}">${m.nome}</option>`);
+    const regioes=[...new Set(ALL.map(m=>m.regiao_macro).filter(Boolean))].sort();
+    const sr=document.getElementById('fReg');sr.innerHTML='<option value="">Todas</option>';
+    regioes.forEach(r=>sr.innerHTML+=`<option value="${r}">${r}</option>`);
+}
+
+function getFiltered(){
+    let list=[...ALL];
+    const reg=document.getElementById('fReg').value;
+    const iaem=document.getElementById('fIAEM').value;
+    const voc=document.getElementById('fVoc').value.toLowerCase();
+    if(reg)list=list.filter(m=>m.regiao_macro===reg);
+    if(iaem)list=list.filter(m=>m.iaem_classificacao===iaem);
+    if(voc)list=list.filter(m=>(m.vocacao_principal||'').toLowerCase().includes(voc));
+    // Cross-filter: setor PIB
+    if(activeSetor){
+        const key={Agropecuária:'pib_agropecuaria',Indústria:'pib_industria',Serviços:'pib_servicos',Administração:'pib_administracao'}[activeSetor];
+        if(key)list.sort((a,b)=>n(b[key])-n(a[key]));
+    }
+    return list;
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function setupFilters(){
+    document.getElementById('fMun').addEventListener('change',e=>{
+        const id=parseInt(e.target.value);
+        if(id)selectMun(id);else{selId=null;applyFilters();}
+    });
+    ['fReg','fIAEM'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{selId=null;document.getElementById('fMun').value='';applyFilters()}));
+    document.getElementById('fVoc').addEventListener('input',debounce(()=>{selId=null;document.getElementById('fMun').value='';applyFilters()},250));
+}
+
+function applyFilters(){
+    filtered=getFiltered();
+    renderAll();
+}
+
+function resetAll(){
+    document.getElementById('fMun').value='';document.getElementById('fReg').value='';
+    document.getElementById('fIAEM').value='';document.getElementById('fVoc').value='';
+    selId=null;activeSetor=null;
+    localStorage.removeItem('dev_eco_municipio_id');
+    localStorage.removeItem('dev_eco_municipio_nome');
+    document.getElementById('selBadge').classList.remove('on');
+    document.getElementById('setorTag').classList.remove('on');
+    filtered=[...ALL];
+    map.setView([-20.5,-54.6],6);
+    renderAll();
+}
+
+// ============================================================
+// CROSS-FILTER: setor PIB
+// ============================================================
+function setSetorFilter(setor){
+    if(activeSetor===setor){clearSetorFilter();return;}
+    activeSetor=setor;
+    document.getElementById('setorTag').classList.add('on');
+    document.getElementById('setorTagText').textContent='Setor: '+setor;
+    applyFilters();
+}
+function clearSetorFilter(){
+    activeSetor=null;
+    document.getElementById('setorTag').classList.remove('on');
+    applyFilters();
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll(){
+    renderKPIs();renderMarkers();renderPibChart();renderRankings();renderOportunidades();renderIAEMTab();renderCompareTab();renderDetalheTab();
+    document.getElementById('mapTitle').textContent=selId?ALL.find(m=>m.id===selId)?.nome||'':'Mapa MS ('+filtered.length+')';
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+// Calcula posição no ranking (1-indexed)
+function getRankPos(id, key){
+    const sorted=[...ALL].sort((a,b)=>n(b[key])-n(a[key]));
+    return sorted.findIndex(m=>m.id===id)+1;
+}
+
+function renderKPIs(){
+    const list=selId?[ALL.find(m=>m.id===selId)]:filtered;
+    const single=selId&&list[0];
+    if(single){
+        const m=single,s=n(m.iaem_score);
+        const rIaem=getRankPos(m.id,'iaem_score'), rPib=getRankPos(m.id,'pib_total'), rPop=getRankPos(m.id,'populacao');
+        document.getElementById('kpis').innerHTML=`
+            <div class="kpi"><div class="v" style="color:#0d9488">${n(m.populacao).toLocaleString()}</div><div class="l">População</div><div class="s">${rPop}º de ${ALL.length}</div></div>
+            <div class="kpi"><div class="v" style="color:#3b82f6">R$ ${fmt(n(m.pib_total)*1000)}</div><div class="l">PIB</div><div class="s">${rPib}º | R$${n(m.pib_per_capita).toLocaleString()} p/c</div></div>
+            <div class="kpi"><div class="v" style="color:#8b5cf6">${n(m.idhm).toFixed(3)}</div><div class="l">IDHM</div></div>
+            <div class="kpi"><div class="v" style="color:${scoreColor(s)}">${s.toFixed(1)}</div><div class="l">IAEM</div><div class="s"><span class="pos-badge">${rIaem}º</span> <span class="bd ${bdCls(m.iaem_classificacao)}">${m.iaem_classificacao||'N/D'}</span></div></div>
+            <div class="kpi"><div class="v" style="color:#22c55e">${n(m.prob_6m).toFixed(0)}%</div><div class="l">Cresc 6m</div></div>
+            <div class="kpi"><div class="v" style="color:#3b82f6">${n(m.prob_12m).toFixed(0)}%</div><div class="l">Cresc 12m</div></div>
+            <div class="kpi"><div class="v" style="color:#7c3aed">${n(m.prob_24m).toFixed(0)}%</div><div class="l">Cresc 24m</div></div>
+            <div class="kpi"><div class="v" style="color:#f59e0b">${m.tendencia||'—'}</div><div class="l">Tendência</div><div class="s">${m.vocacao_principal||''}</div></div>
+        `;
+    } else {
+        const pop=list.reduce((s,m)=>s+n(m.populacao),0);
+        const pib=list.reduce((s,m)=>s+n(m.pib_total),0);
+        const idhm=list.length?list.reduce((s,m)=>s+n(m.idhm),0)/list.length:0;
+        const iaem=list.length?list.reduce((s,m)=>s+n(m.iaem_score),0)/list.length:0;
+        const exp=list.filter(m=>(m.iaem_classificacao||'').includes('Expansão')).length;
+        const ret=list.filter(m=>(m.iaem_classificacao||'').includes('Retração')).length;
+        const alta=list.filter(m=>m.tendencia==='Alta').length;
+        const isEstado=list.length===ALL.length;
+        document.getElementById('kpis').innerHTML=`
+            <div class="kpi"><div class="v" style="color:#0d9488">${list.length}</div><div class="l">Municípios</div><div class="s">${isEstado?'Mato Grosso do Sul':'Filtro ativo'}</div></div>
+            <div class="kpi"><div class="v" style="color:#3b82f6">${(pop/1e6).toFixed(1)}M</div><div class="l">População</div></div>
+            <div class="kpi"><div class="v" style="color:#8b5cf6">R$ ${fmt(pib*1000)}</div><div class="l">PIB Total</div></div>
+            <div class="kpi"><div class="v" style="color:#f59e0b">${idhm.toFixed(3)}</div><div class="l">IDH Médio</div></div>
+            <div class="kpi"><div class="v" style="color:${scoreColor(iaem)}">${iaem.toFixed(1)}</div><div class="l">IAEM Médio</div></div>
+            <div class="kpi"><div class="v" style="color:#16a34a">${exp}</div><div class="l">Expansão</div></div>
+            <div class="kpi"><div class="v" style="color:#ef4444">${ret}</div><div class="l">Retração</div></div>
+            <div class="kpi"><div class="v" style="color:#7c3aed">${alta}</div><div class="l">Tend. Alta</div></div>
+        `;
+    }
+}
+
+// ============================================================
+// PIB CHART (clicável para cross-filter)
+// ============================================================
+function renderPibChart(){
+    const list=selId?[ALL.find(m=>m.id===selId)]:filtered;
+    const agro=list.reduce((s,m)=>s+n(m.pib_agropecuaria),0);
+    const ind=list.reduce((s,m)=>s+n(m.pib_industria),0);
+    const serv=list.reduce((s,m)=>s+n(m.pib_servicos),0);
+    const adm=list.reduce((s,m)=>s+n(m.pib_administracao),0);
+    if(cPib)cPib.destroy();
+    const labels=['Agropecuária','Indústria','Serviços','Administração'];
+    const colors=['#16a34a','#3b82f6','#f59e0b','#8b5cf6'];
+    const bw=labels.map((_,i)=>activeSetor===labels[i]?4:1);
+    const bc=labels.map((_,i)=>activeSetor===labels[i]?'#000':'#fff');
+    cPib=new Chart(document.getElementById('cPib').getContext('2d'),{
+        type:'doughnut',
+        data:{labels,datasets:[{data:[agro,ind,serv,adm],backgroundColor:colors,borderWidth:bw,borderColor:bc}]},
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:4}},
+            tooltip:{callbacks:{label:ctx=>`${ctx.label}: R$ ${fmt(ctx.raw*1000)} (${(ctx.raw/(agro+ind+serv+adm)*100).toFixed(1)}%)`}}},
+            onClick:(e,els)=>{if(els.length){setSetorFilter(labels[els[0].index])}}
+        }
+    });
+    // Update title
+    document.getElementById('p2title').innerHTML=`<i class="fas fa-chart-pie me-1" style="color:#8b5cf6"></i>${selId?ALL.find(m=>m.id===selId)?.nome+' — PIB':'PIB Setorial'}`;
+}
+
+// ============================================================
+// IAEM TAB
+// ============================================================
+function renderIAEMTab(){
+    const list=selId?[ALL.find(m=>m.id===selId)]:filtered;
+    const single=selId&&list[0];
+    const dims=[
+        {l:'Pix',k:'score_pix',c:'#3b82f6',p:'25%'},
+        {l:'Empresas',k:'score_empresas',c:'#8b5cf6',p:'20%'},
+        {l:'Emprego',k:'score_emprego',c:'#22c55e',p:'20%'},
+        {l:'Uso Solo',k:'score_uso_solo',c:'#f59e0b',p:'15%'},
+        {l:'Export',k:'score_exportacao',c:'#ef4444',p:'10%'},
+        {l:'Logística',k:'score_logistica',c:'#06b6d4',p:'10%'}
+    ];
+    if(single){
+        const m=single;
+        document.getElementById('t-iaem').innerHTML=`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:1.8rem;font-weight:900;color:${scoreColor(n(m.iaem_score))}">${n(m.iaem_score).toFixed(1)}</div>
+                <div><span class="bd ${bdCls(m.iaem_classificacao)}">${m.iaem_classificacao||'N/D'}</span><div style="font-size:.58rem;color:#9ca3af;margin-top:2px">Tend: <b>${m.tendencia||'—'}</b> | ${m.vocacao_principal||''}</div></div>
+            </div>
+            ${dims.map(d=>`<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;font-size:.62rem"><span>${d.l} (${d.p})</span><b style="color:${d.c}">${n(m[d.k]).toFixed(0)}</b></div><div class="sb"><div class="sb-f" style="width:${n(m[d.k])}%;background:${d.c}"></div></div></div>`).join('')}
+        `;
+    } else {
+        const avg=list.length?list.reduce((s,m)=>s+n(m.iaem_score),0)/list.length:0;
+        document.getElementById('t-iaem').innerHTML=`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:1.8rem;font-weight:900;color:${scoreColor(avg)}">${avg.toFixed(1)}</div>
+                <div style="font-size:.7rem;font-weight:700">Score Médio<div style="font-size:.58rem;color:#9ca3af">${list.length} municípios</div></div>
+            </div>
+            ${dims.map(d=>{const v=list.length?list.reduce((s,m)=>s+n(m[d.k]),0)/list.length:0;return`<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;font-size:.62rem"><span>${d.l} (${d.p})</span><b style="color:${d.c}">~${v.toFixed(0)}</b></div><div class="sb"><div class="sb-f" style="width:${v}%;background:${d.c}"></div></div></div>`}).join('')}
+        `;
+    }
+}
+
+// ============================================================
+// COMPARE TAB
+// ============================================================
+function renderCompareTab(){
+    const top5=[...filtered].sort((a,b)=>n(b.iaem_score)-n(a.iaem_score)).slice(0,5);
+    document.getElementById('t-comp').innerHTML=`
+        <table style="width:100%;font-size:.62rem;border-collapse:collapse">
+        <tr style="background:#f8fafc;font-weight:700"><td>Município</td><td>IAEM</td><td>PIB</td><td>Pop</td><td>IDH</td><td>Tend</td></tr>
+        ${top5.map(m=>`<tr style="border-bottom:1px solid #f3f4f6;cursor:pointer" onclick="selectMun(${m.id})">
+            <td style="padding:2px 4px;font-weight:600">${m.nome}</td>
+            <td style="color:${scoreColor(n(m.iaem_score))};font-weight:800">${n(m.iaem_score).toFixed(0)}</td>
+            <td>R$${fmt(n(m.pib_total)*1000)}</td>
+            <td>${n(m.populacao).toLocaleString()}</td>
+            <td>${n(m.idhm).toFixed(3)}</td>
+            <td><span class="bd ${m.tendencia==='Alta'?'bd-f':m.tendencia==='Estável'?'bd-s':'bd-r'}">${m.tendencia||'—'}</span></td>
+        </tr>`).join('')}
+        </table>
+    `;
+}
+
+// ============================================================
+// RANKINGS (3 sub-abas)
+// ============================================================
+function renderRankings(){
+    renderRank('t-rank-iaem','iaem_score','IAEM',s=>scoreColor(s));
+    renderRank('t-rank-pib','pib_total','PIB',()=>'#3b82f6',v=>'R$'+fmt(v*1000));
+    renderRank('t-rank-pop','populacao','Pop',()=>'#0d9488',v=>v.toLocaleString());
+}
+
+function renderRank(elId,key,label,colorFn,fmtFn){
+    let list=[...filtered];
+    // Se cross-filter setor ativo, reordenar por setor
+    if(activeSetor&&key==='iaem_score'){
+        const sk={Agropecuária:'pib_agropecuaria',Indústria:'pib_industria',Serviços:'pib_servicos',Administração:'pib_administracao'}[activeSetor];
+        if(sk)list.sort((a,b)=>n(b[sk])-n(a[sk]));
+        else list.sort((a,b)=>n(b[key])-n(a[key]));
+    } else {
+        list.sort((a,b)=>n(b[key])-n(a[key]));
+    }
+    list=list.slice(0,15);
+    document.getElementById(elId).innerHTML=list.map((m,i)=>{
+        const v=n(m[key]);
+        const display=fmtFn?fmtFn(v):v.toFixed(1);
+        return`<div class="rrow ${selId===m.id?'highlighted':''}" onclick="selectMun(${m.id})">
+            <div class="rnum" style="background:${i<3?['#fbbf24','#d1d5db','#cd7f32'][i]:'#f3f4f6'}">${i+1}</div>
+            <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.nome}</div><div style="font-size:.55rem;color:#9ca3af">${m.vocacao_principal||''}</div></div>
+            <div style="text-align:right"><div style="font-weight:900;color:${colorFn(v)}">${display}</div><span class="bd ${bdCls(m.iaem_classificacao)}">${m.iaem_classificacao||'N/D'}</span></div>
+        </div>`}).join('');
+}
+
+// ============================================================
+// OPORTUNIDADES
+// ============================================================
+function renderEncCards(encs, showMunName){
+    return encs.map(e=>`
+        <div class="ec">
+            <div class="t">${e.industria_ausente||e.cadeia_produtiva||'Oportunidade'} <span class="bd ${(e.viabilidade||'')=='Alta'?'bd-f':'bd-s'}">${e.viabilidade||''}</span> <span class="bd ${(e.prioridade||'')=='Crítica'?'bd-r':'bd-s'}">${e.prioridade||''}</span></div>
+            <div class="u">${showMunName&&e.municipio_nome?'<b>'+e.municipio_nome+'</b> — ':''}${e.materia_prima||''} → ${e.industria_ausente||''}</div>
+            <div style="display:flex;gap:6px;font-size:.58rem;margin-top:2px">
+                <span style="color:#7c3aed"><b>Gap:</b> R$${fmt(n(e.gap_valor))}</span>
+                <span style="color:#16a34a"><b>Empregos:</b> ${n(e.empregos_potenciais)}</span>
+                <span style="color:#3b82f6"><b>Invest:</b> R$${fmt(n(e.investimento_estimado))}</span>
+            </div>
+        </div>`).join('');
+}
+
+function renderOportunidades(){
+    if(selId){
+        const m=ALL.find(m=>m.id===selId);
+        document.getElementById('p4title').innerHTML=`<i class="fas fa-lightbulb me-1" style="color:#7c3aed"></i>Oportunidades — ${m?.nome||''}`;
+        document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:8px;color:#9ca3af;font-size:.65rem"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>`;
+        fetch(`/dev-economico/api/municipio/${selId}/completo`).then(r=>r.json()).then(d=>{
+            const encs=d.encadeamentos||[];
+            if(encs.length){
+                document.getElementById('t-oport').innerHTML=renderEncCards(encs, false);
+            } else {
+                document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:12px;color:#9ca3af;font-size:.72rem"><i class="fas fa-search"></i><br>Sem oportunidades mapeadas para ${m?.nome||''}<br><span style="font-size:.6rem">Verifique a tabela dev_eco_encadeamento_latente</span></div>`;
+            }
+        }).catch(()=>{
+            document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:12px;color:#ef4444;font-size:.65rem">Erro ao carregar oportunidades</div>`;
+        });
+    } else {
+        document.getElementById('p4title').innerHTML=`<i class="fas fa-lightbulb me-1" style="color:#7c3aed"></i>Oportunidades — MS`;
+        document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:8px;color:#9ca3af;font-size:.65rem"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>`;
+        fetch('/dev-economico/api/oportunidades-estado').then(r=>r.json()).then(encs=>{
+            if(encs.length){
+                document.getElementById('t-oport').innerHTML=renderEncCards(encs, true);
+            } else {
+                document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:12px;color:#9ca3af;font-size:.72rem"><i class="fas fa-lightbulb" style="font-size:1.2rem"></i><br>Nenhuma oportunidade cadastrada<br><span style="font-size:.6rem">Insira dados em dev_eco_encadeamento_latente</span></div>`;
+            }
+        }).catch(()=>{
+            document.getElementById('t-oport').innerHTML=`<div style="text-align:center;padding:12px;color:#ef4444;font-size:.65rem">Erro ao carregar oportunidades</div>`;
+        });
+    }
+}
+
+// ============================================================
+// DETALHE TAB
+// ============================================================
+function renderDetalheTab(){
+    if(selId){
+        const m=ALL.find(m=>m.id===selId);
+        if(!m)return;
+        document.getElementById('t-detalhe').innerHTML=`
+            <div style="font-size:.7rem">
+            <div style="font-weight:800;font-size:.85rem;margin-bottom:4px">${m.nome}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:.62rem">
+                <div><b>Código IBGE:</b> ${m.codigo_ibge||'—'}</div>
+                <div><b>Região:</b> ${m.regiao_macro||'—'}</div>
+                <div><b>Mesorregião:</b> ${m.mesorregiao||'—'}</div>
+                <div><b>Vocação:</b> ${m.vocacao_principal||'—'}</div>
+                <div><b>PIB Agro:</b> R$${fmt(n(m.pib_agropecuaria)*1000)}</div>
+                <div><b>PIB Ind:</b> R$${fmt(n(m.pib_industria)*1000)}</div>
+                <div><b>PIB Serv:</b> R$${fmt(n(m.pib_servicos)*1000)}</div>
+                <div><b>PIB Adm:</b> R$${fmt(n(m.pib_administracao)*1000)}</div>
+                <div><b>Lat:</b> ${n(m.latitude).toFixed(4)}</div>
+                <div><b>Lon:</b> ${n(m.longitude).toFixed(4)}</div>
+            </div>
+            </div>
+        `;
+    } else {
+        document.getElementById('t-detalhe').innerHTML=`<div style="text-align:center;padding:12px;color:#9ca3af;font-size:.72rem">Selecione um município para ver detalhes</div>`;
+    }
+}
+
+// ============================================================
+// SELECT MUNICÍPIO
+// ============================================================
+function selectMun(id){
+    selId=id;
+    document.getElementById('fMun').value=id;
+    const m=ALL.find(m=>m.id===id);
+    if(m){
+        document.getElementById('selBadge').classList.add('on');
+        document.getElementById('selBadge').textContent=m.nome;
+        if(m.latitude&&m.longitude)map.setView([m.latitude,m.longitude],9);
+        // Persistir filtro para outras abas
+        localStorage.setItem('dev_eco_municipio_id',id);
+        localStorage.setItem('dev_eco_municipio_nome',m.nome);
+    }
+    updateNavLinks();
+    renderAll();
+}
+
+function updateNavLinks(){
+    document.querySelectorAll('.dev-eco-nav a, .dsh-nav a').forEach(a=>{
+        const url=new URL(a.href,location.origin);
+        if(selId){url.searchParams.set('municipio_id',selId);}else{url.searchParams.delete('municipio_id');}
+        a.href=url.toString();
+    });
+}
+
+// ============================================================
+// SUB-ABAS
+// ============================================================
+function showTab(el,panelId){
+    el.parentElement.querySelectorAll('.stab').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    const tabId=el.dataset.tab;
+    // Esconder todas as tabs do painel
+    const panel=el.closest('.pnl');
+    const body=panel.querySelector('.pnl-b');
+    body.querySelectorAll(':scope > div[id]').forEach(d=>d.classList.add('hidden'));
+    document.getElementById(tabId).classList.remove('hidden');
+    // Resize chart se necessário
+    if(tabId==='t-pib'&&cPib)cPib.resize();
+}
+</script>
+{% endblock %}

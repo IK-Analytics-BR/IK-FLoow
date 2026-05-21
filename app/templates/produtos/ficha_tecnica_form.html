@@ -17,6 +17,9 @@
                 </h4>
             </div>
             <div>
+                <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#modalDuplicarFicha">
+                    <i class="fas fa-copy me-1"></i>Duplicar
+                </button>
                 <button type="submit" class="btn btn-success">
                     <i class="fas fa-save me-1"></i>Salvar
                 </button>
@@ -31,19 +34,27 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-2">
-                        <label class="form-label">Código Produto</label>
-                        <input type="text" class="form-control" value="{{ ficha.produto_codigo or '-' }}" readonly>
+                        <label class="form-label">Código Ficha</label>
+                        <input type="text" class="form-control" value="{{ ficha.id }}" readonly>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-2">
+                        <label class="form-label">ID Produto</label>
+                        <input type="number" class="form-control" name="produto_id" id="inputProdutoId"
+                               value="{{ ficha.produto_id }}" min="1">
+                    </div>
+                    <div class="col-md-8">
                         <label class="form-label">Produto</label>
-                        <input type="text" class="form-control" value="{{ ficha.produto_nome }}" readonly>
+                        <input type="text" class="form-control" id="inputProdutoNome"
+                               value="{{ ficha.produto_nome }}" readonly>
                     </div>
-                    <div class="col-md-4">
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-8">
                         <label class="form-label">Nome do Template</label>
                         <input type="text" class="form-control" name="nome_template" 
                                value="{{ ficha.nome_template }}" required>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="form-label">Tempo Produção (h)</label>
                         <input type="number" class="form-control" name="tempo_producao_horas" 
                                value="{{ ficha.tempo_producao_horas or 0 }}" step="0.5" min="0">
@@ -112,6 +123,7 @@
                         <tr>
                             <th style="width:150px">Produto</th>
                             <th>Descrição</th>
+                            <th class="text-center" style="width:70px">Tipo</th>
                             <th class="text-center" style="width:100px">Quantidade</th>
                             <th class="text-center" style="width:80px">Unidade</th>
                             <th class="text-end" style="width:120px">Custo Unit.</th>
@@ -122,7 +134,7 @@
                     <tbody id="tbodyMateriasPrimas"></tbody>
                     <tfoot class="table-secondary">
                         <tr>
-                            <td colspan="5" class="text-end fw-bold">Subtotal:</td>
+                            <td colspan="6" class="text-end fw-bold">Subtotal:</td>
                             <td class="text-end fw-bold" id="subtotalMateriasPrimas">R$ 0,00</td>
                             <td></td>
                         </tr>
@@ -283,6 +295,36 @@
     </div>
 </div>
 
+<!-- Modal Duplicar Ficha (a partir da tela de edição) -->
+<div class="modal fade" id="modalDuplicarFicha" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('ficha_tecnica.duplicar', id=ficha.id) }}">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-copy me-2"></i>Duplicar Ficha Técnica</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Esta ação irá copiar toda a ficha técnica para outro produto.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Produto de Destino</label>
+                        <input type="text" class="form-control" id="buscaProdutoDestinoFicha" 
+                               placeholder="Digite para buscar..." autocomplete="off">
+                        <input type="hidden" name="produto_destino_id" id="produto_destino_id_ficha" required>
+                        <div id="listaProdutosDestinoFicha" class="list-group mt-1" style="max-height:200px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info" id="btnDuplicarFicha" disabled>
+                        <i class="fas fa-copy me-1"></i>Duplicar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Dados dos itens
 let itensTemplate = {
@@ -293,10 +335,11 @@ let itensTemplate = {
 let linhaAtual = null;
 let tipoAtual = null;
 
-// Carregar itens existentes
+// Carregar itens existentes e configurar eventos da tela
 document.addEventListener('DOMContentLoaded', function() {
     const itensExistentes = {{ itens | tojson | safe }};
-    
+
+    // Montar estrutura dos itens já cadastrados
     itensExistentes.forEach(item => {
         const tipo = item.tipo_item;
         if (itensTemplate[tipo]) {
@@ -307,11 +350,81 @@ document.addEventListener('DOMContentLoaded', function() {
                 quantidade: parseFloat(item.quantidade) || 0,
                 unidade_medida: item.unidade_medida || 'UN',
                 custo_unitario: parseFloat(item.custo_unitario_base) || 0,
-                custo_total: parseFloat(item.custo_total_base) || 0
+                custo_total: parseFloat(item.custo_total_base) || 0,
+                pre_produzido: !!item.pre_produzido
             });
         }
     });
-    
+
+    // Busca de produto para duplicar ficha técnica (tela de edição)
+    const inputBuscaDestino = document.getElementById('buscaProdutoDestinoFicha');
+    if (inputBuscaDestino) {
+        inputBuscaDestino.addEventListener('input', function() {
+            const termo = this.value.trim();
+            const lista = document.getElementById('listaProdutosDestinoFicha');
+
+            if (termo.length < 2) {
+                lista.innerHTML = '';
+                return;
+            }
+
+            fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}`)
+                .then(r => r.json())
+                .then(produtos => {
+                    lista.innerHTML = '';
+                    produtos.forEach(p => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.innerHTML = `<strong>${p.codigo || p.id}</strong> - ${p.nome}`;
+                        item.onclick = function(e) {
+                            e.preventDefault();
+                            document.getElementById('produto_destino_id_ficha').value = p.id;
+                            document.getElementById('buscaProdutoDestinoFicha').value = `${p.codigo || p.id} - ${p.nome}`;
+                            document.getElementById('btnDuplicarFicha').disabled = false;
+                            lista.innerHTML = '';
+                        };
+                        lista.appendChild(item);
+                    });
+                });
+        });
+    }
+
+    // Atualizar descrição do produto do cabeçalho quando o ID for alterado
+    const inputProdutoId = document.getElementById('inputProdutoId');
+    const inputProdutoNome = document.getElementById('inputProdutoNome');
+
+    function atualizarProdutoCabecalhoPorId() {
+        if (!inputProdutoId || !inputProdutoNome) {
+            return;
+        }
+
+        const idValor = (inputProdutoId.value || '').trim();
+        if (!idValor) {
+            inputProdutoNome.value = '';
+            return;
+        }
+
+        fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?id=${encodeURIComponent(idValor)}`)
+            .then(r => r.json())
+            .then(produtos => {
+                if (produtos && produtos.length > 0) {
+                    inputProdutoNome.value = produtos[0].nome;
+                } else {
+                    inputProdutoNome.value = 'Produto não encontrado';
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao buscar produto pelo ID:', err);
+                inputProdutoNome.value = 'Erro ao buscar produto';
+            });
+    }
+
+    if (inputProdutoId && inputProdutoNome) {
+        inputProdutoId.addEventListener('change', atualizarProdutoCabecalhoPorId);
+        inputProdutoId.addEventListener('blur', atualizarProdutoCabecalhoPorId);
+    }
+
     renderizarTodosItens();
     calcularTotais();
 });
@@ -328,19 +441,40 @@ function renderizarItens(tipo, tbodyId) {
     
     itensTemplate[tipo].forEach((item, index) => {
         const tr = document.createElement('tr');
+        let tipoBadgeHtml = '';
+        if (tipo === 'materia_prima') {
+            if (item.pre_produzido) {
+                // Produto pré-produzido: badge amarelo "PRÉ"
+                tipoBadgeHtml = '<span class="badge bg-warning text-dark">PRÉ</span>';
+            } else {
+                // Matéria-prima comum: badge verde "MP"
+                tipoBadgeHtml = '<span class="badge bg-success">MP</span>';
+            }
+        }
+
+        const colunaTipo = (tipo === 'materia_prima')
+            ? `<td class="text-center">${tipoBadgeHtml}</td>`
+            : '';
+
+        const labelBusca = (item.codigo || item.descricao)
+            ? `${item.codigo ? item.codigo + ' - ' : ''}${item.descricao || ''}`
+            : 'Clique para buscar';
+
         tr.innerHTML = `
             <td>
-                <input type="text" class="form-control form-control-sm" value="${item.codigo || ''}" 
-                       onclick="abrirBuscaProduto('${tipo}', ${index})" readonly 
-                       placeholder="Clique para buscar" style="cursor:pointer; background:#fff;">
+                <button type="button" class="btn btn-sm btn-outline-primary w-100 text-start"
+                        onclick="abrirBuscaProduto('${tipo}', ${index})">
+                    ${labelBusca}
+                </button>
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm" value="${item.descricao || ''}"
                        onchange="atualizarItem('${tipo}', ${index}, 'descricao', this.value)">
             </td>
+            ${colunaTipo}
             <td>
                 <input type="number" class="form-control form-control-sm text-center" value="${item.quantidade || 0}"
-                       step="0.01" min="0" onchange="atualizarItem('${tipo}', ${index}, 'quantidade', this.value)">
+                       step="0.0001" min="0" onchange="atualizarItem('${tipo}', ${index}, 'quantidade', this.value)">
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm text-center" value="${item.unidade_medida || 'UN'}"
@@ -348,10 +482,10 @@ function renderizarItens(tipo, tbodyId) {
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm text-end" value="${item.custo_unitario || 0}"
-                       step="0.01" min="0" onchange="atualizarItem('${tipo}', ${index}, 'custo_unitario', this.value)">
+                       step="0.0001" min="0" onchange="atualizarItem('${tipo}', ${index}, 'custo_unitario', this.value)">
             </td>
             <td class="text-end fw-bold">
-                R$ ${(item.custo_total || 0).toFixed(2)}
+                R$ ${(item.custo_total || 0).toFixed(3)}
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem('${tipo}', ${index})">
@@ -371,7 +505,8 @@ function adicionarItem(tipo) {
         quantidade: 1,
         unidade_medida: 'UN',
         custo_unitario: 0,
-        custo_total: 0
+        custo_total: 0,
+        pre_produzido: false
     });
     renderizarTodosItens();
 }
@@ -412,12 +547,9 @@ document.getElementById('inputBuscaProduto').addEventListener('input', function(
         return;
     }
     
-    // Determinar categoria baseada no tipo
-    let categoria = '';
-    if (tipoAtual === 'servico') categoria = '2';
-    else if (tipoAtual === 'materia_prima') categoria = '3';
-    
-    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria=${categoria}`)
+    const params = new URLSearchParams();
+    params.set('q', termo);
+    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?${params.toString()}`)
         .then(r => r.json())
         .then(produtos => {
             const div = document.getElementById('resultadosBusca');
@@ -428,11 +560,12 @@ document.getElementById('inputBuscaProduto').addEventListener('input', function(
             
             let html = '<div class="list-group">';
             produtos.forEach(p => {
+                const badge = p.pre_produzido ? '<span class="badge bg-warning text-dark ms-2">Pré-produzido</span>' : '';
                 html += `<a href="#" class="list-group-item list-group-item-action" 
-                            onclick="selecionarProduto(${p.id}, '${p.codigo}', '${p.nome.replace(/'/g, "\\'")}', ${p.custo}, '${p.unidade}')">
+                            onclick="selecionarProduto(${p.id}, '${p.codigo}', '${p.nome.replace(/'/g, "\\'")}', ${p.custo}, '${p.unidade}', ${p.pre_produzido ? 'true' : 'false'})">
                     <div class="d-flex justify-content-between">
-                        <span><strong>${p.codigo || p.id}</strong> - ${p.nome}</span>
-                        <span class="text-primary">R$ ${p.custo.toFixed(2)}</span>
+                        <span><strong>${p.codigo || p.id}</strong> - ${p.nome} ${badge}</span>
+                        <span class="text-primary">R$ ${p.custo.toFixed(3)}</span>
                     </div>
                 </a>`;
             });
@@ -441,12 +574,13 @@ document.getElementById('inputBuscaProduto').addEventListener('input', function(
         });
 });
 
-function selecionarProduto(id, codigo, nome, custo, unidade) {
+function selecionarProduto(id, codigo, nome, custo, unidade, preProduzido) {
     itensTemplate[tipoAtual][linhaAtual].produto_id = id;
     itensTemplate[tipoAtual][linhaAtual].codigo = codigo;
     itensTemplate[tipoAtual][linhaAtual].descricao = nome;
     itensTemplate[tipoAtual][linhaAtual].custo_unitario = custo;
     itensTemplate[tipoAtual][linhaAtual].unidade_medida = unidade;
+    itensTemplate[tipoAtual][linhaAtual].pre_produzido = !!preProduzido;
     itensTemplate[tipoAtual][linhaAtual].custo_total = 
         (itensTemplate[tipoAtual][linhaAtual].quantidade || 1) * custo;
     
@@ -462,10 +596,10 @@ function calcularTotais() {
     itensTemplate.materia_prima.forEach(i => totalMaterias += (i.custo_total || 0));
     itensTemplate.consumo_interno.forEach(i => totalConsumo += (i.custo_total || 0));
     
-    document.getElementById('subtotalServicos').textContent = 'R$ ' + totalServicos.toFixed(2);
-    document.getElementById('subtotalMateriasPrimas').textContent = 'R$ ' + totalMaterias.toFixed(2);
-    document.getElementById('subtotalConsumoInterno').textContent = 'R$ ' + totalConsumo.toFixed(2);
-    document.getElementById('custoTotalGeral').textContent = 'R$ ' + (totalServicos + totalMaterias + totalConsumo).toFixed(2);
+    document.getElementById('subtotalServicos').textContent = 'R$ ' + totalServicos.toFixed(3);
+    document.getElementById('subtotalMateriasPrimas').textContent = 'R$ ' + totalMaterias.toFixed(3);
+    document.getElementById('subtotalConsumoInterno').textContent = 'R$ ' + totalConsumo.toFixed(3);
+    document.getElementById('custoTotalGeral').textContent = 'R$ ' + (totalServicos + totalMaterias + totalConsumo).toFixed(3);
 }
 
 // Preparar dados antes de enviar

@@ -133,6 +133,12 @@ ficha_tecnica_bp = _try_import('routes.ficha_tecnica_routes', 'ficha_tecnica_bp'
 # Módulo de Especificações Técnicas de Produto (DNA)
 produto_especificacoes_bp = _try_import('routes.produto_especificacoes_routes', 'produto_especificacoes_bp')
 
+# Módulo de Questionário de Visita – Indústria de Salgados Congelados
+questionario_visita_bp = _try_import('routes.questionario_visita_routes', 'questionario_visita_bp')
+
+# Portal de Desenvolvimento Econômico Municipal - MS
+dev_economico_bp = _try_import('routes.dev_economico_routes', 'dev_economico_bp')
+
 # Importar módulos para servir arquivos markdown
 from flask import send_from_directory, abort
 import markdown
@@ -262,6 +268,8 @@ for _bp in (
     ficha_tecnica_bp,
     produto_especificacoes_bp,
     currency_bp,
+    questionario_visita_bp,
+    dev_economico_bp,
 ):
     _register(_bp)
 
@@ -688,6 +696,16 @@ def apresentacao_ikflow():
     except Exception as e:
         print(f"[IKFLOW] Erro ao renderizar apresentacao_ikflow: {e}")
         return render_template('apresentacao_ikflow.html')
+
+
+@app.route('/apresentacao-ikflow-v2')
+def apresentacao_ikflow_v2():
+    """Nova versão da apresentação IK Flow baseada no layout consolidado (não exige login)."""
+    try:
+        return render_template('apresentacao_ikflow_v2.html')
+    except Exception as e:
+        print(f"[IKFLOW] Erro ao renderizar apresentacao_ikflow_v2: {e}")
+        return render_template('apresentacao_ikflow_v2.html')
 
 @app.route('/em-desenvolvimento')
 @app.route('/em-desenvolvimento/<path:funcionalidade>')

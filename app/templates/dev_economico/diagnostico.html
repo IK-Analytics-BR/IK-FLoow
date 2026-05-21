@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Diagnóstico Econômico Municipal - MS{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-stethoscope me-2"></i>Diagnóstico Econômico Municipal</h2>
+            <div class="subtitle">Base técnica — PIB, cadeias produtivas, empregos formais, infraestrutura e vocação regional</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+<!-- PIB Setorial -->
+<div class="row g-3 mb-4">
+    <div class="col-md-5">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie me-2"></i>PIB por Setor — {% if municipio_filtrado %}{{ municipio_filtrado.nome }}{% else %}MS{% endif %}</h5>
+                <div class="subtitle">Composição setorial do PIB {% if municipio_filtrado %}municipal{% else %}estadual{% endif %} — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:300px;">
+                    <canvas id="chartPibSetor"></canvas>
+                </div>
+                {% if pib_setorial %}
+                <div class="row g-2 mt-3">
+                    <div class="col-6">
+                        <div class="dev-eco-list-item text-center">
+                            <div style="font-size:0.72rem; color:#6b7280;">Agropecuária</div>
+                            <div class="fw-bold" style="color:#22c55e;">R$ {{ "%.1f"|format((pib_setorial.agropecuaria or 0) / 1000000) }} {% if municipio_filtrado %}mi{% else %}bi{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="dev-eco-list-item text-center">
+                            <div style="font-size:0.72rem; color:#6b7280;">Indústria</div>
+                            <div class="fw-bold" style="color:#3b82f6;">R$ {{ "%.1f"|format((pib_setorial.industria or 0) / 1000000) }} {% if municipio_filtrado %}mi{% else %}bi{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="dev-eco-list-item text-center">
+                            <div style="font-size:0.72rem; color:#6b7280;">Serviços</div>
+                            <div class="fw-bold" style="color:#f59e0b;">R$ {{ "%.1f"|format((pib_setorial.servicos or 0) / 1000000) }} {% if municipio_filtrado %}mi{% else %}bi{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="dev-eco-list-item text-center">
+                            <div style="font-size:0.72rem; color:#6b7280;">Adm. Pública</div>
+                            <div class="fw-bold" style="color:#8b5cf6;">R$ {{ "%.1f"|format((pib_setorial.administracao or 0) / 1000000) }} {% if municipio_filtrado %}mi{% else %}bi{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 10 PIB -->
+    <div class="col-md-7">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy me-2"></i>{% if municipio_filtrado %}PIB — {{ municipio_filtrado.nome }} e Região{% else %}Top 10 Municípios por PIB{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Maiores economias de MS{% endif %} — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:350px;">
+                    <canvas id="chartTopPib"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top PIB per Capita + Cadeias -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-dollar me-2"></i>{% if municipio_filtrado %}PIB per Capita — {{ municipio_filtrado.nome }} e Região{% else %}Top 10 PIB per Capita{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Riqueza por habitante{% endif %} — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:350px;">
+                    <canvas id="chartPerCapita"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-link me-2"></i>Cadeias Produtivas</h5>
+                <div class="subtitle">Participação no PIB e empregos diretos</div>
+            </div>
+            <div class="card-body p-3">
+                {% for c in cadeias %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold" style="font-size:0.85rem;">{{ c.nome }}</span>
+                        <span class="fw-bold" style="color:#08a5b2;">{{ c.participacao_pib }}%</span>
+                    </div>
+                    <div class="dev-eco-progress mb-1">
+                        <div class="progress-bar bg-teal" style="width:{{ (c.participacao_pib / 20 * 100)|int }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size:0.72rem; color:#9ca3af;">
+                        <span>{{ "{:,.0f}".format(c.empregos_diretos) }} empregos diretos</span>
+                        <span class="dev-eco-badge badge-{{ c.potencial_crescimento|lower }}">{{ c.potencial_crescimento }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vocação Regional -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marked-alt me-2"></i>Vocação Regional por Município</h5>
+                <div class="subtitle">Mapeamento das vocações econômicas de cada região de MS</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3" style="background:rgba(8,165,178,0.06); border:1px solid rgba(8,165,178,0.15);">
+                            <h6 class="fw-bold" style="color:#08a5b2;"><i class="fas fa-building me-1"></i>Região Campo Grande</h6>
+                            <p style="font-size:0.8rem; color:#6b7280;">Foco em serviços, tecnologia, comércio e logística. Capital administrativa e econômica.</p>
+                            <div style="font-size:0.75rem;">
+                                {% for m in municipios if m.regiao_macro == 'Campo Grande' %}
+                                <span class="badge bg-light text-dark mb-1">{{ m.nome }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3" style="background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.15);">
+                            <h6 class="fw-bold" style="color:#16a34a;"><i class="fas fa-tractor me-1"></i>Região Dourados</h6>
+                            <p style="font-size:0.8rem; color:#6b7280;">Agroindústria, exportação de grãos, avicultura. Polo agroindustrial do estado.</p>
+                            <div style="font-size:0.75rem;">
+                                {% for m in municipios if m.regiao_macro == 'Dourados' %}
+                                <span class="badge bg-light text-dark mb-1">{{ m.nome }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3" style="background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15);">
+                            <h6 class="fw-bold" style="color:#2563eb;"><i class="fas fa-industry me-1"></i>Região Três Lagoas</h6>
+                            <p style="font-size:0.8rem; color:#6b7280;">Celulose, indústria pesada, soja e algodão. Capital mundial da celulose.</p>
+                            <div style="font-size:0.75rem;">
+                                {% for m in municipios if m.regiao_macro == 'Tres Lagoas' %}
+                                <span class="badge bg-light text-dark mb-1">{{ m.nome }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3" style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15);">
+                            <h6 class="fw-bold" style="color:#d97706;"><i class="fas fa-mountain me-1"></i>Região Corumbá</h6>
+                            <p style="font-size:0.8rem; color:#6b7280;">Mineração, turismo pantaneiro, pecuária. Fronteira com Bolívia.</p>
+                            <div style="font-size:0.75rem;">
+                                {% for m in municipios if m.regiao_macro == 'Corumba' %}
+                                <span class="badge bg-light text-dark mb-1">{{ m.nome }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela completa de municípios -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-table me-2"></i>{% if municipio_filtrado %}Dados — {{ municipio_filtrado.nome }} e Região{% else %}Todos os Municípios Cadastrados{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Dados econômicos completos{% endif %} — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0" id="tabelaMunicipios">
+                        <thead>
+                            <tr>
+                                <th class="text-start">Município</th>
+                                <th>Cód. IBGE</th>
+                                <th>Região</th>
+                                <th>População</th>
+                                <th>PIB Total (R$ mil)</th>
+                                <th>PIB per capita</th>
+                                <th>IDH-M</th>
+                                <th>Vocação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set table_data = top_pib if municipio_filtrado else municipios %}
+                            {% for m in table_data %}
+                            <tr{% if municipio_filtrado and m.get('is_selected') %} style="background:rgba(8,165,178,0.08);"{% endif %}>
+                                <td class="text-start fw-semibold">{{ m.nome }}{% if municipio_filtrado and m.get('is_selected') %} <i class="fas fa-star" style="color:#f59e0b;font-size:0.6rem;"></i>{% endif %}</td>
+                                <td>{{ m.codigo_ibge }}</td>
+                                <td><span class="dev-eco-badge badge-ativo">{{ m.regiao_macro }}</span></td>
+                                <td>{{ "{:,.0f}".format(m.populacao) }}</td>
+                                <td class="fw-bold">{{ "{:,.0f}".format(m.pib_total) }}</td>
+                                <td>R$ {{ "{:,.0f}".format(m.pib_per_capita) }}</td>
+                                <td>{{ "%.3f"|format(m.idhm) }}</td>
+                                <td style="font-size:0.78rem;">{{ m.vocacao_principal }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// PIB por Setor
+new Chart(document.getElementById('chartPibSetor').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Agropecuária', 'Indústria', 'Serviços', 'Adm. Pública'],
+        datasets: [{
+            data: [
+                {{ pib_setorial.agropecuaria if pib_setorial else 28000000 }},
+                {{ pib_setorial.industria if pib_setorial else 22000000 }},
+                {{ pib_setorial.servicos if pib_setorial else 48000000 }},
+                {{ pib_setorial.administracao if pib_setorial else 18000000 }}
+            ],
+            backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6'],
+            borderWidth: 2, borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } } }
+    }
+});
+
+// Top PIB
+new Chart(document.getElementById('chartTopPib').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: [{% for m in top_pib %}'{{ m.nome }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'PIB (R$ milhões)',
+            data: [{% for m in top_pib %}{{ (m.pib_total / 1000)|round|int }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: [{% for m in top_pib %}{% if m.get('is_selected') %}'#065f69'{% else %}'#08a5b2'{% endif %}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderRadius: 6, barThickness: 20
+        }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') + ' mi', font: { size: 10 } } },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+    }
+});
+
+// PIB per Capita
+new Chart(document.getElementById('chartPerCapita').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: [{% for m in top_percapita %}'{{ m.nome }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'PIB per capita (R$)',
+            data: [{% for m in top_percapita %}{{ m.pib_per_capita|int }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: [{% for m in top_percapita %}{% if m.get('is_selected') %}'#c67600'{% else %}'#ff9f1a'{% endif %}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderRadius: 6, barThickness: 20
+        }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR'), font: { size: 10 } } },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+    }
+});
+</script>
+{% endblock %}

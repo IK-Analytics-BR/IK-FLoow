@@ -1,0 +1,235 @@
+/* ============================================================
+   Portal de Desenvolvimento Econômico Municipal - MS
+   CSS específico do módulo
+   ============================================================ */
+
+/* KPI Cards */
+.dev-eco-kpi {
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: #fff;
+}
+.dev-eco-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.dev-eco-kpi .kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+.dev-eco-kpi .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #0b2447;
+    line-height: 1.2;
+}
+.dev-eco-kpi .kpi-label {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* Cores dos ícones KPI */
+.kpi-icon.bg-teal { background: rgba(8,165,178,0.12); color: #08a5b2; }
+.kpi-icon.bg-orange { background: rgba(255,159,26,0.12); color: #ff9f1a; }
+.kpi-icon.bg-green { background: rgba(34,197,94,0.12); color: #22c55e; }
+.kpi-icon.bg-blue { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.kpi-icon.bg-purple { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.kpi-icon.bg-red { background: rgba(239,68,68,0.12); color: #ef4444; }
+.kpi-icon.bg-amber { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.kpi-icon.bg-indigo { background: rgba(99,102,241,0.12); color: #6366f1; }
+
+/* Cards de seção */
+.dev-eco-card {
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+    overflow: hidden;
+}
+.dev-eco-card .card-header {
+    background: linear-gradient(135deg, #0b2447 0%, #071a2e 100%);
+    color: #fff;
+    padding: 16px 20px;
+    border-bottom: 3px solid #08a5b2;
+}
+.dev-eco-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.dev-eco-card .card-header .subtitle {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.7);
+    margin-top: 2px;
+}
+
+/* Tabela estilizada */
+.dev-eco-table {
+    font-size: 0.85rem;
+}
+.dev-eco-table thead th {
+    background: #f8fafc;
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 10px 12px;
+}
+.dev-eco-table tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f3f4f6;
+}
+.dev-eco-table tbody tr:hover {
+    background: rgba(8,165,178,0.04);
+}
+
+/* Badges */
+.dev-eco-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+.dev-eco-badge.badge-alto { background: rgba(34,197,94,0.12); color: #16a34a; }
+.dev-eco-badge.badge-medio { background: rgba(245,158,11,0.12); color: #d97706; }
+.dev-eco-badge.badge-baixo { background: rgba(239,68,68,0.12); color: #dc2626; }
+.dev-eco-badge.badge-ativo { background: rgba(8,165,178,0.12); color: #08a5b2; }
+.dev-eco-badge.badge-andamento { background: rgba(59,130,246,0.12); color: #2563eb; }
+.dev-eco-badge.badge-planejado { background: rgba(107,114,128,0.12); color: #6b7280; }
+.dev-eco-badge.badge-concluido { background: rgba(34,197,94,0.12); color: #16a34a; }
+
+/* Progress bars customizadas */
+.dev-eco-progress {
+    height: 8px;
+    border-radius: 4px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+.dev-eco-progress .progress-bar {
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+.dev-eco-progress .progress-bar.bg-teal { background: #08a5b2; }
+.dev-eco-progress .progress-bar.bg-orange { background: #ff9f1a; }
+
+/* Gráficos container */
+.chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+}
+.chart-container canvas {
+    max-width: 100%;
+}
+
+/* Navegação do portal */
+.dev-eco-nav {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 8px;
+    margin-bottom: 20px;
+}
+.dev-eco-nav .nav-link {
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.dev-eco-nav .nav-link:hover {
+    background: rgba(8,165,178,0.08);
+    color: #08a5b2;
+}
+.dev-eco-nav .nav-link.active {
+    background: linear-gradient(135deg, #08a5b2, #067d87);
+    color: #fff;
+}
+.dev-eco-nav .nav-link i {
+    margin-right: 6px;
+    width: 18px;
+    text-align: center;
+}
+
+/* Header do portal */
+.dev-eco-header {
+    background: linear-gradient(135deg, #0b2447 0%, #071a2e 100%);
+    color: #fff;
+    padding: 24px 28px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border-bottom: 4px solid #08a5b2;
+}
+.dev-eco-header h2 {
+    font-weight: 700;
+    margin: 0;
+    font-size: 1.4rem;
+}
+.dev-eco-header .subtitle {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.88rem;
+    margin-top: 4px;
+}
+
+/* Item de lista estilizado */
+.dev-eco-list-item {
+    padding: 14px 16px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    background: #fff;
+}
+.dev-eco-list-item:hover {
+    border-color: rgba(8,165,178,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Eixo estratégico card */
+.eixo-card {
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+    transition: transform 0.2s;
+}
+.eixo-card:hover {
+    transform: translateY(-2px);
+}
+.eixo-card .eixo-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .dev-eco-header {
+        padding: 16px 18px;
+    }
+    .dev-eco-header h2 {
+        font-size: 1.1rem;
+    }
+    .dev-eco-kpi .kpi-value {
+        font-size: 1.3rem;
+    }
+    .dev-eco-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Agroindustrialização - Dev Econômico MS{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-tractor me-2"></i>{% if municipio_filtrado %}Agroindústria — {{ municipio_filtrado.nome }}{% else %}Fortalecimento da Agroindustrialização Local{% endif %}</h2>
+            <div class="subtitle">{% if municipio_filtrado %}Perfil agroindustrial e oportunidades de {{ municipio_filtrado.nome }}{% else %}Distritos agroindustriais, cooperativas, selo SIM e valor agregado{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    {% if municipio_filtrado %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-seedling"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_agropecuaria) }} mi</div><div class="kpi-label">PIB Agropecuário</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-amber"><i class="fas fa-industry"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_industria) }} mi</div><div class="kpi-label">PIB Industrial</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-users"></i></div><div><div class="kpi-value">{{ "{:,.0f}".format(municipio_filtrado.populacao) }}</div><div class="kpi-label">População</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-tag"></i></div><div><div class="kpi-value" style="font-size:1rem;">{{ municipio_filtrado.vocacao_principal }}</div><div class="kpi-label">Vocação</div></div></div></div>
+    </div>
+    {% else %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-seedling"></i></div><div><div class="kpi-value">32,5 mi</div><div class="kpi-label">Toneladas de Grãos</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-amber"><i class="fas fa-cow"></i></div><div><div class="kpi-value">~20 mi</div><div class="kpi-label">Cabeças de Gado</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-industry"></i></div><div><div class="kpi-value">14</div><div class="kpi-label">Usinas de Etanol</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-ship"></i></div><div><div class="kpi-value">US$ 11,2 bi</div><div class="kpi-label">Exportações/Ano</div></div></div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Cadeias Agro -->
+    <div class="col-md-7">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-link me-2"></i>Cadeias Produtivas Agropecuárias</h5>
+                <div class="subtitle">Participação no PIB e potencial de crescimento — Dados reais</div>
+            </div>
+            <div class="card-body p-3">
+                {% for c in cadeias %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="fw-bold mb-0" style="font-size:0.9rem;">{{ c.nome }}</h6>
+                            <p class="mb-0" style="font-size:0.75rem; color:#6b7280;">{{ c.descricao }}</p>
+                        </div>
+                        <span class="dev-eco-badge badge-{{ c.potencial_crescimento|lower }}">{{ c.potencial_crescimento }}</span>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-4">
+                            <div style="font-size:0.7rem; color:#9ca3af;">% PIB</div>
+                            <div class="fw-bold" style="color:#08a5b2;">{{ c.participacao_pib }}%</div>
+                        </div>
+                        <div class="col-4">
+                            <div style="font-size:0.7rem; color:#9ca3af;">Empregos</div>
+                            <div class="fw-bold">{{ "{:,.0f}".format(c.empregos_diretos) }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div style="font-size:0.7rem; color:#9ca3af;">Produção (R$ mi)</div>
+                            <div class="fw-bold">{{ "{:,.0f}".format(c.valor_producao / 1000) }}</div>
+                        </div>
+                    </div>
+                    <div class="dev-eco-progress mt-2">
+                        <div class="progress-bar bg-teal" style="width:{{ (c.participacao_pib / 20 * 100)|int }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações e Municípios -->
+    <div class="col-md-5">
+        <div class="dev-eco-card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks me-2"></i>Plano de Ações</h5>
+                <div class="subtitle">O que o município pode fazer</div>
+            </div>
+            <div class="card-body p-3">
+                {% set acoes = [
+                    ('Criar distritos agroindustriais', 'fas fa-warehouse', 'Áreas estruturadas com incentivos para agroindústrias'),
+                    ('Incentivar pequenas agroindústrias', 'fas fa-store', 'Leite, mandioca, frutas, carne — valor agregado local'),
+                    ('Apoiar cooperativas', 'fas fa-handshake', 'Fortalecer cooperativas para escala e comercialização'),
+                    ('Implantar selo SIM', 'fas fa-certificate', 'Selo de Inspeção Municipal para produtos de origem animal'),
+                    ('Capacitação técnica rural', 'fas fa-graduation-cap', 'Cursos de boas práticas e gestão para produtores'),
+                    ('Feiras e mercados locais', 'fas fa-shopping-basket', 'Estimular venda direta do produtor ao consumidor')
+                ] %}
+                {% for acao, icone, desc in acoes %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="{{ icone }}" style="color:#08a5b2; margin-top:3px; width:18px;"></i>
+                        <div>
+                            <div class="fw-semibold" style="font-size:0.85rem;">{{ acao }}</div>
+                            <div style="font-size:0.72rem; color:#9ca3af;">{{ desc }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marker-alt me-2"></i>{% if municipio_filtrado %}Dados de {{ municipio_filtrado.nome }}{% else %}Municípios Agropecuários{% endif %}</h5>
+            </div>
+            <div class="card-body p-3">
+                {% for m in municipios %}
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom" style="font-size:0.82rem;">
+                    <span class="fw-semibold">{{ m.nome }}</span>
+                    <span style="color:#6b7280;">{{ m.vocacao_principal }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Encadeamentos Produtivos -->
+{% if encadeamentos %}
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-puzzle-piece me-2"></i>{% if municipio_filtrado %}Oportunidades Agroindustriais — {{ municipio_filtrado.nome }} e Região{% else %}Principais Gaps Agroindustriais{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Oportunidades de alta prioridade em MS{% endif %}</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0">
+                        <thead><tr><th class="text-start">Matéria-prima</th><th>Município</th><th>Indústria Ausente</th><th>Gap (R$)</th><th>Empregos</th><th>Viabilidade</th></tr></thead>
+                        <tbody>
+                            {% for e in encadeamentos %}
+                            <tr{% if municipio_filtrado and e.get('is_selected') %} style="background:rgba(8,165,178,0.08);"{% endif %}>
+                                <td class="text-start fw-semibold">{{ e.materia_prima }}</td>
+                                <td>{{ e.municipio_nome }}{% if municipio_filtrado and e.get('is_selected') %} <i class="fas fa-star" style="color:#f59e0b;font-size:0.65rem;"></i>{% endif %}</td>
+                                <td>{{ e.industria_ausente }}</td>
+                                <td class="fw-bold" style="color:#08a5b2;">R$ {{ "{:,.0f}".format(e.gap_valor / 1000000) }} mi</td>
+                                <td>{{ "{:,.0f}".format(e.empregos_potenciais) }}</td>
+                                <td><span class="dev-eco-badge {% if e.viabilidade == 'Alta' %}badge-ativo{% else %}badge-andamento{% endif %}">{{ e.viabilidade }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Gráfico -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar me-2"></i>Participação das Cadeias no PIB</h5>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:300px;">
+                    <canvas id="chartCadeias"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new Chart(document.getElementById('chartCadeias').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: [{% for c in cadeias %}'{{ c.nome }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: '% do PIB',
+            data: [{% for c in cadeias %}{{ c.participacao_pib }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: ['#22c55e','#16a34a','#15803d','#166534','#14532d','#059669','#0d9488','#0891b2'],
+            borderRadius: 6, barThickness: 28
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { grid: { display: false }, ticks: { callback: v => v + '%', font: { size: 11 } } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Turismo como Vetor Econômico - Dev Econômico MS{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-umbrella-beach me-2"></i>{% if municipio_filtrado %}Turismo — {{ municipio_filtrado.nome }}{% else %}Turismo como Vetor Econômico{% endif %}</h2>
+            <div class="subtitle">{% if municipio_filtrado %}Potencial turístico e destinos de {{ municipio_filtrado.nome }}{% else %}Ecoturismo, Pantanal, turismo rural, aventura e gastronomia{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+<div class="row g-3 mb-4">
+    {% if municipio_filtrado %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-users"></i></div><div><div class="kpi-value">{{ "{:,.0f}".format(municipio_filtrado.populacao) }}</div><div class="kpi-label">População</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div><div><div class="kpi-value">R$ {{ "{:,.0f}".format(municipio_filtrado.pib_servicos) }} mi</div><div class="kpi-label">PIB Serviços</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-tag"></i></div><div><div class="kpi-value" style="font-size:1rem;">{{ municipio_filtrado.vocacao_principal }}</div><div class="kpi-label">Vocação</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-map-marker-alt"></i></div><div><div class="kpi-value">{{ municipio_filtrado.mesorregiao }}</div><div class="kpi-label">Mesorregião</div></div></div></div>
+    </div>
+    {% else %}
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-users"></i></div><div><div class="kpi-value">1,06 mi</div><div class="kpi-label">Turistas/Ano</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div><div><div class="kpi-value">R$ 4,5 bi</div><div class="kpi-label">Receita Turística</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-briefcase"></i></div><div><div class="kpi-value">15.000</div><div class="kpi-label">Empregos Diretos</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-map-marker-alt"></i></div><div><div class="kpi-value">2,8%</div><div class="kpi-label">Participação PIB</div></div></div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Destinos -->
+    <div class="col-md-7">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marked-alt me-2"></i>{% if municipio_filtrado %}Destinos Turísticos — {{ municipio_filtrado.nome }} e Região{% else %}Principais Destinos Turísticos{% endif %}</h5>
+                <div class="subtitle">{% if municipio_filtrado %}{{ municipio_filtrado.nome }} + 4 municípios próximos{% else %}Fonte: FUNDTUR-MS{% endif %}</div>
+            </div>
+            <div class="card-body p-3">
+                {% if destinos %}
+                    {% for d in destinos %}
+                    <div class="dev-eco-list-item"{% if municipio_filtrado and d.get('is_selected') %} style="background:rgba(8,165,178,0.08);border-left:3px solid #08a5b2;"{% endif %}>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-bold" style="font-size:0.88rem;">{{ d.nome_destino }}</div>
+                                <div style="font-size:0.75rem; color:#6b7280;">{{ d.municipio_nome or '' }}{% if municipio_filtrado and d.get('is_selected') %} <i class="fas fa-star" style="color:#f59e0b;font-size:0.6rem;"></i>{% endif %} — {{ d.tipo }}</div>
+                            </div>
+                            <span class="dev-eco-badge badge-ativo">{{ "{:,.0f}".format(d.visitantes_ano) }} visitantes</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    {% set destinos_mock = [
+                        ('Bonito e Serra da Bodoquena', 'Ecoturismo', '350.000', 'Referência mundial em ecoturismo. Rios cristalinos, grutas e flutuação.'),
+                        ('Pantanal Sul-mato-grossense', 'Ecoturismo/Aventura', '280.000', 'Patrimônio UNESCO. Safáris, pesca esportiva, observação de fauna.'),
+                        ('Campo Grande', 'Urbano/Gastronomia', '180.000', 'Capital Morena. Gastronomia, cultura indígena, Mercadão Municipal.'),
+                        ('Corumbá', 'Cultural/Pantanal', '95.000', 'Porto de entrada do Pantanal. Carnaval, pesca, fronteira com Bolívia.'),
+                        ('Jardim', 'Ecoturismo', '65.000', 'Buraco das Araras, Rio da Prata. Complemento a Bonito.'),
+                        ('Aquidauana/Anastácio', 'Rural/Aventura', '45.000', 'Portal do Pantanal. Turismo rural e de aventura.')
+                    ] %}
+                    {% for nome, tipo, visitantes, desc in destinos_mock %}
+                    <div class="dev-eco-list-item">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="fw-bold" style="font-size:0.88rem;">{{ nome }}</div>
+                                <div style="font-size:0.75rem; color:#6b7280;">{{ desc }}</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="dev-eco-badge badge-ativo">{{ tipo }}</span>
+                                <div style="font-size:0.72rem; color:#08a5b2; margin-top:4px;">{{ visitantes }} visitantes/ano</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Segmentos -->
+    <div class="col-md-5">
+        <div class="dev-eco-card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-tags me-2"></i>Segmentos Turísticos</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set segmentos = [
+                    ('Ecoturismo', 'fas fa-leaf', '#22c55e', '45%', 'Bonito, Pantanal, Serra da Bodoquena'),
+                    ('Turismo Rural', 'fas fa-tractor', '#f59e0b', '18%', 'Fazendas históricas, pesca, cavalgada'),
+                    ('Aventura', 'fas fa-mountain', '#3b82f6', '15%', 'Rapel, trilhas, rafting, boia-cross'),
+                    ('Pesca Esportiva', 'fas fa-fish', '#08a5b2', '12%', 'Pantanal, rios Paraguai, Miranda, Aquidauana'),
+                    ('Cultural', 'fas fa-landmark', '#8b5cf6', '6%', 'Cultura indígena, fronteira, patrimônio'),
+                    ('Gastronomia', 'fas fa-utensils', '#ef4444', '4%', 'Sobá, chipa, tereré, peixe')
+                ] %}
+                {% for nome, icone, cor, pct, desc in segmentos %}
+                <div class="d-flex align-items-center gap-3 p-2 mb-2 rounded" style="border:1px solid rgba(0,0,0,0.06);">
+                    <div style="width:36px; height:36px; border-radius:8px; background:{{ cor }}15; color:{{ cor }}; display:flex; align-items:center; justify-content:center; min-width:36px;">
+                        <i class="{{ icone }}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-semibold" style="font-size:0.82rem;">{{ nome }}</span>
+                            <span class="fw-bold" style="font-size:0.82rem; color:{{ cor }};">{{ pct }}</span>
+                        </div>
+                        <div style="font-size:0.7rem; color:#9ca3af;">{{ desc }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks me-2"></i>Ações Municipais para Turismo</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set acoes = [
+                    'Criar Conselho Municipal de Turismo',
+                    'Inventariar atrativos turísticos locais',
+                    'Capacitar guias e prestadores de serviço',
+                    'Sinalização turística bilíngue',
+                    'Apoiar eventos e festivais regionais',
+                    'Integrar roteiros com municípios vizinhos'
+                ] %}
+                {% for acao in acoes %}
+                <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="font-size:0.82rem;">
+                    <i class="fas fa-check-circle" style="color:#22c55e;"></i>
+                    <span>{{ acao }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

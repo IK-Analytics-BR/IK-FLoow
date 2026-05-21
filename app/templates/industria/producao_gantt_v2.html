@@ -301,8 +301,8 @@
 
                   {% if ops %}
                     {% for op in ops %}
-                      <div class="gantt-v2-group-cell {% if not loop.first %}muted{% endif %}" data-op-id="{{ op.op_id }}" title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}">
-                        {% if loop.first %}{{ g.orcamento_numero or '-' }}{% else %}&nbsp;{% endif %}
+                      <div class="gantt-v2-group-cell {% if not loop.first %}muted{% endif %}" data-op-id="{{ op.op_id }}" title="{% if g.planejamento_codigo %}{{ g.planejamento_codigo }} — {{ g.cliente_nome or 'Produção p/ Estoque' }}{% else %}{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}{% endif %}">
+                        {% if loop.first %}{% if g.planejamento_codigo %}<i class="fas fa-calendar-week text-primary"></i> {{ g.planejamento_codigo }}{% else %}{{ g.orcamento_numero or '-' }}{% endif %}{% else %}&nbsp;{% endif %}
                       </div>
 
                       {% for e in etapas %}
@@ -333,7 +333,7 @@
                       {% endfor %}
                     {% endfor %}
                   {% else %}
-                    <div class="gantt-v2-group-cell" title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}">{{ g.orcamento_numero or '-' }}</div>
+                    <div class="gantt-v2-group-cell" title="{% if g.planejamento_codigo %}{{ g.planejamento_codigo }} — {{ g.cliente_nome or 'Produção p/ Estoque' }}{% else %}{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}{% endif %}">{% if g.planejamento_codigo %}<i class="fas fa-calendar-week text-primary"></i> {{ g.planejamento_codigo }}{% else %}{{ g.orcamento_numero or '-' }}{% endif %}</div>
                     {% for e in etapas %}
                       <div class="gantt-v2-stage-cell"></div>
                     {% endfor %}

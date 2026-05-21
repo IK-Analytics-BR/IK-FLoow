@@ -1,0 +1,33 @@
+<!-- Navegação padrão do Portal Dev Econômico -->
+<nav class="dev-eco-nav">
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+        <a href="{{ url_for('dev_economico.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.dashboard' }}"><i class="fas fa-tachometer-alt"></i>Dashboard</a>
+        <a href="{{ url_for('dev_economico.diagnostico') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.diagnostico' }}"><i class="fas fa-stethoscope"></i>Diagnóstico</a>
+        <a href="{{ url_for('dev_economico.agroindustria') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.agroindustria' }}"><i class="fas fa-tractor"></i>Agroindústria</a>
+        <a href="{{ url_for('dev_economico.investimentos') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.investimentos' }}"><i class="fas fa-hand-holding-usd"></i>Investimentos</a>
+        <a href="{{ url_for('dev_economico.logistica') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.logistica' }}"><i class="fas fa-truck"></i>Logística</a>
+        <a href="{{ url_for('dev_economico.turismo') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.turismo' }}"><i class="fas fa-umbrella-beach"></i>Turismo</a>
+        <a href="{{ url_for('dev_economico.inovacao') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.inovacao' }}"><i class="fas fa-laptop-code"></i>Inovação</a>
+        <a href="{{ url_for('dev_economico.qualificacao') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.qualificacao' }}"><i class="fas fa-graduation-cap"></i>Qualificação</a>
+        <a href="{{ url_for('dev_economico.infraestrutura') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.infraestrutura' }}"><i class="fas fa-hard-hat"></i>Infraestrutura</a>
+        <a href="{{ url_for('dev_economico.compras') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.compras' }}"><i class="fas fa-shopping-bag"></i>Compras</a>
+        <a href="{{ url_for('dev_economico.governanca') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.governanca' }}"><i class="fas fa-landmark"></i>Governança</a>
+        <a href="{{ url_for('dev_economico.metodologia') }}" class="nav-link {{ 'active' if request.endpoint == 'dev_economico.metodologia' }}"><i class="fas fa-book-open"></i>Metodologia</a>
+        <span id="navMunBadge" class="badge bg-info text-dark ms-auto" style="display:none;font-size:.72rem;cursor:pointer" onclick="window.location.href='{{ url_for('dev_economico.dashboard') }}'"></span>
+    </div>
+</nav>
+<script>
+(function(){
+    const munId=new URLSearchParams(location.search).get('municipio_id')||localStorage.getItem('dev_eco_municipio_id');
+    const munNome=localStorage.getItem('dev_eco_municipio_nome');
+    if(munId){
+        document.querySelectorAll('.dev-eco-nav a').forEach(a=>{
+            const u=new URL(a.href,location.origin);
+            u.searchParams.set('municipio_id',munId);
+            a.href=u.toString();
+        });
+        const badge=document.getElementById('navMunBadge');
+        if(badge&&munNome){badge.style.display='inline-block';badge.innerHTML='<i class="fas fa-map-marker-alt me-1"></i>'+munNome+' <span style="cursor:pointer" onclick="event.stopPropagation();localStorage.removeItem(\'dev_eco_municipio_id\');localStorage.removeItem(\'dev_eco_municipio_nome\');location.href=location.pathname;">✕</span>';}
+    }
+})();
+</script>

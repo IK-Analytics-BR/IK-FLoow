@@ -36,7 +36,7 @@
                     <div class="row">
                         <div class="col-md-2">
                             <label class="form-label text-muted small">Código</label>
-                            <p class="fw-bold"><code>{{ ficha.produto_codigo or '-' }}</code></p>
+                            <p class="fw-bold"><code>{{ ficha.produto_codigo or ficha.produto_id }}</code></p>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Produto</label>
@@ -108,12 +108,12 @@
                         <tbody>
                             {% for item in servicos %}
                             <tr>
-                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td><code>{{ item.produto_codigo or item.produto_id }}</code></td>
                                 <td>{{ item.produto_nome or item.descricao or '-' }}</td>
                                 <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
                                 <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_total_base or 0) }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -151,12 +151,12 @@
                         <tbody>
                             {% for item in materias_primas %}
                             <tr>
-                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td><code>{{ item.produto_codigo or item.produto_id }}</code></td>
                                 <td>{{ item.produto_nome or item.descricao or '-' }}</td>
                                 <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
                                 <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_total_base or 0) }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -194,12 +194,12 @@
                         <tbody>
                             {% for item in consumo_interno %}
                             <tr>
-                                <td><code>{{ item.produto_codigo or '-' }}</code></td>
+                                <td><code>{{ item.produto_codigo or item.produto_id }}</code></td>
                                 <td>{{ item.produto_nome or item.descricao or '-' }}</td>
                                 <td class="text-center">{{ "%.2f"|format(item.quantidade or 0) }}</td>
                                 <td class="text-center">{{ item.unidade_medida or item.unidade_produto or 'UN' }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_unitario_base or 0) }}</td>
-                                <td class="text-end">R$ {{ "%.2f"|format(item.custo_total_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_unitario_base or 0) }}</td>
+                                <td class="text-end">R$ {{ "%.3f"|format(item.custo_total_base or 0) }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -422,7 +422,7 @@ document.getElementById('buscaProdutoDestino').addEventListener('input', functio
         return;
     }
     
-    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria=6`)
+    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}`)
         .then(r => r.json())
         .then(produtos => {
             lista.innerHTML = '';

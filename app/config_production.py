@@ -3,7 +3,7 @@
 # ========================================
 
 DB_CONFIG = {
-    'host': '3.19.63.247',
+    'host': 'localhost',
     'user': 'usuario',
     'password': 'Verme958984!',
     'database': 'supply_chain_system',

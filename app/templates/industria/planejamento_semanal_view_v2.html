@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}{{ planejamento.codigo }} — Cronograma{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --cor-massa: #7c3aed; --cor-recheio: #ea580c; --cor-montagem: #2563eb;
+    --cor-empacotamento: #16a34a; --cor-outro: #6b7280;
+    --px-hora: 80px;
+}
+.crono-wrapper { display:flex; gap:0; overflow-x:auto; border:1px solid #dee2e6; border-radius:8px; }
+.crono-hora-col { width:56px; min-width:56px; flex-shrink:0; background:#f8fafc; border-right:2px solid #cbd5e1; position:sticky; left:0; z-index:10; }
+.crono-dia-col { flex:1; min-width:220px; border-right:1px solid #e2e8f0; position:relative; }
+.crono-dia-col:last-child { border-right:none; }
+.dia-hdr { background:#1e293b; color:#fff; text-align:center; padding:10px 6px; font-weight:700; font-size:.9rem; position:sticky; top:0; z-index:5; }
+.dia-hdr small { display:block; font-weight:400; opacity:.7; font-size:.75rem; }
+.hora-hdr { background:#0f172a; color:#fff; text-align:center; padding:10px 4px; font-weight:700; font-size:.75rem; position:sticky; top:0; z-index:11; }
+.hora-label { height:var(--px-hora); display:flex; align-items:flex-start; justify-content:flex-end; padding:3px 8px 0 0; font-size:.75rem; color:#64748b; font-weight:700; border-bottom:1px solid #e2e8f0; }
+.hora-label.almoco { background:#fef3c7; color:#92400e; font-style:italic; }
+.timeline-area { position:relative; height:calc(var(--px-hora)*9); background:repeating-linear-gradient(to bottom,#fff 0px,#fff calc(var(--px-hora)-1px),#e2e8f0 calc(var(--px-hora)-1px),#e2e8f0 var(--px-hora)); }
+.timeline-almoco { position:absolute; left:0; right:0; background:repeating-linear-gradient(45deg,#fef9c3 0px,#fef9c3 5px,#fef3c7 5px,#fef3c7 10px); opacity:.4; z-index:1; pointer-events:none; border-top:1px dashed #f59e0b; border-bottom:1px dashed #f59e0b; }
+.fase-bar { position:absolute; border-radius:7px; color:#fff; padding:4px 8px; font-size:.78rem; cursor:pointer; z-index:3; overflow:hidden; transition:box-shadow .15s,transform .1s; min-height:28px; display:flex; flex-direction:column; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.15); }
+.fase-bar:hover { box-shadow:0 6px 20px rgba(0,0,0,.3); transform:scale(1.015); z-index:8; }
+.fase-bar.sugerido { border:2px dashed rgba(255,255,255,.55); }
+.fase-bar .fb-row { display:flex; justify-content:space-between; align-items:center; gap:4px; }
+.fase-bar .fb-nome { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; font-size:.8rem; }
+.fase-bar .fb-hora { font-size:.7rem; opacity:.9; background:rgba(0,0,0,.25); border-radius:4px; padding:1px 6px; white-space:nowrap; font-weight:600; }
+.fase-bar .fb-detail { font-size:.7rem; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fase-bar .fb-qty { font-weight:700; font-size:.78rem; }
+.timeline-area.drag-over { background:#dbeafe !important; }
+.fase-pop { position:fixed; z-index:200; background:#fff; border:1px solid #dee2e6; border-radius:10px; box-shadow:0 12px 36px rgba(0,0,0,.2); padding:16px; width:300px; font-size:.84rem; }
+.fase-pop .fp-title { font-weight:700; margin-bottom:6px; font-size:.92rem; border-bottom:2px solid #e2e8f0; padding-bottom:6px; }
+.fase-pop label { font-weight:600; font-size:.76rem; margin-bottom:2px; display:block; }
+.legenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.78rem; align-items:center; }
+.legenda-item { display:flex; align-items:center; gap:5px; }
+.legenda-dot { width:14px; height:14px; border-radius:4px; }
+.st-pendente { opacity:.9; } .st-em_andamento { box-shadow:0 0 0 2px #fbbf24 inset; } .st-concluida { opacity:.4; }
+.nav-tabs .nav-link { font-size:.85rem; font-weight:600; }
+.nav-tabs .nav-link.active { border-bottom:3px solid #2563eb; }
+</style>
+
+<div class="container-fluid py-2">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-calendar-week me-2 text-primary"></i>{{ planejamento.codigo }}</h4>
+            <small class="text-muted">
+                {{ planejamento.data_inicio.strftime('%d/%m/%Y') }} a {{ planejamento.data_fim.strftime('%d/%m/%Y') }}
+                — Sem. {{ planejamento.semana_ano }}/{{ planejamento.ano }}
+                — <span class="badge bg-{{ 'success' if planejamento.status == 'em_producao' else 'secondary' }}">{{ planejamento.status|replace('_',' ')|upper }}</span>
+                — <span class="text-muted">{{ fases|length }} fases | {{ ops|length }} OPs</span>
+            </small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-warning btn-sm" onclick="redistribuirFases()" title="Redistribuir fases uniformemente entre seg-sex"><i class="fas fa-sync-alt me-1"></i>Redistribuir</button>
+            <a href="{{ url_for('ordem_producao.listar_planejamentos') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Planejamentos</a>
+            <a href="{{ url_for('ordem_producao.producao_gantt') }}" class="btn btn-primary btn-sm"><i class="fas fa-columns me-1"></i>Kanban</a>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="legenda">
+            <div class="legenda-item"><div class="legenda-dot" style="background:var(--cor-massa)"></div> Massa</div>
+            <div class="legenda-item"><div class="legenda-dot" style="background:var(--cor-recheio)"></div> Recheio</div>
+            <div class="legenda-item"><div class="legenda-dot" style="background:var(--cor-montagem)"></div> Montagem</div>
+            <div class="legenda-item"><div class="legenda-dot" style="background:var(--cor-empacotamento)"></div> Empacotamento</div>
+        </div>
+        <small class="text-muted"><i class="fas fa-lightbulb text-warning me-1"></i>Arraste entre dias · Clique para editar</small>
+    </div>
+
+    <ul class="nav nav-tabs mb-0" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-crono"><i class="fas fa-clock me-1"></i>Cronograma Semanal</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ops2"><i class="fas fa-clipboard-list me-1"></i>OPs ({{ ops|length }})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-itens2"><i class="fas fa-box me-1"></i>Itens ({{ itens|length }})</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active pt-3" id="tab-crono">
+            {% set dias_nome = {'0':'SEGUNDA','1':'TERÇA','2':'QUARTA','3':'QUINTA','4':'SEXTA','5':'SÁBADO'} %}
+            {% set horas = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00'] %}
+            {% set JORNADA_INICIO_MIN = 480 %}
+
+            <div class="crono-wrapper" style="height:calc(var(--px-hora)*9 + 44px); overflow-y:auto;">
+                <div class="crono-hora-col">
+                    <div class="hora-hdr"><i class="fas fa-clock"></i></div>
+                    {% for h in horas %}
+                    <div class="hora-label {% if h == '12:00' %}almoco{% endif %}">{{ h }}</div>
+                    {% endfor %}
+                </div>
+
+                {% for dia in dias %}
+                <div class="crono-dia-col">
+                    <div class="dia-hdr">
+                        {{ dias_nome.get(dia.weekday()|string, '') }}
+                        <small>{{ dia.strftime('%d/%m') }} ({{ cronograma.get(dia, [])|length }})</small>
+                    </div>
+                    <div class="timeline-area"
+                         data-dia="{{ dia.strftime('%Y-%m-%d') }}"
+                         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                         ondragleave="this.classList.remove('drag-over')"
+                         ondrop="dropFase(event, this)">
+
+                        <div class="timeline-almoco" style="top:calc(var(--px-hora)*4); height:var(--px-hora);"></div>
+
+                        {% set dia_fases = cronograma.get(dia, []) %}
+                        {% for f in dia_fases %}
+                            {% set hi_min = f._hi_min | default(480) %}
+                            {% set hf_min = f._hf_min | default(510) %}
+                            {% set top_frac = (hi_min - JORNADA_INICIO_MIN) / 60.0 %}
+                            {% set h_frac = (hf_min - hi_min) / 60.0 %}
+                            {% set h_frac = [h_frac, 0.35] | max %}
+                            {% set tipo_cor = 'empacotamento' if f.fase_tipo == 'empacotamento' else (f.tipo_op or 'outro') %}
+                            {% set cor_map = {'massa':'var(--cor-massa)','recheio':'var(--cor-recheio)','montagem':'var(--cor-montagem)','empacotamento':'var(--cor-empacotamento)'} %}
+                            {% set cor = cor_map.get(tipo_cor, 'var(--cor-outro)') %}
+                            {% set h_px = h_frac * 80 %}
+                            {% set ci = f._col_index | default(0) %}
+                            {% set ct = f._col_total | default(1) %}
+                            {% set cw = 100.0 / ct %}
+                            {% set cl = cw * ci %}
+
+                            <div class="fase-bar st-{{ f.status }} {% if f._sugerido %}sugerido{% endif %}"
+                                 draggable="true" ondragstart="dragFase(event,this)"
+                                 style="top:calc(var(--px-hora)*{{ '%.4f'|format(top_frac) }});height:calc(var(--px-hora)*{{ '%.4f'|format(h_frac) }});left:calc({{ '%.1f'|format(cl) }}% + 2px);width:calc({{ '%.1f'|format(cw) }}% - 4px);background:{{ cor }};"
+                                 data-id="{{ f.id }}"
+                                 data-dia="{{ dia.strftime('%Y-%m-%d') }}"
+                                 data-hi="{{ f._hi_str|default('08:00') }}"
+                                 data-hf="{{ f._hf_str|default('08:30') }}"
+                                 data-qtd="{{ f.quantidade or 0 }}"
+                                 data-nome="{{ f.fase_nome }}"
+                                 data-op="{{ f.numero_op }}"
+                                 data-produto="{{ f.produto_nome }}"
+                                 data-op-id="{{ f.ordem_producao_id }}"
+                                 data-fase-tipo="{{ f.fase_tipo }}"
+                                 onclick="abrirPop(event,this)"
+                                 title="{{ f.fase_nome }} | {{ f.numero_op }} | {{ '%.1f'|format(f.quantidade or 0) }} kg">
+                                <div class="fb-row">
+                                    <span class="fb-nome">{{ f.fase_nome }}</span>
+                                    {% if ct <= 2 %}<span class="fb-hora">{{ f._hi_str|default('') }}-{{ f._hf_str|default('') }}</span>{% endif %}
+                                </div>
+                                {% if h_px >= 40 %}
+                                <div class="fb-detail">{{ f.numero_op }} — {{ f.produto_nome }}</div>
+                                {% endif %}
+                                {% if h_px >= 56 %}
+                                <div class="fb-row mt-auto"><span class="fb-qty">{{ "%.1f"|format(f.quantidade or 0) }} kg</span></div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-pane fade pt-3" id="tab-ops2">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm table-hover align-middle">
+                    <thead class="table-dark"><tr><th>OP</th><th>Tipo</th><th>Produto</th><th class="text-end">Qtd</th><th>Status</th><th class="text-center">Ver</th></tr></thead>
+                    <tbody>
+                        {% for op in ops %}
+                        <tr>
+                            <td><a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="fw-bold text-decoration-none">{{ op.numero_op or '-' }}</a></td>
+                            <td><span class="badge" style="background:{{ {'massa':'var(--cor-massa)','recheio':'var(--cor-recheio)','montagem':'var(--cor-montagem)','empacotamento':'var(--cor-empacotamento)'}.get(op.tipo_op_planejamento,'var(--cor-outro)') }}">{{ op.tipo_op_planejamento|upper }}</span></td>
+                            <td>{{ op.produto_nome }}</td>
+                            <td class="text-end">{{ "%.0f"|format(op.quantidade or 0) }}</td>
+                            <td><span class="badge bg-{{ 'warning' if op.op_status=='em_producao' else ('success' if op.op_status=='concluida' else 'secondary') }}">{{ op.op_status }}</span></td>
+                            <td class="text-center"><a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                        {% else %}<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma OP.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-pane fade pt-3" id="tab-itens2">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm table-hover align-middle">
+                    <thead class="table-dark"><tr><th>Produto</th><th class="text-end">Pacotes</th><th class="text-end">Unidades</th><th>Linha</th></tr></thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.produto_nome }}</td>
+                            <td class="text-end">{{ "%.0f"|format(item.qtd_pacotes or 0) }}</td>
+                            <td class="text-end">{{ "%.0f"|format(item.qtd_unidades or 0) }}</td>
+                            <td>{% if item.linha_nome %}<span class="badge" style="background:{{ item.linha_cor or '#6c757d' }}">{{ item.linha_nome }}</span>{% else %}-{% endif %}</td>
+                        </tr>
+                        {% else %}<tr><td colspan="4" class="text-center text-muted py-3">Nenhum item.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Mover / Dividir -->
+<div class="modal fade" id="modalAcao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-primary bg-opacity-10">
+                <h6 class="modal-title" id="modalAcaoTitle"><i class="fas fa-arrows-alt me-1 text-primary"></i>Mover / Dividir Fase</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-bold mb-1" id="acaoInfo"></p>
+                <p class="small text-muted mb-3" id="acaoSubinfo"></p>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Quantidade a enviar (kg)</label>
+                    <input type="number" step="0.1" min="0.1" class="form-control form-control-sm" id="acaoQtd" oninput="atualizarPreview()">
+                    <div class="form-text small">Deixe o total para mover tudo, ou digite menos para dividir.</div>
+                    <div class="mt-2 small" id="acaoPreview"></div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label small fw-bold">Dia destino</label>
+                    <select class="form-select form-select-sm" id="acaoDia">
+                        {% for dia in dias %}
+                        <option value="{{ dia.strftime('%Y-%m-%d') }}">{{ {'0':'SEG','1':'TER','2':'QUA','3':'QUI','4':'SEX','5':'SAB'}.get(dia.weekday()|string,'') }} {{ dia.strftime('%d/%m') }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label small fw-bold">Hora inicio</label><input type="time" class="form-control form-control-sm" id="acaoHI"></div>
+                    <div class="col-6"><label class="form-label small fw-bold">Hora fim</label><input type="time" class="form-control form-control-sm" id="acaoHF"></div>
+                </div>
+
+                <div class="alert alert-secondary py-2 small mt-3 mb-0" id="acaoMergeInfo" style="display:none">
+                    <i class="fas fa-link me-1"></i>Ja existe esta fase nesse dia. A quantidade sera <strong>somada</strong> ao card existente.
+                </div>
+            </div>
+            <div class="modal-footer py-1">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-sm btn-primary" id="btnConfirmar" onclick="confirmarAcao()"><i class="fas fa-check me-1"></i>Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const BASE_ATUALIZAR = "{{ url_for('ordem_producao.atualizar_fase', fase_id=0) }}";
+const BASE_DIVIDIR = "{{ url_for('ordem_producao.dividir_fase', fase_id=0) }}";
+const URL_REDISTRIBUIR = "{{ url_for('ordem_producao.redistribuir_fases', id=planejamento.id) }}";
+const PX_HORA = 80;
+var _pop = null;
+var _acao = { faseId:null, qtdTotal:0, nome:'', diaOrigem:'' };
+
+function urlFase(base, id) { return base.replace('/0/', '/' + id + '/'); }
+
+/* ── Redistribuir ── */
+function redistribuirFases() {
+    if (!confirm('Redistribuir todas as fases uniformemente entre Seg-Sex?\nIsso vai resetar horarios e redistribuir.')) return;
+    fetch(URL_REDISTRIBUIR, {method:'POST', headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok){alert('Redistribuido! '+d.total_fases+' fases em '+d.dias+' dias.'); location.reload();}
+        else alert('Erro: '+(d.erro||''));
+    }).catch(e=>alert('Erro: '+e));
+}
+
+/* ── Drag & Drop ── */
+var _dragEl = null;
+function dragFase(ev, el) {
+    ev.dataTransfer.setData('fase_id', el.dataset.id);
+    _dragEl = el;
+    el.style.opacity = '.4';
+    setTimeout(()=>{el.style.opacity='';}, 200);
+}
+
+function dropFase(ev, area) {
+    ev.preventDefault();
+    area.classList.remove('drag-over');
+    var faseId = ev.dataTransfer.getData('fase_id');
+    var novoDia = area.dataset.dia;
+    if (!faseId || !novoDia) return;
+
+    var rect = area.getBoundingClientRect();
+    var yRel = ev.clientY - rect.top;
+    var totalMin = 480 + Math.round((yRel / PX_HORA) * 60);
+    var h = Math.floor(totalMin/60), m = Math.floor((totalMin%60)/5)*5;
+    var horaStr = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    var fimMin = totalMin + 30;
+    var hf = Math.floor(fimMin/60), mf = Math.floor((fimMin%60)/5)*5;
+    var horaFimStr = String(hf).padStart(2,'0')+':'+String(mf).padStart(2,'0');
+
+    var el = _dragEl || document.querySelector('[data-id="'+faseId+'"]');
+    if (!el) return;
+    var qtd = parseFloat(el.dataset.qtd) || 0;
+    var nome = el.dataset.nome || '';
+    var diaOrigem = el.dataset.dia || '';
+
+    // Mesmo dia = apenas mover horario
+    if (diaOrigem === novoDia) {
+        fetch(urlFase(BASE_ATUALIZAR, faseId), {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({hora_inicio:horaStr, hora_fim:horaFimStr})
+        }).then(r=>r.json()).then(d=>{if(d.ok)location.reload();else alert('Erro: '+(d.erro||''));}).catch(e=>alert(e));
+        return;
+    }
+
+    // Outro dia = abrir modal
+    abrirModal(faseId, qtd, nome, diaOrigem, novoDia, horaStr, horaFimStr);
+}
+
+/* ── Modal Mover/Dividir ── */
+function abrirModal(faseId, qtd, nome, diaOrigem, diaDest, hi, hf) {
+    fecharPop();
+    _acao = { faseId:faseId, qtdTotal:qtd, nome:nome, diaOrigem:diaOrigem };
+    document.getElementById('acaoInfo').textContent = nome;
+    document.getElementById('acaoSubinfo').textContent = 'Total disponivel: ' + qtd.toFixed(1) + ' kg — Origem: ' + diaOrigem;
+    var inp = document.getElementById('acaoQtd');
+    inp.value = qtd.toFixed(1);
+    inp.max = qtd;
+    inp.min = 0.1;
+    inp.step = '0.1';
+    document.getElementById('acaoDia').value = diaDest || '';
+    document.getElementById('acaoHI').value = hi || '';
+    document.getElementById('acaoHF').value = hf || '';
+    atualizarPreview();
+    new bootstrap.Modal(document.getElementById('modalAcao')).show();
+}
+
+function atualizarPreview() {
+    var mover = parseFloat(document.getElementById('acaoQtd').value) || 0;
+    var total = _acao.qtdTotal;
+    var resta = total - mover;
+    if (resta < 0) resta = 0;
+    var el = document.getElementById('acaoPreview');
+    var btn = document.getElementById('btnConfirmar');
+
+    if (mover <= 0) {
+        el.innerHTML = '<span class="text-muted">Digite a quantidade.</span>';
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar';
+    } else if (mover >= total) {
+        el.innerHTML = '<span class="text-primary"><i class="fas fa-arrows-alt me-1"></i><strong>Mover tudo</strong> (' + total.toFixed(1) + ' kg) para o novo dia</span>';
+        btn.innerHTML = '<i class="fas fa-arrows-alt me-1"></i>Mover Tudo';
+        btn.className = 'btn btn-sm btn-primary';
+    } else {
+        el.innerHTML = '<span class="text-success"><i class="fas fa-cut me-1"></i><strong>Dividir:</strong> Original fica com <strong>' + resta.toFixed(1) + ' kg</strong> | Novo card: <strong>' + mover.toFixed(1) + ' kg</strong></span>';
+        btn.innerHTML = '<i class="fas fa-cut me-1"></i>Dividir';
+        btn.className = 'btn btn-sm btn-warning';
+    }
+}
+
+function confirmarAcao() {
+    if (!_acao.faseId) return;
+    var qtd = parseFloat(document.getElementById('acaoQtd').value);
+    if (!qtd || qtd <= 0) { alert('Informe a quantidade.'); return; }
+    var body = {
+        quantidade: qtd,
+        dia_semana: document.getElementById('acaoDia').value,
+        hora_inicio: document.getElementById('acaoHI').value,
+        hora_fim: document.getElementById('acaoHF').value
+    };
+    fetch(urlFase(BASE_DIVIDIR, _acao.faseId), {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    }).then(r=>r.json()).then(d=>{
+        if(d.ok) location.reload();
+        else alert('Erro: '+(d.erro||''));
+    }).catch(e=>alert(e));
+}
+
+/* ── Popover (clique no card) ── */
+function abrirPop(ev, el) {
+    ev.stopPropagation();
+    fecharPop();
+    var rect = el.getBoundingClientRect();
+    var pop = document.createElement('div');
+    pop.className = 'fase-pop';
+    var left = rect.right + 10;
+    if (left + 310 > window.innerWidth) left = rect.left - 310;
+    pop.style.top = Math.min(rect.top, window.innerHeight - 380) + 'px';
+    pop.style.left = Math.max(4, left) + 'px';
+
+    var fid = el.dataset.id;
+    var qtd = el.dataset.qtd;
+    var nome = el.dataset.nome;
+    var escapedNome = nome.replace(/'/g, "\\'");
+
+    pop.innerHTML =
+        '<div class="fp-title">' +
+            '<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:'+el.style.background+';margin-right:5px;vertical-align:middle;"></span>' +
+            nome +
+            ' <small class="text-muted">('+el.dataset.op+')</small>' +
+        '</div>' +
+        '<div class="small text-muted mb-2">'+el.dataset.produto+' | OP #'+el.dataset.opId+'</div>' +
+        '<div class="mb-2"><label>Quantidade (kg)</label><input type="number" step="0.1" class="form-control form-control-sm" id="pQty" value="'+qtd+'"></div>' +
+        '<div class="row g-2 mb-2">' +
+            '<div class="col-6"><label>Hora inicio</label><input type="time" class="form-control form-control-sm" id="pHI" value="'+el.dataset.hi+'"></div>' +
+            '<div class="col-6"><label>Hora fim</label><input type="time" class="form-control form-control-sm" id="pHF" value="'+el.dataset.hf+'"></div>' +
+        '</div>' +
+        '<div class="d-flex gap-1">' +
+            '<button class="btn btn-sm btn-primary flex-fill" onclick="salvarPop('+fid+')"><i class="fas fa-save me-1"></i>Salvar</button>' +
+            '<button class="btn btn-sm btn-warning flex-fill" onclick="abrirModalFromPop('+fid+','+qtd+',\''+escapedNome+'\',\''+el.dataset.dia+'\')"><i class="fas fa-cut me-1"></i>Dividir</button>' +
+            '<button class="btn btn-sm btn-outline-secondary" onclick="fecharPop()"><i class="fas fa-times"></i></button>' +
+        '</div>';
+    document.body.appendChild(pop);
+    _pop = pop;
+}
+
+function fecharPop() { if(_pop){_pop.remove(); _pop=null;} }
+document.addEventListener('click', function(e){ if(_pop && !_pop.contains(e.target) && !e.target.closest('.fase-bar')) fecharPop(); });
+
+function salvarPop(fid) {
+    var body = {};
+    var q = document.getElementById('pQty').value;
+    var hi = document.getElementById('pHI').value;
+    var hf = document.getElementById('pHF').value;
+    if(q) body.quantidade = parseFloat(q);
+    if(hi) body.hora_inicio = hi;
+    if(hf) body.hora_fim = hf;
+    fetch(urlFase(BASE_ATUALIZAR, fid), {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    }).then(r=>r.json()).then(d=>{if(d.ok)location.reload();else alert('Erro: '+(d.erro||''));}).catch(e=>alert(e));
+}
+
+function abrirModalFromPop(fid, qtd, nome, dia) {
+    fecharPop();
+    abrirModal(fid, qtd, nome, dia, '', '', '');
+}
+</script>
+{% endblock %}

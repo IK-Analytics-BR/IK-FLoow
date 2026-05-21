@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IK Flow — POC Indústria de Salgados</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ik-dark: #0a2540;
+    --ik-teal: #00a5a8;
+    --ik-orange: #e8732a;
+    --ik-blue: #1a3a5c;
+    --ik-light: #f0f6ff;
+    --ik-green: #16a34a;
+    --ik-red: #dc2626;
+    --ik-yellow: #f59e0b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; scroll-behavior:smooth; }
+.slide {
+    min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+    padding:60px 80px; position:relative; page-break-after:always;
+}
+.slide-dark { background:var(--ik-dark); color:#fff; }
+.slide-light { background:var(--ik-light); }
+.slide-white { background:#fff; }
+.slide-teal { background:linear-gradient(135deg, var(--ik-dark) 0%, #0d3b66 50%, var(--ik-teal) 100%); color:#fff; }
+.slide-gradient { background:linear-gradient(135deg, #0a2540 0%, #1a3a5c 100%); color:#fff; }
+.logo { height:60px; max-width:200px; object-fit:contain; margin-bottom:20px; }
+.logo-big { height:80px; max-width:280px; object-fit:contain; margin-bottom:30px; }
+.logo-small { height:36px; max-width:140px; object-fit:contain; }
+h1 { font-size:3rem; font-weight:800; line-height:1.15; margin-bottom:16px; }
+h2 { font-size:2.2rem; font-weight:700; line-height:1.2; margin-bottom:12px; }
+h3 { font-size:1.5rem; font-weight:600; margin-bottom:10px; }
+h4 { font-size:1.15rem; font-weight:600; margin-bottom:6px; }
+.subtitle { font-size:1.3rem; font-weight:400; opacity:.85; margin-bottom:30px; }
+.tag { display:inline-block; background:var(--ik-teal); color:#fff; padding:4px 14px; border-radius:20px; font-size:.8rem; font-weight:600; margin-right:6px; margin-bottom:6px; }
+.tag-orange { background:var(--ik-orange); }
+.tag-green { background:var(--ik-green); }
+.tag-blue { background:var(--ik-blue); }
+.tag-red { background:var(--ik-red); }
+.tag-yellow { background:var(--ik-yellow); color:#000; }
+.cards { display:grid; gap:24px; margin-top:24px; }
+.cards-2 { grid-template-columns:1fr 1fr; }
+.cards-3 { grid-template-columns:1fr 1fr 1fr; }
+.cards-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.card {
+    background:#fff; border-radius:14px; padding:28px; box-shadow:0 4px 24px rgba(0,0,0,.08);
+    border-left:5px solid var(--ik-teal); transition:transform .2s;
+}
+.card:hover { transform:translateY(-3px); }
+.card-dark { background:rgba(255,255,255,.08); border-left-color:var(--ik-teal); color:#fff; }
+.card-orange { border-left-color:var(--ik-orange); }
+.card-green { border-left-color:var(--ik-green); }
+.card-blue { border-left-color:#2563eb; }
+.card-red { border-left-color:var(--ik-red); }
+.card h4 { color:var(--ik-dark); }
+.card-dark h4 { color:var(--ik-teal); }
+.card p, .card li { font-size:.92rem; line-height:1.6; color:#475569; }
+.card-dark p, .card-dark li { color:rgba(255,255,255,.8); }
+.card ul { padding-left:18px; margin-top:6px; }
+.card li { margin-bottom:4px; }
+.screenshot {
+    border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.15);
+    max-width:100%; border:2px solid #e2e8f0; margin:16px 0;
+}
+.screenshot-container { text-align:center; margin:20px 0; }
+.screenshot-label { font-size:.8rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.timeline { position:relative; margin:30px 0; padding-left:40px; }
+.timeline::before { content:''; position:absolute; left:14px; top:0; bottom:0; width:3px; background:var(--ik-teal); border-radius:2px; }
+.timeline-item { position:relative; margin-bottom:28px; }
+.timeline-item::before {
+    content:''; position:absolute; left:-33px; top:4px; width:16px; height:16px;
+    background:var(--ik-teal); border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 3px var(--ik-teal);
+}
+.timeline-item.done::before { background:var(--ik-green); box-shadow:0 0 0 3px var(--ik-green); }
+.timeline-item.pending::before { background:#fff; border:3px solid var(--ik-orange); box-shadow:0 0 0 3px var(--ik-orange); }
+.timeline-date { font-size:.8rem; font-weight:700; color:var(--ik-teal); text-transform:uppercase; }
+.timeline-item.done .timeline-date { color:var(--ik-green); }
+.timeline-item.pending .timeline-date { color:var(--ik-orange); }
+.timeline-title { font-size:1.05rem; font-weight:600; }
+.timeline-desc { font-size:.88rem; color:#64748b; margin-top:2px; }
+.tbl { width:100%; border-collapse:collapse; margin:16px 0; font-size:.9rem; }
+.tbl th { background:var(--ik-dark); color:#fff; padding:12px 16px; text-align:left; font-weight:600; }
+.tbl td { padding:10px 16px; border-bottom:1px solid #e2e8f0; }
+.tbl tr:nth-child(even) { background:#f8fafc; }
+.tbl .status-ok { color:var(--ik-green); font-weight:700; }
+.tbl .status-dev { color:var(--ik-orange); font-weight:700; }
+.tbl .status-plan { color:#6366f1; font-weight:700; }
+.divider { width:80px; height:4px; background:var(--ik-teal); border-radius:2px; margin:16px 0 24px; }
+.divider-white { background:rgba(255,255,255,.4); }
+.slide-footer {
+    position:absolute; bottom:20px; left:80px; right:80px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:.75rem; color:#94a3b8; border-top:1px solid rgba(148,163,184,.2); padding-top:12px;
+}
+.slide-dark .slide-footer, .slide-gradient .slide-footer { color:rgba(255,255,255,.4); border-top-color:rgba(255,255,255,.1); }
+.big-number { font-size:3.5rem; font-weight:900; color:var(--ik-teal); line-height:1; }
+.flex { display:flex; gap:40px; align-items:flex-start; }
+.flex-center { align-items:center; }
+.flex-1 { flex:1; }
+.mt-1 { margin-top:8px; } .mt-2 { margin-top:16px; } .mt-3 { margin-top:24px; }
+.mb-2 { margin-bottom:16px; } .mb-3 { margin-bottom:24px; }
+.text-teal { color:var(--ik-teal); }
+.text-orange { color:var(--ik-orange); }
+.text-green { color:var(--ik-green); }
+.text-muted { color:#94a3b8; }
+.text-center { text-align:center; }
+.fw-700 { font-weight:700; }
+.fs-sm { font-size:.88rem; }
+@media print {
+    @page { size:landscape; margin:0; }
+    body { background:#fff; }
+    .slide {
+        page-break-after:always; page-break-inside:avoid;
+        min-height:100vh; height:100vh; max-height:100vh;
+        padding:30px 50px; overflow:hidden;
+    }
+    .slide:last-child { page-break-after:auto; }
+    .screenshot { max-height:55vh; object-fit:contain; }
+    .nav-dots, .pdf-btn { display:none !important; }
+    .slide-footer { position:absolute; bottom:10px; }
+    .card { box-shadow:none; border:1px solid #e2e8f0; }
+}
+.pdf-btn {
+    position:fixed; left:20px; bottom:20px; z-index:200;
+    background:var(--ik-teal); color:#fff; border:none; border-radius:8px;
+    padding:10px 20px; font-size:.85rem; font-weight:600; cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,.2); transition:all .2s;
+    font-family:'Inter',sans-serif;
+}
+.pdf-btn:hover { background:#008b8e; transform:translateY(-2px); }
+.nav-dots {
+    position:fixed; right:20px; top:50%; transform:translateY(-50%); z-index:100;
+    display:flex; flex-direction:column; gap:8px;
+}
+.nav-dot {
+    width:10px; height:10px; border-radius:50%; background:rgba(0,0,0,.2);
+    cursor:pointer; transition:all .2s;
+}
+.nav-dot:hover { background:var(--ik-teal); transform:scale(1.3); }
+.img-placeholder {
+    background:linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+    border:2px dashed #cbd5e1; border-radius:12px; display:flex; align-items:center;
+    justify-content:center; color:#94a3b8; font-size:.9rem; font-weight:600;
+    min-height:200px; text-align:center; padding:20px;
+}
+</style>
+</head>
+<body>
+
+<button class="pdf-btn" onclick="window.print()" title="Salvar como PDF">📄 Exportar PDF</button>
+
+<div class="nav-dots">
+    <div class="nav-dot" onclick="document.getElementById('s1').scrollIntoView({behavior:'smooth'})" title="Capa"></div>
+    <div class="nav-dot" onclick="document.getElementById('s2').scrollIntoView({behavior:'smooth'})" title="Sobre"></div>
+    <div class="nav-dot" onclick="document.getElementById('s3').scrollIntoView({behavior:'smooth'})" title="Personalizações"></div>
+    <div class="nav-dot" onclick="document.getElementById('s4').scrollIntoView({behavior:'smooth'})" title="Planejamento"></div>
+    <div class="nav-dot" onclick="document.getElementById('s5').scrollIntoView({behavior:'smooth'})" title="Matéria-prima"></div>
+    <div class="nav-dot" onclick="document.getElementById('s6').scrollIntoView({behavior:'smooth'})" title="Cronograma"></div>
+    <div class="nav-dot" onclick="document.getElementById('s7').scrollIntoView({behavior:'smooth'})" title="Kanban"></div>
+    <div class="nav-dot" onclick="document.getElementById('s8').scrollIntoView({behavior:'smooth'})" title="Ordens"></div>
+    <div class="nav-dot" onclick="document.getElementById('s9').scrollIntoView({behavior:'smooth'})" title="Multi-país"></div>
+    <div class="nav-dot" onclick="document.getElementById('s10').scrollIntoView({behavior:'smooth'})" title="Pendências"></div>
+    <div class="nav-dot" onclick="document.getElementById('s11').scrollIntoView({behavior:'smooth'})" title="Roadmap"></div>
+    <div class="nav-dot" onclick="document.getElementById('s12').scrollIntoView({behavior:'smooth'})" title="Investimento"></div>
+    <div class="nav-dot" onclick="document.getElementById('s13').scrollIntoView({behavior:'smooth'})" title="Encerramento"></div>
+</div>
+
+<!-- ══════════ SLIDE 1 — CAPA ══════════ -->
+<div class="slide slide-dark" id="s1" style="justify-content:center; align-items:center; text-align:center;">
+    <img src="img/logo_ikflow.png" class="logo-big" alt="IK Flow" onerror="this.style.display='none'">
+    <h1 style="font-size:2.8rem; margin-top:20px;">POC — Sistema de Gestão Industrial<br><span class="text-teal">Indústria de Salgados</span></h1>
+    <div style="width:120px; height:4px; background:var(--ik-teal); border-radius:2px; margin:24px auto;"></div>
+    <p class="subtitle" style="max-width:700px; margin:0 auto 30px;">Plataforma completa para planejamento de produção, controle de estoque, ordens de produção e gestão operacional — personalizada para a indústria alimentícia.</p>
+    <div>
+        <span class="tag">Planejamento Semanal</span>
+        <span class="tag tag-orange">Ordens de Produção</span>
+        <span class="tag tag-green">Controle de Estoque</span>
+        <span class="tag tag-blue">Multi-país BR/PY</span>
+    </div>
+    <p style="margin-top:40px; font-size:.9rem; opacity:.5;">Fevereiro 2026 — Apresentação POC</p>
+    <div class="slide-footer"><span>IK Flow — Sistema de Gestão</span><span>Confidencial</span></div>
+</div>
+
+<!-- ══════════ SLIDE 2 — O QUE O SISTEMA CONTEMPLA ══════════ -->
+<div class="slide slide-white" id="s2">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">O que o sistema <span class="text-teal">já contempla</span></h2>
+    <div class="divider"></div>
+    <p class="fs-sm mb-3" style="max-width:800px;">O IK Flow é um ERP web completo já em operação. Abaixo, os módulos principais disponíveis:</p>
+    <div class="cards cards-3">
+        <div class="card">
+            <h4>📦 Cadastros Base</h4>
+            <ul>
+                <li>Produtos, categorias e pacotes</li>
+                <li>Clientes e fornecedores</li>
+                <li>Matérias-primas e insumos</li>
+                <li>Fichas técnicas com composição</li>
+                <li>Linhas de produção configuráveis</li>
+            </ul>
+        </div>
+        <div class="card card-orange">
+            <h4>💰 Comercial</h4>
+            <ul>
+                <li>Orçamentos com cálculo automático</li>
+                <li>Pedidos de venda</li>
+                <li>Tabelas de preço</li>
+                <li>Margem e markup por produto</li>
+                <li>Histórico por cliente</li>
+            </ul>
+        </div>
+        <div class="card card-green">
+            <h4>📊 Estoque</h4>
+            <ul>
+                <li>Controle em tempo real</li>
+                <li>Entradas e saídas</li>
+                <li>Previsão de consumo semanal</li>
+                <li>Alertas de nível (Urgente/Atenção/OK)</li>
+                <li>Saldo projetado após produção</li>
+            </ul>
+        </div>
+        <div class="card card-blue">
+            <h4>🏭 Produção Industrial</h4>
+            <ul>
+                <li>Planejamento semanal de produção</li>
+                <li>Geração automática de OPs</li>
+                <li>Fases de produção por OP</li>
+                <li>Cronograma visual interativo</li>
+                <li>Kanban de produção (Gantt)</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h4>👥 Usuários e Permissões</h4>
+            <ul>
+                <li>Controle de acesso por perfil</li>
+                <li>Permissões granulares por módulo</li>
+                <li>Log de ações (auditoria)</li>
+                <li>Multi-empresa</li>
+            </ul>
+        </div>
+        <div class="card card-orange">
+            <h4>💱 Multi-moeda / Multi-país</h4>
+            <ul>
+                <li>Cotações em tempo real (BRL, USD, PYG, ARS, CNY)</li>
+                <li>Conversão automática de valores</li>
+                <li>Suporte a operação Brasil + Paraguai</li>
+                <li>Base para cálculo tributário cross-border</li>
+            </ul>
+        </div>
+    </div>
+    <div class="slide-footer"><span>IK Flow — Funcionalidades Gerais</span><span>2 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 3 — PERSONALIZAÇÕES ══════════ -->
+<div class="slide slide-gradient" id="s3">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">Personalizações desenvolvidas<br><span class="text-teal">para a Indústria de Salgados</span></h2>
+    <div style="width:80px; height:4px; background:var(--ik-teal); border-radius:2px; margin:16px 0 24px;"></div>
+    <div class="cards cards-2">
+        <div class="card card-dark">
+            <h4>🧮 Planejamento Inteligente de Produção</h4>
+            <p>Cálculo automático de quantidades a produzir com base no estoque atual, previsão de vendas e nível de segurança. Classifica cada produto como <strong>Urgente</strong>, <strong>Atenção</strong> ou <strong>OK</strong>.</p>
+        </div>
+        <div class="card card-dark card-orange">
+            <h4>🍞 Fichas Técnicas por Tipo</h4>
+            <p>Separação automática por <strong>Massas</strong>, <strong>Recheios</strong>, <strong>Embalagens</strong> e <strong>Matéria-prima</strong>. Cada ficha calcula ingredientes proporcionalmente à quantidade planejada.</p>
+        </div>
+        <div class="card card-dark card-green">
+            <h4>📋 Geração Automática de OPs</h4>
+            <p>A partir do planejamento, o sistema gera automaticamente Ordens de Produção separadas por tipo: <strong>Massa</strong>, <strong>Recheio</strong> e <strong>Montagem</strong>, com fases de produção pré-definidas.</p>
+        </div>
+        <div class="card card-dark card-blue">
+            <h4>📅 Cronograma Semanal Visual</h4>
+            <p>Timeline interativa com <strong>drag-and-drop</strong> para reorganizar fases entre dias e horários. Fases simultâneas lado a lado. Divisão parcial/total de cards entre dias.</p>
+        </div>
+        <div class="card card-dark">
+            <h4>🔄 Kanban de Produção</h4>
+            <p>Visão Kanban com etapas: <strong>Preparar → Cozinhar → Resfriar → Montar → Pré-fritura → Empacotar → Congelar → Estoque</strong>. Arraste cards entre etapas com log.</p>
+        </div>
+        <div class="card card-dark card-orange">
+            <h4>📊 Controle de Matéria-prima por Fase</h4>
+            <p>Cálculo automático de necessidade de matéria-prima separado por tipo (massa, recheio, embalagem). Indicadores visuais de <strong>Comprar</strong>, <strong>Atenção</strong> e <strong>OK</strong>.</p>
+        </div>
+    </div>
+    <div class="slide-footer"><span>IK Flow — Personalizações</span><span>3 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 4 — PLANEJAMENTO ══════════ -->
+<div class="slide slide-light" id="s4" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Planejamento de Produção Semanal</h2>
+    <p class="fs-sm" style="max-width:900px;">Cálculo automático de sugestão de produção com base em <strong>estoque atual</strong>, <strong>previsão de vendas</strong> e <strong>nível de segurança</strong>. Classificação: <span style="color:var(--ik-red); font-weight:700;">Urgente</span> / <span style="color:var(--ik-yellow); font-weight:700;">Atenção</span> / <span style="color:var(--ik-green); font-weight:700;">OK</span> — 31 pacotes monitorados.
+        <span class="tag tag-green" style="margin-left:12px;">Implementado</span><span class="tag">Personalizado</span>
+    </p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_planejamento.png" class="screenshot" alt="Planejamento" style="max-height:72vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Planejamento de Produção Semanal<br><small>Salve como img/poc/poc_planejamento.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Planejamento</span><span>4 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 5a — MATÉRIA-PRIMA GERAL ══════════ -->
+<div class="slide slide-white" id="s5" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Controle de Matéria-prima — <span class="text-teal">Resumo Geral</span></h2>
+    <p class="fs-sm">Visão consolidada de todos os insumos necessários (massa + recheio + embalagem) com situação de estoque.
+        <span class="tag tag-green" style="margin-left:8px; font-size:.7rem;">44 itens</span>
+        <span class="tag tag-red" style="font-size:.7rem;">1 Comprar</span>
+        <span class="tag tag-yellow" style="font-size:.7rem;">1 Atenção</span>
+        <span class="tag tag-green" style="font-size:.7rem;">42 OK</span>
+    </p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_materiaprima.png" class="screenshot" alt="Matéria-prima" style="max-height:72vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Matéria-prima Geral<br><small>Salve como img/poc/poc_materiaprima.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Matéria-prima</span><span>5a / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 5b — MASSAS DETALHE ══════════ -->
+<div class="slide slide-light" id="s5b" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Controle de Matéria-prima — <span class="text-teal">Massas</span></h2>
+    <p class="fs-sm">Detalhe por tipo de massa com quantidade total estimada e necessidade de cada insumo vs estoque atual.</p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_massas.png" class="screenshot" alt="Massas" style="max-height:72vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Detalhe Massas<br><small>Salve como img/poc/poc_massas.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Massas</span><span>5b / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 6 — CRONOGRAMA ══════════ -->
+<div class="slide slide-light" id="s6" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Cronograma Semanal <span class="text-teal">Interativo</span></h2>
+    <p class="fs-sm"><strong>Drag & Drop</strong> entre dias · <strong>Dividir/Mover</strong> parcial ou total · <strong>Merge automático</strong> ao devolver · Cores por tipo (Massa, Recheio, Montagem, Empacotamento)</p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_cronograma.png" class="screenshot" alt="Cronograma" style="max-height:74vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Cronograma Semanal Interativo<br><small>Salve como img/poc/poc_cronograma.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Cronograma</span><span>6 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 7 — KANBAN ══════════ -->
+<div class="slide slide-white" id="s7" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Kanban de Produção <span class="text-teal">(Gantt)</span></h2>
+    <p class="fs-sm">Fluxo em <strong>8 etapas</strong>: Preparar Massa → Cozinhar → Resfriar → Preparar Recheio → Montagem → Pré-fritura → Empacotamento → Congelamento → Estoque. Arraste cards entre etapas.</p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_kanban.png" class="screenshot" alt="Kanban" style="max-height:72vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Kanban de Produção<br><small>Salve como img/poc/poc_kanban.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Kanban</span><span>7 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 8 — ORDENS DE PRODUÇÃO ══════════ -->
+<div class="slide slide-light" id="s8" style="justify-content:flex-start; padding-top:40px;">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:10px;">Ordens de Produção</h2>
+    <p class="fs-sm">Geração automática a partir do planejamento. Tipo (Massa/Recheio/Montagem) · Produto e quantidade · Custo total via ficha técnica · Status: Pendente → Em Produção → Concluída · <strong>26 OPs</strong> nesta semana.
+        <span class="tag tag-green" style="margin-left:8px;">Implementado</span><span class="tag">Personalizado</span>
+    </p>
+    <div class="screenshot-container" style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/poc/poc_ops.png" class="screenshot" alt="OPs" style="max-height:72vh; max-width:100%; object-fit:contain;" onerror="this.outerHTML='<div class=img-placeholder style=height:400px;width:100%>Screenshot: Ordens de Produção<br><small>Salve como img/poc/poc_ops.png</small></div>'">
+    </div>
+    <div class="slide-footer"><span>IK Flow — Ordens de Produção</span><span>8 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 9 — MULTI-PAÍS ══════════ -->
+<div class="slide slide-gradient" id="s9">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">Operação Multi-país<br><span class="text-teal">Brasil + Paraguai</span></h2>
+    <div style="width:80px; height:4px; background:var(--ik-teal); border-radius:2px; margin:16px 0 24px;"></div>
+    <div class="flex flex-center">
+        <div class="flex-1">
+            <div class="screenshot-container">
+                <img src="img/poc/poc_cotacoes.png" class="screenshot" alt="Cotações" style="max-height:50vh; max-width:100%; object-fit:contain; border-color:rgba(255,255,255,.2);" onerror="this.outerHTML='<div class=img-placeholder style=height:300px;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.5)>Screenshot: Cotações Multi-moeda<br><small>Salve como img/poc/poc_cotacoes.png</small></div>'">
+            </div>
+        </div>
+        <div class="flex-1">
+            <div class="cards" style="gap:16px;">
+                <div class="card card-dark">
+                    <h4>💱 Cotações em Tempo Real</h4>
+                    <p>BRL, USD, PYG (Guarani), ARS, CNY — atualizadas automaticamente via API do Banco Central.</p>
+                </div>
+                <div class="card card-dark card-green">
+                    <h4>🏭 Produção no Paraguai</h4>
+                    <p>Suporte para operação fabril no Paraguai com custos em Guarani e venda no Brasil em Reais. Objetivo: reduzir carga tributária e maximizar margem.</p>
+                </div>
+                <div class="card card-dark card-orange">
+                    <h4>📊 Análise de Viabilidade</h4>
+                    <p>Comparativo de custos BR vs PY, incluindo logística, impostos e câmbio para maximizar margem de lucro.</p>
+                </div>
+                <div class="card card-dark card-blue">
+                    <h4>🌐 Multi-empresa</h4>
+                    <p>Gestão de entidades jurídicas separadas (BR e PY) com consolidação de dados em um único painel gerencial.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>IK Flow — Multi-país</span><span>9 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 10 — PENDÊNCIAS ══════════ -->
+<div class="slide slide-white" id="s10">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">O que falta ser <span class="text-orange">implementado</span></h2>
+    <div class="divider" style="background:var(--ik-orange);"></div>
+    <table class="tbl">
+        <thead>
+            <tr>
+                <th style="width:28%;">Módulo / Funcionalidade</th>
+                <th style="width:44%;">Descrição</th>
+                <th style="width:14%;">Status</th>
+                <th style="width:14%;">Prazo Est.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Romaneio de Produção</strong></td>
+                <td>Documento de acompanhamento diário com checklist de fases, assinatura do operador e registro de perdas/sobras.</td>
+                <td class="status-dev">Em Desenvolvimento</td>
+                <td>2 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Apontamento de Produção</strong></td>
+                <td>Registro de quantidade real produzida por fase, tempo gasto, operador responsável e observações.</td>
+                <td class="status-plan">Planejado</td>
+                <td>3 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Controle de Perdas</strong></td>
+                <td>Registro e análise de perdas por fase (quebra, desperdício, reprocesso). Dashboard com indicadores.</td>
+                <td class="status-plan">Planejado</td>
+                <td>2 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Dashboard Gerencial</strong></td>
+                <td>Painel executivo com KPIs: produtividade, custo/kg, OEE, perdas, comparativo semanal.</td>
+                <td class="status-plan">Planejado</td>
+                <td>3 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Módulo Fiscal BR/PY</strong></td>
+                <td>Cálculo tributário para operação cross-border: ICMS, IPI, PIS/COFINS (BR) e IVA (PY). Simulação de cenários.</td>
+                <td class="status-plan">Planejado</td>
+                <td>6 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Custeio por Absorção</strong></td>
+                <td>Rateio de custos indiretos (energia, mão de obra, depreciação) por produto. Custo real vs planejado.</td>
+                <td class="status-plan">Planejado</td>
+                <td>4 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Relatórios e Exportação</strong></td>
+                <td>Relatórios em PDF/Excel: produção diária, consumo de MP, custos, rastreabilidade de lote.</td>
+                <td class="status-plan">Planejado</td>
+                <td>3 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>Integração Balança/Leitor</strong></td>
+                <td>Integração com balanças industriais e leitores de código de barras para apontamento automático.</td>
+                <td class="status-plan">Planejado</td>
+                <td>4 semanas</td>
+            </tr>
+            <tr>
+                <td><strong>App Mobile (Chão de Fábrica)</strong></td>
+                <td>Interface simplificada para operadores: visualizar OP do dia, registrar produção, reportar problemas.</td>
+                <td class="status-plan">Planejado</td>
+                <td>6 semanas</td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="slide-footer"><span>IK Flow — Pendências</span><span>10 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 11 — ROADMAP ══════════ -->
+<div class="slide slide-light" id="s11">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">Roadmap de <span class="text-teal">Desenvolvimento</span></h2>
+    <div class="divider"></div>
+    <div class="flex">
+        <div class="flex-1">
+            <div class="timeline">
+                <div class="timeline-item done">
+                    <div class="timeline-date">Concluído — Jan/Fev 2026</div>
+                    <div class="timeline-title">Fase 1 — Core Industrial</div>
+                    <div class="timeline-desc">Planejamento semanal, geração de OPs, cronograma visual, Kanban, controle de matéria-prima, fichas técnicas, cotações multi-moeda.</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Fev/Mar 2026 — Semanas 1 a 4 (simultâneo)</div>
+                    <div class="timeline-title">Fase 2 + 3 + 4 — Desenvolvimento Paralelo</div>
+                    <div class="timeline-desc">
+                        <strong>Acompanhamento:</strong> Romaneio, apontamento, controle de perdas<br>
+                        <strong>Custos:</strong> Dashboard gerencial, custeio por absorção, KPIs<br>
+                        <strong>Multi-país:</strong> Módulo fiscal BR/PY, simulação tributária, multi-empresa
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Mar 2026 — Semanas 5 a 6 (simultâneo)</div>
+                    <div class="timeline-title">Fase 5 — Automação, Mobile e Finalização</div>
+                    <div class="timeline-desc">Integração com balanças/leitores, app mobile chão de fábrica, relatórios, testes finais e go-live.</div>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1">
+            <div class="card" style="background:var(--ik-dark); color:#fff; padding:30px;">
+                <h3 style="color:var(--ik-teal); margin-bottom:16px;">Desenvolvimento Simultâneo</h3>
+                <p style="font-size:.82rem; color:rgba(255,255,255,.6); margin-bottom:16px;">Todas as frentes em paralelo para entrega acelerada:</p>
+                <!-- Gantt visual -->
+                <div style="font-size:.78rem; color:rgba(255,255,255,.7);">
+                    <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="width:130px; font-weight:600;">Core Industrial</span>
+                        <div style="flex:1; height:18px; background:var(--ik-green); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:.7rem; font-weight:700;">CONCLUÍDO</div>
+                    </div>
+                    <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="width:130px; font-weight:600;">Acompanhamento</span>
+                        <div style="width:66%; height:18px; background:var(--ik-teal); border-radius:4px; display:flex; align-items:center; padding-left:8px; color:#fff; font-size:.7rem; font-weight:600;">Sem 1–4</div>
+                    </div>
+                    <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="width:130px; font-weight:600;">Custos</span>
+                        <div style="width:66%; height:18px; background:var(--ik-orange); border-radius:4px; display:flex; align-items:center; padding-left:8px; color:#fff; font-size:.7rem; font-weight:600;">Sem 1–4</div>
+                    </div>
+                    <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="width:130px; font-weight:600;">Multi-país/Fiscal</span>
+                        <div style="width:66%; height:18px; background:#6366f1; border-radius:4px; display:flex; align-items:center; padding-left:8px; color:#fff; font-size:.7rem; font-weight:600;">Sem 1–4</div>
+                    </div>
+                    <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="width:130px; font-weight:600;">Automação/Mobile</span>
+                        <div style="width:33%; margin-left:calc(66% - 33%); height:18px; background:#f472b6; border-radius:4px; display:flex; align-items:center; padding-left:8px; color:#fff; font-size:.7rem; font-weight:600;">Sem 5–6</div>
+                    </div>
+                    <div style="display:flex; margin-top:8px; font-size:.7rem; color:rgba(255,255,255,.4);">
+                        <span style="width:130px;"></span>
+                        <span style="flex:1; display:flex; justify-content:space-between;">
+                            <span>Sem 1</span><span>Sem 2</span><span>Sem 3</span><span>Sem 4</span><span>Sem 5</span><span>Sem 6</span>
+                        </span>
+                    </div>
+                </div>
+                <div style="margin-top:20px; padding-top:16px; border-top:2px solid var(--ik-teal);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:1.1rem; font-weight:700;">Prazo Total Estimado</span>
+                        <span style="font-size:1.4rem; font-weight:900; color:var(--ik-teal);">6 semanas</span>
+                    </div>
+                    <p style="font-size:.8rem; color:rgba(255,255,255,.5); margin-top:4px;">Previsão de conclusão: Março 2026</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>IK Flow — Roadmap</span><span>11 / 12</span></div>
+</div>
+
+<!-- ══════════ SLIDE 12 — INVESTIMENTO ══════════ -->
+<div class="slide slide-teal" id="s12">
+    <img src="img/logo_ikflow.png" class="logo-small" alt="IK Flow" onerror="this.style.display='none'">
+    <h2 style="margin-top:16px;">Investimento</h2>
+    <div style="width:80px; height:4px; background:rgba(255,255,255,.4); border-radius:2px; margin:16px 0 30px;"></div>
+
+    <div class="cards cards-3" style="gap:28px;">
+        <!-- IMPLANTAÇÃO -->
+        <div class="card card-dark" style="text-align:center; padding:36px 28px;">
+            <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--ik-teal); margin-bottom:12px;">Implantação</div>
+            <div style="font-size:.85rem; color:rgba(255,255,255,.5); margin-bottom:4px;">Pagamento único</div>
+            <div style="font-size:3rem; font-weight:900; color:#fff; line-height:1;">US$ 5.000</div>
+            <div style="font-size:1.1rem; color:rgba(255,255,255,.6); margin-top:6px;">≈ R$ 26.000</div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.1); font-size:.8rem; color:rgba(255,255,255,.6); text-align:left;">
+                <ul style="padding-left:16px; margin:0;">
+                    <li>Configuração e personalização</li>
+                    <li>Migração de dados</li>
+                    <li>Treinamento da equipe</li>
+                    <li>Suporte dedicado na implantação</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- FASE 1 -->
+        <div class="card card-dark card-green" style="text-align:center; padding:36px 28px; border-left-width:5px;">
+            <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--ik-green); margin-bottom:12px;">Fase 1 — Operação Brasil</div>
+            <div style="font-size:.85rem; color:rgba(255,255,255,.5); margin-bottom:4px;">Mensalidade</div>
+            <div style="font-size:3rem; font-weight:900; color:#fff; line-height:1;">US$ 1.800</div>
+            <div style="font-size:1.1rem; color:rgba(255,255,255,.6); margin-top:6px;">≈ R$ 9.400 /mês</div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.1); font-size:.8rem; color:rgba(255,255,255,.6); text-align:left;">
+                <ul style="padding-left:16px; margin:0;">
+                    <li>Todos os módulos do sistema</li>
+                    <li>Planejamento de produção</li>
+                    <li>Ordens de produção + Kanban</li>
+                    <li>Controle de estoque e MP</li>
+                    <li>Suporte e atualizações</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- FASE 2 -->
+        <div class="card card-dark card-orange" style="text-align:center; padding:36px 28px; border-left-width:5px;">
+            <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--ik-orange); margin-bottom:12px;">Fase 2 — Brasil + Paraguai</div>
+            <div style="font-size:.85rem; color:rgba(255,255,255,.5); margin-bottom:4px;">Mensalidade</div>
+            <div style="font-size:3rem; font-weight:900; color:#fff; line-height:1;">US$ 3.200</div>
+            <div style="font-size:1.1rem; color:rgba(255,255,255,.6); margin-top:6px;">≈ R$ 16.700 /mês</div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.1); font-size:.8rem; color:rgba(255,255,255,.6); text-align:left;">
+                <ul style="padding-left:16px; margin:0;">
+                    <li>Tudo da Fase 1 +</li>
+                    <li>Operação multi-país (BR + PY)</li>
+                    <li>Multi-moeda e conversão automática</li>
+                    <li>Módulo fiscal cross-border</li>
+                    <li>Consolidação multi-empresa</li>
+                </ul>
+            </div>
+            <div style="margin-top:12px; font-size:.75rem; color:var(--ik-orange); font-weight:600;">Aplicada a partir do início efetivo da operação no Paraguai</div>
+        </div>
+    </div>
+
+    <div style="margin-top:30px; background:rgba(255,255,255,.06); border-radius:10px; padding:18px 28px; max-width:800px;">
+        <p style="font-size:.85rem; color:rgba(255,255,255,.7); margin:0; line-height:1.7;">
+            <strong style="color:#fff;">Condições:</strong> Valores fixados em dólar (USD) e convertidos para reais na data de faturamento, conforme cotação vigente.
+            A Fase 2 é aplicada somente a partir do início efetivo da operação no Paraguai.
+        </p>
+    </div>
+
+    <div class="slide-footer"><span>IK Flow — Investimento</span><span>12 / 13</span></div>
+</div>
+
+<!-- ══════════ SLIDE 13 — ENCERRAMENTO ══════════ -->
+<div class="slide slide-dark" id="s13" style="justify-content:center; align-items:center; text-align:center;">
+    <img src="img/logo_ikflow.png" class="logo-big" alt="IK Flow" onerror="this.style.display='none'">
+    <h1 style="margin-top:30px; font-size:2.5rem;">Obrigado!</h1>
+    <div style="width:80px; height:4px; background:var(--ik-teal); border-radius:2px; margin:20px auto;"></div>
+    <p class="subtitle" style="max-width:600px; margin:0 auto;">Estamos prontos para transformar a operação da sua indústria com tecnologia, eficiência e inteligência.</p>
+    <div style="margin-top:40px;">
+        <span class="tag" style="font-size:1rem; padding:8px 24px;">Próximos passos?</span>
+    </div>
+    <p style="margin-top:30px; font-size:.85rem; opacity:.4;">IK Flow — Sistema de Gestão Industrial<br>Fevereiro 2026</p>
+    <div class="slide-footer"><span>IK Flow</span><span>13 / 13</span></div>
+</div>
+
+<script>
+document.addEventListener('keydown', function(e) {
+    var slides = document.querySelectorAll('.slide');
+    var current = 0;
+    slides.forEach(function(s, i) {
+        var rect = s.getBoundingClientRect();
+        if (rect.top <= 100 && rect.bottom > 100) current = i;
+    });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        if (current < slides.length - 1) slides[current + 1].scrollIntoView({behavior:'smooth'});
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (current > 0) slides[current - 1].scrollIntoView({behavior:'smooth'});
+    }
+});
+</script>
+</body>
+</html>

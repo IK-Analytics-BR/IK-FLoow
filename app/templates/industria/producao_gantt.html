@@ -110,9 +110,15 @@
                                     <div class="gantt-row-header gantt-sticky-left gantt-grupo-compact"
                                          data-bs-toggle="tooltip"
                                          data-bs-placement="right"
-                                         title="{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}"
-                                         {% if g.orcamento_id %}data-grupo-url="{{ url_for('ordem_producao.grupo_orcamento', orcamento_id=g.orcamento_id) }}"{% endif %}>
-                                        <div class="gantt-grupo-code">{{ g.orcamento_numero or '-' }}</div>
+                                         title="{% if g.planejamento_codigo %}{{ g.planejamento_codigo }} — {{ g.cliente_nome or 'Produção p/ Estoque' }}{% else %}{{ (g.orcamento_numero or '-') }}\n{{ g.cliente_nome or '-' }}{% endif %}"
+                                         {% if g.orcamento_id %}data-grupo-url="{{ url_for('ordem_producao.grupo_orcamento', orcamento_id=g.orcamento_id) }}"{% elif g.planejamento_id %}data-grupo-url="{{ url_for('ordem_producao.visualizar_planejamento', id=g.planejamento_id) }}"{% endif %}>
+                                        <div class="gantt-grupo-code">
+                                            {% if g.planejamento_codigo %}
+                                                <i class="fas fa-calendar-week text-primary"></i> {{ g.planejamento_codigo }}
+                                            {% else %}
+                                                {{ g.orcamento_numero or '-' }}
+                                            {% endif %}
+                                        </div>
                                     </div>
 
                                     {% for e in etapas %}

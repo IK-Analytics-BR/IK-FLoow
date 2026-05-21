@@ -362,6 +362,10 @@ def empresa_cadastrar():
         # REMOVIDO: Restrição de apenas uma empresa no PDV
         # Agora permite múltiplas empresas com usar_no_pdv = 1
         
+        # Por padrão, novas empresas são cadastradas como ativas
+        # (o soft delete é feito marcando ativo = FALSE em empresa_excluir)
+        ativo = True
+
         # Converter capital_social para decimal
         try:
             capital_social_decimal = float(capital_social.replace(',', '.')) if capital_social else None

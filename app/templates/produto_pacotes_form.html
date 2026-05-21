@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_new %}Novo Pacote de Produto{% else %}Editar Pacote de Produto{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-box-open"></i>
+                        {% if is_new %}Novo Pacote de Produto{% else %}Editar Pacote de Produto{% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Produto</label>
+
+                        <div class="mb-2">
+                            <input type="text" id="buscaProdutoPacote" class="form-control" placeholder="Buscar por nome ou código do produto..." autocomplete="off">
+                            <div id="listaProdutosPacote" class="list-group mt-1" style="max-height:260px; overflow-y:auto;"></div>
+                        </div>
+
+                        <div class="border rounded p-2 bg-light" id="produtoSelecionadoPacote">
+                            {% if pacote.produto_nome %}
+                                <strong>{{ pacote.produto_nome }}</strong>
+                                {% if pacote.produto_codigo %}
+                                    <br><small class="text-muted">Cód. produto: {{ pacote.produto_codigo }}</small>
+                                {% endif %}
+                                {% if pacote.produto_unidade %}
+                                    <br><small class="text-muted">Unidade base: {{ pacote.produto_unidade }}</small>
+                                {% endif %}
+                                {% if pacote.id %}
+                                    <br><small class="text-muted">Cód. pacote: {{ pacote.id }}</small>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted">Nenhum produto selecionado.</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {# Informações de custo e margem com base no custo unitário do produto #}
+                    {% set custo_unit = pacote.produto_custo_unitario %}
+                    {% set unid_pac = pacote.unidades_por_pacote or 0 %}
+                    {% if custo_unit is not none and unid_pac %}
+                        {% set custo_pacote = custo_unit * unid_pac %}
+                    {% else %}
+                        {% set custo_pacote = None %}
+                    {% endif %}
+                    {% set preco_unit = pacote.preco_unidade %}
+                    {% set preco_pacote = pacote.preco_pacote %}
+
+                    {% if custo_unit is not none and custo_unit != 0 and preco_unit is not none %}
+                        {% set margem_unit_calculada = (preco_unit - custo_unit) / custo_unit * 100 %}
+                    {% else %}
+                        {% set margem_unit_calculada = None %}
+                    {% endif %}
+
+                    <input type="hidden" id="custo_unit_base" value="{{ custo_unit is not none and ('%.6f'|format(custo_unit)) or '' }}">
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-secondary py-2">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Custo unitário (produto)</small><br>
+                                        <strong id="resumo_custo_unit">
+                                            {{ custo_unit is not none and ('R$&nbsp;%.4f'|format(custo_unit))|safe or '-' }}
+                                        </strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Custo por pacote</small><br>
+                                        <strong id="resumo_custo_pacote">
+                                            {% if custo_pacote is not none %}
+                                                {{ ('R$&nbsp;%.2f'|format(custo_pacote))|safe }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Margem por unidade</small><br>
+                                        <strong id="resumo_margem_unit">
+                                            {% if margem_unit_calculada is not none %}
+                                                {{ '%.1f%%'|format(margem_unit_calculada) }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Margem por pacote</small><br>
+                                        <strong id="resumo_margem_pacote">
+                                            {% if custo_pacote is not none and custo_pacote != 0 and preco_pacote is not none %}
+                                                {% set margem_pacote = (preco_pacote - custo_pacote) / custo_pacote * 100 %}
+                                                {{ '%.1f%%'|format(margem_pacote) }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        <input type="hidden" name="produto_id" id="produto_id_pacote" value="{{ pacote.produto_id }}">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Descrição do Pacote</label>
+                                <input type="text" name="descricao" class="form-control" value="{{ pacote.descricao }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Unidade Comercial</label>
+                                <input type="text" name="unidade_comercial" class="form-control" value="{{ pacote.unidade_comercial }}" placeholder="Ex.: PCT, CX" required>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Unidades por Pacote</label>
+                                <input type="number" step="0.01" min="0" name="unidades_por_pacote" class="form-control" value="{{ pacote.unidades_por_pacote is not none and ('%.2f'|format(pacote.unidades_por_pacote)) or '' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Peso do Pacote (kg)</label>
+                                <input type="number" step="0.001" min="0" name="peso_pacote_kg" class="form-control" value="{{ pacote.peso_pacote_kg is not none and ('%.3f'|format(pacote.peso_pacote_kg)) or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Preço por Pacote (R$)</label>
+                                <input type="number" step="0.01" min="0" name="preco_pacote" class="form-control" value="{{ preco_pacote is not none and ('%.2f'|format(preco_pacote)) or '' }}">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Preço por Unidade (R$)</label>
+                                <input type="number" step="0.01" min="0" name="preco_unidade" class="form-control" value="{{ preco_unit is not none and ('%.2f'|format(preco_unit)) or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Margem Unitária (%)</label>
+                                <input type="number" step="0.1" min="0" id="margem_unitaria" class="form-control" value="{{ margem_unit_calculada is not none and ('%.1f'|format(margem_unit_calculada)) or '' }}">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-center mt-4">
+                                <div class="form-check me-4">
+                                    <input class="form-check-input" type="checkbox" id="chkAtivo" name="ativo" value="1" {% if pacote.ativo %}checked{% endif %}>
+                                    <label class="form-check-label" for="chkAtivo">Ativo</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="chkPadrao" name="padrao_planejamento" value="1" {% if pacote.padrao_planejamento %}checked{% endif %}>
+                                    <label class="form-check-label" for="chkPadrao">Padrão de Planejamento</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{{ url_for('produto.produto_pacotes_lista') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar para lista
+                            </a>
+                            <div>
+                                {% if not is_new %}
+                                    <a href="{{ url_for('produto.produto_pacotes_novo',
+                                                        produto_id=pacote.produto_id,
+                                                        descricao=pacote.descricao,
+                                                        unidade_comercial=pacote.unidade_comercial,
+                                                        unidades_por_pacote=pacote.unidades_por_pacote,
+                                                        peso_pacote_kg=pacote.peso_pacote_kg,
+                                                        preco_pacote=pacote.preco_pacote,
+                                                        preco_unidade=pacote.preco_unidade) }}"
+                                       class="btn btn-outline-secondary me-2">
+                                        <i class="fas fa-copy"></i> Duplicar
+                                    </a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> {% if is_new %}Cadastrar Pacote{% else %}Salvar Alterações{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Atualização dinâmica do resumo de custos/margens
+    const custoBaseInput = document.getElementById('custo_unit_base');
+    const unidInput = document.querySelector('input[name="unidades_por_pacote"]');
+    const precoPacoteInput = document.querySelector('input[name="preco_pacote"]');
+    const precoUnidadeInput = document.querySelector('input[name="preco_unidade"]');
+    const margemUnitInput = document.getElementById('margem_unitaria');
+
+    const resumoCustoUnit = document.getElementById('resumo_custo_unit');
+    const resumoCustoPacote = document.getElementById('resumo_custo_pacote');
+    const resumoMargemUnit = document.getElementById('resumo_margem_unit');
+    const resumoMargemPacote = document.getElementById('resumo_margem_pacote');
+
+    function parseNumber(el) {
+        if (!el) return 0;
+        const v = (el.value || '').replace(',', '.');
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatMoney(v, decimals) {
+        return 'R$ ' + v.toFixed(decimals);
+    }
+
+    function formatPercent(v) {
+        return v.toFixed(1) + '%';
+    }
+
+    function atualizarPrecoPacote() {
+        if (!precoPacoteInput) return;
+        const qtd = parseNumber(unidInput);
+        const precoUnit = parseNumber(precoUnidadeInput);
+        if (qtd > 0 && precoUnit > 0) {
+            precoPacoteInput.value = (precoUnit * qtd).toFixed(2);
+        }
+    }
+
+    function atualizarResumo() {
+        if (!custoBaseInput) return;
+        const baseStr = custoBaseInput.value.replace(',', '.');
+        const custoBase = parseFloat(baseStr);
+
+        if (!resumoCustoUnit) return;
+
+        if (isNaN(custoBase) || custoBase <= 0) {
+            resumoCustoUnit.textContent = '-';
+            if (resumoCustoPacote) resumoCustoPacote.textContent = '-';
+            if (resumoMargemUnit) resumoMargemUnit.textContent = '-';
+            if (resumoMargemPacote) resumoMargemPacote.textContent = '-';
+            return;
+        }
+
+        resumoCustoUnit.textContent = formatMoney(custoBase, 4);
+
+        const qtd = parseNumber(unidInput);
+        const precoPacote = parseNumber(precoPacoteInput);
+        const precoUnidade = parseNumber(precoUnidadeInput);
+
+        if (resumoCustoPacote) {
+            if (qtd > 0) {
+                const custoPacote = custoBase * qtd;
+                resumoCustoPacote.textContent = formatMoney(custoPacote, 2);
+            } else {
+                resumoCustoPacote.textContent = '-';
+            }
+        }
+
+        if (resumoMargemUnit) {
+            if (custoBase > 0 && precoUnidade > 0) {
+                const margemUnit = (precoUnidade - custoBase) / custoBase * 100;
+                resumoMargemUnit.textContent = formatPercent(margemUnit);
+            } else {
+                resumoMargemUnit.textContent = '-';
+            }
+        }
+
+        if (resumoMargemPacote) {
+            if (custoBase > 0 && qtd > 0 && precoPacote > 0) {
+                const custoPacote = custoBase * qtd;
+                if (custoPacote > 0) {
+                    const margemPacote = (precoPacote - custoPacote) / custoPacote * 100;
+                    resumoMargemPacote.textContent = formatPercent(margemPacote);
+                } else {
+                    resumoMargemPacote.textContent = '-';
+                }
+            } else {
+                resumoMargemPacote.textContent = '-';
+            }
+        }
+    }
+
+    function atualizarAPartirMargem() {
+        if (!custoBaseInput || !margemUnitInput) return;
+        const baseStr = custoBaseInput.value.replace(',', '.');
+        const custoBase = parseFloat(baseStr);
+        const mStr = (margemUnitInput.value || '').replace(',', '.');
+        const margem = parseFloat(mStr);
+        if (isNaN(custoBase) || custoBase <= 0 || isNaN(margem)) {
+            return;
+        }
+        const precoUnit = custoBase * (1 + margem / 100.0);
+        if (precoUnidadeInput) {
+            precoUnidadeInput.value = precoUnit.toFixed(2);
+        }
+        atualizarPrecoPacote();
+        atualizarResumo();
+    }
+
+    if (unidInput) {
+        unidInput.addEventListener('input', function () {
+            atualizarPrecoPacote();
+            atualizarResumo();
+        });
+        unidInput.addEventListener('change', function () {
+            atualizarPrecoPacote();
+            atualizarResumo();
+        });
+    }
+
+    if (precoUnidadeInput) {
+        precoUnidadeInput.addEventListener('input', function () {
+            atualizarPrecoPacote();
+            atualizarResumo();
+        });
+        precoUnidadeInput.addEventListener('change', function () {
+            atualizarPrecoPacote();
+            atualizarResumo();
+        });
+    }
+
+    if (precoPacoteInput) {
+        precoPacoteInput.addEventListener('input', atualizarResumo);
+        precoPacoteInput.addEventListener('change', atualizarResumo);
+    }
+
+    if (margemUnitInput) {
+        margemUnitInput.addEventListener('input', atualizarAPartirMargem);
+        margemUnitInput.addEventListener('change', atualizarAPartirMargem);
+    }
+
+    atualizarPrecoPacote();
+    atualizarResumo();
+
+    // Busca de produto para novo/edição de pacote
+    const buscaInput = document.getElementById('buscaProdutoPacote');
+    const lista = document.getElementById('listaProdutosPacote');
+    const produtoIdHidden = document.getElementById('produto_id_pacote');
+    const produtoBox = document.getElementById('produtoSelecionadoPacote');
+
+    function selecionarProdutoPacote(p) {
+        if (produtoIdHidden) {
+            produtoIdHidden.value = p.id;
+        }
+        if (produtoBox) {
+            produtoBox.innerHTML = `
+                <strong>${p.nome}</strong><br>
+                <small class="text-muted">Cód.: ${p.codigo || p.id}</small><br>
+                <small class="text-muted">Unidade base: ${p.unidade || 'UN'}</small>
+            `;
+        }
+        if (custoBaseInput) {
+            custoBaseInput.value = p.custo.toFixed(6);
+        }
+        if (lista) {
+            lista.innerHTML = '';
+        }
+        if (buscaInput) {
+            buscaInput.value = '';
+        }
+        atualizarResumo();
+    }
+
+    if (buscaInput && lista) {
+        buscaInput.addEventListener('input', function () {
+            const termo = this.value.trim();
+            if (termo.length < 2) {
+                lista.innerHTML = '<p class="text-muted p-2 mb-0">Digite ao menos 2 caracteres...</p>';
+                return;
+            }
+
+            fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria_fiscal=produto`)
+                .then(r => r.json())
+                .then(produtos => {
+                    lista.innerHTML = '';
+                    if (!produtos.length) {
+                        lista.innerHTML = '<p class="text-muted p-2 mb-0">Nenhum produto encontrado.</p>';
+                        return;
+                    }
+
+                    produtos.forEach(p => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                        item.innerHTML = `
+                            <div>
+                                <strong>${p.codigo || p.id}</strong> - ${p.nome}
+                            </div>
+                            <span class="badge bg-primary">R$ ${p.custo.toFixed(3)}</span>
+                        `;
+                        item.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            selecionarProdutoPacote(p);
+                        });
+                        lista.appendChild(item);
+                    });
+                })
+                .catch(() => {
+                    lista.innerHTML = '<p class="text-danger p-2 mb-0">Erro ao buscar produtos.</p>';
+                });
+        });
+    }
+});
+</script>
+{% endblock %}

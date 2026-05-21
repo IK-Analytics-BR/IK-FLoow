@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Pacotes de Produtos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-box-open"></i> Pacotes de Produtos
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Buscar (produto ou descrição do pacote)</label>
+                            <input type="text" name="search_term" value="{{ search_term or '' }}" class="form-control" placeholder="Ex.: COXINHOCA, MINI, BAURU">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">ID do Produto (opcional)</label>
+                            <input type="number" name="produto_id" value="{{ produto_id or '' }}" class="form-control" min="1">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                            <a href="{{ url_for('produto.produto_pacotes_lista') }}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end justify-content-end">
+                            <a href="{{ url_for('produto.produto_pacotes_novo', produto_id=produto_id or None) }}" class="btn btn-success w-100">
+                                <i class="fas fa-plus"></i> Novo Pacote
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Descrição do Pacote</th>
+                                    <th>Unid. Comercial</th>
+                                    <th class="text-end">Unid. por Pacote</th>
+                                    <th class="text-end">Peso Pacote (kg)</th>
+                                    <th class="text-end">Preço Pacote</th>
+                                    <th class="text-end">Preço Unidade</th>
+                                    <th class="text-end">Custo Unitário</th>
+                                    <th class="text-end">Custo Pacote</th>
+                                    <th class="text-end">Margem Unid.</th>
+                                    <th class="text-end">Margem Pacote</th>
+                                    <th>Ativo</th>
+                                    <th>Padrão Planejamento</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if pacotes %}
+                                    {% for pp in pacotes %}
+                                    <tr>
+                                        <td class="text-start">
+                                            <strong>{{ pp.produto_nome }}</strong>
+                                            {% if pp.produto_codigo %}
+                                                <br><small class="text-muted">Cód.: {{ pp.produto_codigo }}</small>
+                                            {% endif %}
+                                            {% if pp.produto_unidade %}
+                                                <br><small class="text-muted">Unidade base: {{ pp.produto_unidade }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-start">{{ pp.descricao }}</td>
+                                        <td>{{ pp.unidade_comercial }}</td>
+                                        <td class="text-end">{{ '%.0f'|format(pp.unidades_por_pacote or 0) }}</td>
+                                        <td class="text-end">{{ pp.peso_pacote_kg is not none and '%.3f'|format(pp.peso_pacote_kg) or '-' }}</td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.preco_pacote is not none %}
+                                                {{ ('R$&nbsp;%.2f'|format(pp.preco_pacote))|safe }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.preco_unidade is not none %}
+                                                {{ ('R$&nbsp;%.2f'|format(pp.preco_unidade))|safe }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.produto_custo_unitario is not none %}
+                                                {{ ('R$&nbsp;%.4f'|format(pp.produto_custo_unitario))|safe }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.produto_custo_unitario is not none and pp.unidades_por_pacote %}
+                                                {% set custo_pacote = (pp.produto_custo_unitario * pp.unidades_por_pacote) %}
+                                                {{ ('R$&nbsp;%.2f'|format(custo_pacote))|safe }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.produto_custo_unitario is not none and pp.produto_custo_unitario != 0 and pp.preco_unidade is not none %}
+                                                {% set margem_unit = (pp.preco_unidade - pp.produto_custo_unitario) / pp.produto_custo_unitario * 100 %}
+                                                {{ '%.1f%%'|format(margem_unit) }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if pp.produto_custo_unitario is not none and pp.unidades_por_pacote and pp.preco_pacote is not none %}
+                                                {% set custo_pacote_calc = (pp.produto_custo_unitario * pp.unidades_por_pacote) %}
+                                                {% if custo_pacote_calc != 0 %}
+                                                    {% set margem_pacote = (pp.preco_pacote - custo_pacote_calc) / custo_pacote_calc * 100 %}
+                                                    {{ '%.1f%%'|format(margem_pacote) }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if pp.ativo %}
+                                                <span class="badge bg-success">Ativo</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inativo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if pp.padrao_planejamento %}
+                                                <span class="badge bg-primary">Padrão</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('produto.produto_pacotes_editar', id=pp.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i> Editar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="14" class="text-center text-muted py-4">
+                                            Nenhum pacote de produto cadastrado.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

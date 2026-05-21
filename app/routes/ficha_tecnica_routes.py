@@ -263,6 +263,21 @@ def editar(id):
             tempo_horas = float(request.form.get('tempo_producao_horas') or 0)
             observacoes = request.form.get('observacoes', '').strip()
             ativo = request.form.get('ativo') == '1'
+
+            # Permitir alterar o produto vinculado à ficha técnica
+            novo_produto_id = ficha['produto_id']
+            produto_id_form = (request.form.get('produto_id') or '').strip()
+            if produto_id_form:
+                try:
+                    novo_produto_id = int(produto_id_form)
+                except ValueError:
+                    raise ValueError('ID de produto inválido para vínculo da ficha técnica.')
+
+            # Validar existência do produto informado
+            produto_vinculo = db.fetch_one("SELECT id FROM products WHERE id = %s", [novo_produto_id])
+            if not produto_vinculo:
+                flash('Produto informado para vínculo da ficha técnica não foi encontrado.', 'danger')
+                return redirect(url_for('ficha_tecnica.editar', id=id))
             
             # Processar itens
             itens_json = request.form.get('itens_json', '[]')
@@ -272,17 +287,27 @@ def editar(id):
             # Calcular custo total
             custo_total = sum(float(item.get('custo_total', 0)) for item in itens)
             
+            # Se o produto vinculado foi alterado e a ficha permanecer ativa,
+            # garantir unicidade de template ativo por produto
+            if novo_produto_id != ficha['produto_id'] and ativo:
+                db.execute_query("""
+                    UPDATE produto_templates_producao
+                    SET ativo = 0
+                    WHERE produto_id = %s AND ativo = 1 AND id <> %s
+                """, [novo_produto_id, id])
+
             # Atualizar ficha
             db.execute_query("""
                 UPDATE produto_templates_producao 
-                SET nome_template = %s,
+                SET produto_id = %s,
+                    nome_template = %s,
                     custo_total_base = %s,
                     tempo_producao_horas = %s,
                     observacoes = %s,
                     ativo = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, [nome_template, custo_total, tempo_horas, observacoes, 1 if ativo else 0, id])
+            """, [novo_produto_id, nome_template, custo_total, tempo_horas, observacoes, 1 if ativo else 0, id])
             
             # Remover itens antigos e inserir novos
             db.execute_query("DELETE FROM produto_template_itens WHERE template_id = %s", [id])
@@ -303,6 +328,12 @@ def editar(id):
                     float(item.get('custo_unitario', 0)),
                     float(item.get('custo_total', 0))
                 ])
+
+            # Recalcular custos em cascata (itens -> fichas -> produtos)
+            try:
+                db.execute_query("CALL sp_recalcular_custos_fichas()")
+            except Exception as e:
+                print(f"[FICHA TECNICA] Aviso: erro ao recalcular custos via SP: {e}")
             
             flash('Ficha técnica atualizada com sucesso!', 'success')
             return redirect(url_for('ficha_tecnica.visualizar', id=id))
@@ -319,7 +350,15 @@ def editar(id):
             i.*,
             p.name as produto_nome,
             p.internal_code as produto_codigo,
-            p.cost_price as custo_atual
+            p.cost_price as custo_atual,
+            CASE 
+                WHEN i.produto_id IS NOT NULL AND EXISTS (
+                    SELECT 1 
+                    FROM produto_templates_producao t
+                    WHERE t.produto_id = i.produto_id
+                      AND t.ativo = 1
+                ) THEN 1 ELSE 0
+            END AS pre_produzido
         FROM produto_template_itens i
         LEFT JOIN products p ON i.produto_id = p.id
         WHERE i.template_id = %s
@@ -486,12 +525,21 @@ def novo():
             flash(f'Erro ao criar ficha técnica: {str(e)}', 'danger')
     
     # GET - Formulário de criação
-    # Buscar produtos que podem ter ficha técnica (categoria 6 = Produto Produzido)
+    # Buscar produtos para criação de ficha técnica.
+    # TEMPORARIAMENTE: trazer todos os produtos ATIVOS, sem filtro por categoria,
+    # para permitir configurar fichas técnicas de qualquer item (incluindo salgados).
     produtos = db.fetch_all("""
-        SELECT p.id, p.internal_code as codigo, p.name as nome,
-               (SELECT COUNT(*) FROM produto_templates_producao t WHERE t.produto_id = p.id AND t.ativo = 1) as tem_ficha
+        SELECT p.id,
+               p.internal_code AS codigo,
+               p.name AS nome,
+               (
+                   SELECT COUNT(*)
+                   FROM produto_templates_producao t
+                   WHERE t.produto_id = p.id
+                     AND t.ativo = 1
+               ) AS tem_ficha
         FROM products p
-        WHERE p.category_id = 6
+        WHERE p.active = TRUE
         ORDER BY p.name
         LIMIT 500
     """) or []
@@ -618,33 +666,160 @@ def excluir(id):
 
 @ficha_tecnica_bp.route('/api/buscar-produtos')
 def api_buscar_produtos():
-    """API para buscar produtos para autocomplete"""
-    db = get_db()
-    termo = request.args.get('q', '').strip()
-    categoria = request.args.get('categoria', '')
-    
-    query = """
-        SELECT id, internal_code as codigo, name as nome, cost_price as custo, unit_measure as unidade
-        FROM products
-        WHERE (name LIKE %s OR internal_code LIKE %s)
+    """API para buscar produtos para autocomplete.
+
+    Regras principais:
+    - Sempre considerar apenas produtos ativos nas buscas por texto.
+    - Custo unitário deve ser o custo convertido da aba Compras
+      (ex.: R$/KG, R$/L), usando `purchase_total_cost` quando
+      disponível e caindo para `cost_price` apenas como fallback.
+    - O filtro por "tipo" de produto deve ser feito pela
+      *categoria fiscal* da categoria de produto (product_categories).
+
+      Compatibilidade:
+      - Chamadas antigas que enviam `categoria=<ID numérico>`
+        continuam funcionando filtrando por `p.category_id`.
+      - Chamadas novas podem enviar `categoria_fiscal=servico|materia_prima|consumo_interno|produto_producao|produto_revenda|produto`.
+
+    Também suporta a busca direta por ID (`?id=123`), usada em
+    alguns formulários para atualizar o cabeçalho pela digitação do ID.
+    Nesse caso não é aplicado filtro por ativo/categoria.
     """
-    params = [f'%{termo}%', f'%{termo}%']
-    
-    if categoria:
-        query += " AND category_id = %s"
-        params.append(int(categoria))
-    
-    query += " ORDER BY name LIMIT 20"
-    
+    db = get_db()
+
+    # Busca direta por ID de produto (sem filtro por ativo/categoria)
+    produto_id_raw = (request.args.get('id') or '').strip()
+    if produto_id_raw.isdigit():
+        query = """
+            SELECT
+                p.id,
+                p.internal_code AS codigo,
+                p.name AS nome,
+                COALESCE(
+                    NULLIF(p.purchase_total_cost, 0),
+                    p.cost_price
+                ) AS custo,
+                p.unit_measure AS unidade,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM produto_templates_producao t
+                        WHERE t.produto_id = p.id
+                          AND t.ativo = 1
+                    ) THEN 1 ELSE 0
+                END AS pre_produzido
+            FROM products p
+            WHERE p.id = %s
+            LIMIT 1
+        """
+        produtos = db.fetch_all(query, [int(produto_id_raw)]) or []
+
+        return jsonify([
+            {
+                'id': p['id'],
+                'codigo': p['codigo'] or '',
+                'nome': p['nome'],
+                'custo': float(p['custo'] or 0),
+                'unidade': p['unidade'] or 'UN',
+                'pre_produzido': bool(p.get('pre_produzido')),
+            }
+            for p in produtos
+        ])
+
+    termo = (request.args.get('q') or '').strip()
+    categoria_raw = (request.args.get('categoria') or '').strip()
+    categoria_fiscal = (request.args.get('categoria_fiscal') or '').strip()
+
+    where_clauses = ["p.active = 1"]
+    params = []
+
+    if termo:
+        where_clauses.append("(p.name LIKE %s OR p.internal_code LIKE %s)")
+        like = f"%{termo}%"
+        params.extend([like, like])
+
+    join_categoria = False
+
+    # Se veio categoria_fiscal explícita, sempre usaremos o join com product_categories
+    if categoria_fiscal:
+        join_categoria = True
+    elif categoria_raw:
+        # Compatibilidade: se veio número, interpretamos como category_id
+        if categoria_raw.isdigit():
+            where_clauses.append("p.category_id = %s")
+            params.append(int(categoria_raw))
+        else:
+            # Valor não numérico em "categoria" é tratado como categoria_fiscal
+            categoria_fiscal = categoria_raw
+            join_categoria = True
+
+    if categoria_fiscal:
+        join_categoria = True
+        where_clauses.append("pc.categoria_fiscal = %s")
+        params.append(categoria_fiscal)
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+    if join_categoria:
+        query = f"""
+            SELECT
+                p.id,
+                p.internal_code AS codigo,
+                p.name AS nome,
+                COALESCE(
+                    NULLIF(p.purchase_total_cost, 0),
+                    p.cost_price
+                ) AS custo,
+                p.unit_measure AS unidade,
+                CASE 
+                    WHEN EXISTS (
+                        SELECT 1 FROM produto_templates_producao t
+                        WHERE t.produto_id = p.id
+                          AND t.ativo = 1
+                    ) THEN 1 ELSE 0
+                END AS pre_produzido
+            FROM products p
+            INNER JOIN product_categories pc ON pc.id = p.category_id
+            WHERE {where_sql}
+            ORDER BY p.name
+            LIMIT 20
+        """
+    else:
+        query = f"""
+            SELECT
+                p.id,
+                p.internal_code AS codigo,
+                p.name AS nome,
+                COALESCE(
+                    NULLIF(p.purchase_total_cost, 0),
+                    p.cost_price
+                ) AS custo,
+                p.unit_measure AS unidade,
+                CASE 
+                    WHEN EXISTS (
+                        SELECT 1 FROM produto_templates_producao t
+                        WHERE t.produto_id = p.id
+                          AND t.ativo = 1
+                    ) THEN 1 ELSE 0
+                END AS pre_produzido
+            FROM products p
+            WHERE {where_sql}
+            ORDER BY p.name
+            LIMIT 20
+        """
+
     produtos = db.fetch_all(query, params) or []
-    
-    return jsonify([{
-        'id': p['id'],
-        'codigo': p['codigo'] or '',
-        'nome': p['nome'],
-        'custo': float(p['custo'] or 0),
-        'unidade': p['unidade'] or 'UN'
-    } for p in produtos])
+
+    return jsonify([
+        {
+            'id': p['id'],
+            'codigo': p['codigo'] or '',
+            'nome': p['nome'],
+            'custo': float(p['custo'] or 0),
+            'unidade': p['unidade'] or 'UN',
+            'pre_produzido': bool(p.get('pre_produzido')),
+        }
+        for p in produtos
+    ])
 
 
 @ficha_tecnica_bp.route('/<int:id>/atualizar-tempo-real', methods=['POST'])

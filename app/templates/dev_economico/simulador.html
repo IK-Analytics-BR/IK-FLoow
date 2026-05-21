@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Simulador de Impacto Econômico - Dev Econômico MS{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.sim-hero{background:linear-gradient(135deg,#0c4a6e 0%,#075985 50%,#0ea5e9 100%);color:#fff;border-radius:12px;padding:2rem;margin-bottom:1.5rem}
+.sim-form{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem}
+.sim-result{background:#0f172a;color:#fff;border-radius:12px;padding:1.5rem;display:none}
+.sim-result.active{display:block}
+.sim-metric{text-align:center;padding:1rem;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.sim-metric-value{font-size:1.8rem;font-weight:900}
+.sim-metric-label{font-size:.72rem;color:#94a3b8;margin-top:2px}
+.sim-impact{padding:12px;border-radius:8px;margin-bottom:8px}
+.sim-impact-positive{background:rgba(22,163,74,.1);border-left:4px solid #16a34a}
+.sim-impact-info{background:rgba(59,130,246,.1);border-left:4px solid #3b82f6}
+.ranking-change{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-weight:800;font-size:.88rem}
+.ranking-up{background:#dcfce7;color:#16a34a}.ranking-same{background:#fef3c7;color:#d97706}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sim-hero">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.5rem">🧭</span>
+                <h2 class="mb-0" style="font-size:1.6rem;font-weight:800;">Simulador de Impacto Econômico</h2>
+            </div>
+            <div style="color:#bae6fd;font-size:.88rem;">"Se instalar uma indústria aqui, qual o impacto?" — Simule cenários de investimento</div>
+        </div>
+        <a href="{{ url_for('dev_economico.dashboard') }}" class="btn btn-sm btn-outline-light"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Formulário -->
+    <div class="col-md-5">
+        <div class="sim-form">
+            <h5 class="mb-3"><i class="fas fa-sliders-h me-2" style="color:#0ea5e9;"></i>Parâmetros da Simulação</h5>
+            <form id="simForm">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:.85rem;">Município</label>
+                    <select class="form-select" id="simMunicipio" required>
+                        <option value="">Selecione...</option>
+                        {% for m in municipios %}
+                        <option value="{{ m.id }}" data-pib="{{ m.pib_total }}" data-pop="{{ m.populacao }}" data-ranking="{{ m.ranking }}">{{ m.nome }} (PIB: R$ {{ "{:,.0f}".format(m.pib_total) }} mil)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:.85rem;">Tipo de Empreendimento</label>
+                    <select class="form-select" id="simSetor" required>
+                        <option value="">Selecione o setor...</option>
+                        {% for mult in multiplicadores %}
+                        <option value="{{ mult.setor }}" 
+                            data-emp="{{ mult.emprego_direto_por_milhao }}"
+                            data-mult-emp="{{ mult.multiplicador_emprego }}"
+                            data-mult-pib="{{ mult.multiplicador_pib }}"
+                            data-mult-renda="{{ mult.multiplicador_renda }}"
+                            data-mult-tributo="{{ mult.multiplicador_tributo }}"
+                            data-pix="{{ mult.pix_estimado_por_emprego }}"
+                            data-implant="{{ mult.tempo_implantacao_meses }}"
+                            data-matur="{{ mult.tempo_maturacao_meses }}">
+                            {{ mult.setor }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:.85rem;">Investimento Total (R$)</label>
+                    <input type="number" class="form-control" id="simInvestimento" placeholder="Ex: 50000000" min="100000" step="100000" required>
+                    <div class="form-text">Valor em reais. Ex: 50.000.000 = cinquenta milhões</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:.85rem;">Porte</label>
+                    <select class="form-select" id="simPorte">
+                        <option value="Micro">Micro (até R$ 1M)</option>
+                        <option value="Pequeno">Pequeno (R$ 1M - 10M)</option>
+                        <option value="Médio" selected>Médio (R$ 10M - 100M)</option>
+                        <option value="Grande">Grande (acima R$ 100M)</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-primary w-100 py-2" onclick="simular()" style="background:#0ea5e9;border:none;font-weight:700;">
+                    <i class="fas fa-play me-2"></i>Simular Impacto
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="col-md-7">
+        <div class="sim-result" id="simResultado">
+            <h5 class="mb-3"><i class="fas fa-chart-bar me-2" style="color:#0ea5e9;"></i>Resultado da Simulação</h5>
+            
+            <div class="row g-2 mb-3">
+                <div class="col-4"><div class="sim-metric"><div class="sim-metric-value" style="color:#22c55e;" id="resEmpregosDiretos">0</div><div class="sim-metric-label">Empregos Diretos</div></div></div>
+                <div class="col-4"><div class="sim-metric"><div class="sim-metric-value" style="color:#3b82f6;" id="resEmpregosIndiretos">0</div><div class="sim-metric-label">Empregos Indiretos</div></div></div>
+                <div class="col-4"><div class="sim-metric"><div class="sim-metric-value" style="color:#f59e0b;" id="resEmpregosTotais">0</div><div class="sim-metric-label">Empregos Totais</div></div></div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-3"><div class="sim-metric"><div class="sim-metric-value" style="color:#8b5cf6;font-size:1.2rem;" id="resImpactoPib">R$ 0</div><div class="sim-metric-label">Impacto PIB/ano</div></div></div>
+                <div class="col-3"><div class="sim-metric"><div class="sim-metric-value" style="color:#06b6d4;font-size:1.2rem;" id="resImpactoRenda">R$ 0</div><div class="sim-metric-label">Renda Gerada/ano</div></div></div>
+                <div class="col-3"><div class="sim-metric"><div class="sim-metric-value" style="color:#ef4444;font-size:1.2rem;" id="resImpactoTributo">R$ 0</div><div class="sim-metric-label">Tributos/ano</div></div></div>
+                <div class="col-3"><div class="sim-metric"><div class="sim-metric-value" style="color:#22d3ee;font-size:1.2rem;" id="resImpactoPix">R$ 0</div><div class="sim-metric-label">Fluxo Pix/mês</div></div></div>
+            </div>
+
+            <!-- Impacto no município -->
+            <div class="sim-impact sim-impact-positive">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div style="font-size:.78rem;color:#6b7280;">Variação no PIB Municipal</div>
+                        <div class="fw-bold" style="font-size:1.2rem;" id="resVariacaoPib">+0%</div>
+                    </div>
+                    <div class="text-end">
+                        <div style="font-size:.78rem;color:#6b7280;">Ranking Estadual</div>
+                        <div id="resRanking"><span class="ranking-change ranking-up"><i class="fas fa-arrow-up"></i> —</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sim-impact sim-impact-info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div style="font-size:.78rem;color:#6b7280;">Tempo de Implantação</div>
+                        <div class="fw-bold" id="resImplantacao">0 meses</div>
+                    </div>
+                    <div class="text-end">
+                        <div style="font-size:.78rem;color:#6b7280;">Maturação Completa</div>
+                        <div class="fw-bold" id="resMaturacao">0 meses</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico -->
+            <div class="mt-3" style="height:200px;"><canvas id="chartImpacto"></canvas></div>
+        </div>
+
+        <!-- Placeholder antes da simulação -->
+        <div id="simPlaceholder" class="text-center py-5" style="color:#9ca3af;">
+            <i class="fas fa-calculator" style="font-size:4rem;color:#e5e7eb;"></i>
+            <h5 class="mt-3" style="color:#6b7280;">Preencha os parâmetros e clique em Simular</h5>
+            <p style="font-size:.85rem;">O simulador calcula o impacto econômico usando multiplicadores de Leontief por setor</p>
+        </div>
+    </div>
+</div>
+
+<!-- Histórico -->
+{% if simulacoes %}
+<div class="row g-3 mt-4 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header"><h5><i class="fas fa-history me-2"></i>Simulações Recentes</h5></div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0">
+                        <thead><tr><th>Município</th><th>Setor</th><th>Investimento</th><th>Empregos</th><th>Impacto PIB</th><th>Var. PIB</th><th>Data</th></tr></thead>
+                        <tbody>
+                            {% for s in simulacoes %}
+                            <tr>
+                                <td class="fw-semibold">{{ s.municipio_nome }}</td>
+                                <td>{{ s.setor }}</td>
+                                <td>R$ {{ "{:,.0f}".format(s.investimento_total) }}</td>
+                                <td>{{ s.empregos_totais }}</td>
+                                <td>R$ {{ "{:,.0f}".format(s.impacto_pib_anual) }}</td>
+                                <td><span class="text-success fw-bold">+{{ "%.2f"|format(s.variacao_pib_municipal) }}%</span></td>
+                                <td style="font-size:.75rem;">{{ s.data_simulacao }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+let chartImpacto = null;
+
+function formatMoney(v) {
+    if (v >= 1e9) return 'R$ ' + (v/1e9).toFixed(1) + ' bi';
+    if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return 'R$ ' + (v/1e3).toFixed(0) + ' mil';
+    return 'R$ ' + v.toFixed(0);
+}
+
+function simular() {
+    const munSel = document.getElementById('simMunicipio');
+    const setorSel = document.getElementById('simSetor');
+    const investimento = parseFloat(document.getElementById('simInvestimento').value);
+    
+    if (!munSel.value || !setorSel.value || !investimento) {
+        alert('Preencha todos os campos obrigatórios.');
+        return;
+    }
+
+    const munOpt = munSel.options[munSel.selectedIndex];
+    const setOpt = setorSel.options[setorSel.selectedIndex];
+    
+    const pibMun = parseFloat(munOpt.dataset.pib) * 1000; // converter de mil para reais
+    const ranking = parseInt(munOpt.dataset.ranking) || 0;
+    
+    const empPorMilhao = parseFloat(setOpt.dataset.emp);
+    const multEmp = parseFloat(setOpt.dataset.multEmp);
+    const multPib = parseFloat(setOpt.dataset.multPib);
+    const multRenda = parseFloat(setOpt.dataset.multRenda);
+    const multTributo = parseFloat(setOpt.dataset.multTributo);
+    const pixPorEmp = parseFloat(setOpt.dataset.pix);
+    const implant = parseInt(setOpt.dataset.implant);
+    const matur = parseInt(setOpt.dataset.matur);
+
+    // Cálculos
+    const invMilhoes = investimento / 1e6;
+    const empDiretos = Math.round(empPorMilhao * invMilhoes);
+    const empIndiretos = Math.round(empDiretos * (multEmp - 1));
+    const empTotais = empDiretos + empIndiretos;
+    
+    const impactoPib = investimento * multPib;
+    const impactoRenda = investimento * multRenda;
+    const impactoTributo = investimento * multTributo;
+    const impactoPix = empTotais * pixPorEmp;
+    
+    const varPib = pibMun > 0 ? (impactoPib / pibMun * 100) : 0;
+
+    // Atualizar UI
+    document.getElementById('resEmpregosDiretos').textContent = empDiretos.toLocaleString();
+    document.getElementById('resEmpregosIndiretos').textContent = empIndiretos.toLocaleString();
+    document.getElementById('resEmpregosTotais').textContent = empTotais.toLocaleString();
+    document.getElementById('resImpactoPib').textContent = formatMoney(impactoPib);
+    document.getElementById('resImpactoRenda').textContent = formatMoney(impactoRenda);
+    document.getElementById('resImpactoTributo').textContent = formatMoney(impactoTributo);
+    document.getElementById('resImpactoPix').textContent = formatMoney(impactoPix);
+    document.getElementById('resVariacaoPib').textContent = '+' + varPib.toFixed(2) + '%';
+    document.getElementById('resImplantacao').textContent = implant + ' meses';
+    document.getElementById('resMaturacao').textContent = matur + ' meses';
+    
+    const novoRanking = Math.max(1, ranking - Math.floor(varPib));
+    const rankHtml = novoRanking < ranking 
+        ? '<span class="ranking-change ranking-up"><i class="fas fa-arrow-up"></i> ' + ranking + 'º → ' + novoRanking + 'º</span>'
+        : '<span class="ranking-change ranking-same"><i class="fas fa-minus"></i> ' + ranking + 'º (mantém)</span>';
+    document.getElementById('resRanking').innerHTML = rankHtml;
+
+    // Mostrar resultado
+    document.getElementById('simResultado').classList.add('active');
+    document.getElementById('simPlaceholder').style.display = 'none';
+
+    // Gráfico
+    if (chartImpacto) chartImpacto.destroy();
+    chartImpacto = new Chart(document.getElementById('chartImpacto').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: ['Impacto PIB', 'Renda Gerada', 'Tributos', 'Investimento'],
+            datasets: [{
+                data: [impactoPib, impactoRenda, impactoTributo, investimento],
+                backgroundColor: ['#8b5cf6', '#06b6d4', '#ef4444', '#0ea5e9'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { ticks: { callback: v => formatMoney(v) } } }
+        }
+    });
+}
+</script>
+{% endblock %}

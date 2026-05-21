@@ -99,12 +99,30 @@ def produto_excluir_required(f):
 def get_direct_db():
     return get_db_connection()
 
-# Função para converter string vazia para zero em campos decimais
+# Função para converter valores de formulário em número decimal, aceitando vírgula
 def safe_decimal(value, default=0.0):
-    if value is None or value == '':
+    """Converte strings de formulário para float.
+
+    - Trata None e string vazia como default (0.0, por padrão).
+    - Aceita vírgula como separador decimal ("17,45" -> 17.45).
+    - Mantém compatibilidade caso value já venha numérico.
+    """
+    if value is None:
         return default
+    # Se já for número, tenta converter direto
+    if isinstance(value, (int, float)):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    # Normalizar strings
     try:
-        return float(value)
+        s = str(value).strip()
+        if s == '':
+            return default
+        # Trocar vírgula por ponto para suportar formato brasileiro
+        s = s.replace(',', '.')
+        return float(s)
     except (ValueError, TypeError):
         return default
 
@@ -307,6 +325,24 @@ def produtos():
         cursor.execute("SELECT * FROM products WHERE active = TRUE")
         produtos = cursor.fetchall()
 
+    # Enriquecer produtos com informações de categoria (nome e categoria_fiscal)
+    try:
+        if produtos:
+            cursor.execute("SELECT id, name, categoria_fiscal FROM product_categories WHERE active = TRUE")
+            categorias_all = cursor.fetchall() or []
+            categorias_map = {c.get('id'): c for c in categorias_all}
+
+            for p in produtos:
+                cid = p.get('category_id') if isinstance(p, dict) else None
+                cat = categorias_map.get(cid) if cid is not None else None
+                if cat:
+                    # Campos adicionais usados no template
+                    p['categoria_nome'] = cat.get('name')
+                    p['categoria_fiscal'] = cat.get('categoria_fiscal')
+    except Exception as e:
+        # Em caso de qualquer erro, seguimos sem quebrar a listagem
+        print(f"[PRODUTOS] Aviso ao enriquecer categorias: {e}")
+
     cursor.close()
     conn.close()
     return render_template('produto_list.html', produtos=produtos, search_term=search_term, search_field=search_field)
@@ -397,10 +433,38 @@ def produto_cadastrar():
             main_supplier_id = request.form.get('main_supplier_id') or None
             supplier_code = request.form.get('supplier_code', '')
             last_purchase_price = safe_decimal(request.form.get('last_purchase_price'))
+            # Prazo médio de entrega (dias) – pode vir vazio
             avg_delivery_time = request.form.get('avg_delivery_time') or None
-            
+            # Novos campos de unidade de compra e custos adicionais (frete, ICMS, outros)
+            purchase_unit = request.form.get('purchase_unit', '')
+            purchase_factor = safe_decimal(request.form.get('purchase_factor'))
+            purchase_freight_value = safe_decimal(request.form.get('purchase_freight_value'))
+            purchase_icms_value = safe_decimal(request.form.get('purchase_icms_value'))
+            purchase_other_costs_value = safe_decimal(request.form.get('purchase_other_costs_value'))
+
             # 4. Dados de Preço (movidos para Identificação Básica)
-            cost_price = safe_decimal(request.form.get('cost_price'))
+            # Nesta implementação, cost_price representa o custo da unidade de compra (ex.: PCT, CX, FARDO)
+            cost_price_form = safe_decimal(request.form.get('cost_price'))
+            cost_price = cost_price_form
+
+            # Se o usuário não informou explicitamente o preço de custo, mas informou componentes de compra,
+            # somamos os componentes para definir o custo da unidade de compra.
+            lp = last_purchase_price or 0
+            pfv = purchase_freight_value or 0
+            piv = purchase_icms_value or 0
+            po = purchase_other_costs_value or 0
+            if (cost_price is None or cost_price == 0) and any(v > 0 for v in (lp, pfv, piv, po)):
+                cost_price = lp + pfv + piv + po
+
+            # Custo convertido por unidade base (ex.: R$/KG) vai em purchase_total_cost.
+            # Preferimos o valor enviado pelo formulário (calculado no JS) e, se não existir,
+            # calculamos a partir de cost_price e purchase_factor.
+            purchase_total_cost = safe_decimal(request.form.get('purchase_total_cost'), default=None)
+            if (purchase_total_cost is None or purchase_total_cost <= 0) and cost_price and purchase_factor and purchase_factor > 0:
+                try:
+                    purchase_total_cost = cost_price / purchase_factor
+                except Exception:
+                    purchase_total_cost = None
             margin = safe_decimal(request.form.get('margin'))
             price = safe_decimal(request.form.get('price'))
             max_discount = safe_decimal(request.form.get('max_discount'))
@@ -436,8 +500,17 @@ def produto_cadastrar():
                 if new_photo_url:
                     photo_url = new_photo_url
             
-            # Definir um valor padrão para a coluna category (obrigatória)
+            # Definir valor da coluna legacy `category` (string) com base na categoria selecionada
             category = "outro"
+            if category_id:
+                try:
+                    for cat in categorias:
+                        if str(cat.get('id')) == str(category_id):
+                            category = cat.get('name') or "outro"
+                            break
+                except Exception:
+                    # Em caso de qualquer problema, mantém "outro" para não quebrar o insert
+                    pass
             
             # Validar dados obrigatórios
             if not name or price <= 0:
@@ -462,6 +535,7 @@ def produto_cadastrar():
                 'ncm','cest','cfop_in','cfop_out','cst_csosn','origin',
                 'icms_rate','pis_rate','cofins_rate','ipi_rate','tax_benefits',
                 'main_supplier_id','supplier_code','last_purchase_price','avg_delivery_time',
+                'purchase_unit','purchase_factor','purchase_freight_value','purchase_icms_value','purchase_other_costs_value','purchase_total_cost',
                 'cost_price','margin','price','max_discount',
                 'stock_quantity','min_stock','max_stock','location','lot_number',
                 'net_weight','gross_weight','length_cm','width_cm','height_cm','volume_m3',
@@ -475,6 +549,7 @@ def produto_cadastrar():
                 ncm, cest, cfop_in, cfop_out, cst_csosn, origin,
                 icms_rate, pis_rate, cofins_rate, ipi_rate, tax_benefits,
                 main_supplier_id, supplier_code, last_purchase_price, avg_delivery_time,
+                purchase_unit, purchase_factor, purchase_freight_value, purchase_icms_value, purchase_other_costs_value, purchase_total_cost,
                 cost_price, margin, price, max_discount,
                 stock_quantity, min_stock, max_stock, location, lot_number,
                 net_weight, gross_weight, length_cm, width_cm, height_cm, volume_m3,
@@ -499,6 +574,16 @@ def produto_cadastrar():
             
             produto_id = insert_cursor.lastrowid
             insert_cursor.close()
+
+            # Recalcular custos em cascata após criação de produto
+            try:
+                sp_cursor = conn.cursor()
+                sp_cursor.execute("CALL sp_recalcular_custos_fichas()")
+                conn.commit()
+                sp_cursor.close()
+            except Exception as sp_err:
+                # Não impede o cadastro do produto; apenas registra no log
+                print(f"[PRODUTO] Aviso: erro ao executar sp_recalcular_custos_fichas() apos cadastro: {sp_err}")
             
             if produto_id:
                 flash(f'Produto cadastrado com sucesso! ID: {produto_id}', 'success')
@@ -656,9 +741,31 @@ def produto_editar(id):
             supplier_code = request.form.get('supplier_code', '')
             last_purchase_price = safe_decimal(request.form.get('last_purchase_price'))
             avg_delivery_time = request.form.get('avg_delivery_time') or None
-            
+            purchase_unit = request.form.get('purchase_unit', '')
+            purchase_factor = safe_decimal(request.form.get('purchase_factor'))
+            purchase_freight_value = safe_decimal(request.form.get('purchase_freight_value'))
+            purchase_icms_value = safe_decimal(request.form.get('purchase_icms_value'))
+            purchase_other_costs_value = safe_decimal(request.form.get('purchase_other_costs_value'))
+
             # 4. Dados de Preço (movidos para Identificação Básica)
-            cost_price = safe_decimal(request.form.get('cost_price'))
+            # Aqui também consideramos cost_price como custo da unidade de compra (PCT/CX/FARDO...)
+            cost_price_form = safe_decimal(request.form.get('cost_price'))
+            cost_price = cost_price_form
+
+            lp = last_purchase_price or 0
+            pfv = purchase_freight_value or 0
+            piv = purchase_icms_value or 0
+            po = purchase_other_costs_value or 0
+            if (cost_price is None or cost_price == 0) and any(v > 0 for v in (lp, pfv, piv, po)):
+                cost_price = lp + pfv + piv + po
+
+            # Custo convertido por unidade base (ex.: R$/KG) armazenado em purchase_total_cost
+            purchase_total_cost = safe_decimal(request.form.get('purchase_total_cost'), default=None)
+            if (purchase_total_cost is None or purchase_total_cost <= 0) and cost_price and purchase_factor and purchase_factor > 0:
+                try:
+                    purchase_total_cost = cost_price / purchase_factor
+                except Exception:
+                    purchase_total_cost = None
             margin = safe_decimal(request.form.get('margin'))
             price = safe_decimal(request.form.get('price'))
             max_discount = safe_decimal(request.form.get('max_discount'))
@@ -685,6 +792,19 @@ def produto_editar(id):
             notes = request.form.get('notes', '')
             # Tipo de Produto (standalone | parent | child)
             product_type = request.form.get('product_type', produto.get('product_type', 'standalone'))
+
+            # Definir valor da coluna legacy `category` (string) com base na categoria selecionada
+            # Mantemos este campo apenas por compatibilidade com telas/rotinas antigas
+            category = produto.get('category', 'outro') or 'outro'
+            if category_id:
+                try:
+                    for cat in categorias:
+                        if str(cat.get('id')) == str(category_id):
+                            category = cat.get('name') or 'outro'
+                            break
+                except Exception:
+                    # Se algo der errado na resolução do nome, mantém valor anterior
+                    pass
             
             # Upload de foto - manter a existente se não enviar nova
             photo_url = produto.get('photo_url', '') or ''
@@ -694,8 +814,8 @@ def produto_editar(id):
                 if new_photo_url:
                     photo_url = new_photo_url
             
-            # Definir um valor padrão para a coluna category (obrigatória)
-            category = "outro"
+            # Garantir um valor padrão para a coluna legacy `category` se nada foi resolvido
+            category = category or "outro"
             
             # Validar dados obrigatórios
             if not name or price <= 0:
@@ -722,6 +842,7 @@ def produto_editar(id):
                     ncm = %s, cest = %s, cfop_in = %s, cfop_out = %s, cst_csosn = %s, origin = %s, 
                     icms_rate = %s, pis_rate = %s, cofins_rate = %s, ipi_rate = %s, tax_benefits = %s,
                     main_supplier_id = %s, supplier_code = %s, last_purchase_price = %s, avg_delivery_time = %s,
+                    purchase_unit = %s, purchase_factor = %s, purchase_freight_value = %s, purchase_icms_value = %s, purchase_other_costs_value = %s, purchase_total_cost = %s,
                     cost_price = %s, margin = %s, price = %s, max_discount = %s,
                     stock_quantity = %s, min_stock = %s, max_stock = %s, location = %s, lot_number = %s,
                     net_weight = %s, gross_weight = %s, length_cm = %s, width_cm = %s, height_cm = %s, volume_m3 = %s,
@@ -736,6 +857,7 @@ def produto_editar(id):
                 ncm, cest, cfop_in, cfop_out, cst_csosn, origin, 
                 icms_rate, pis_rate, cofins_rate, ipi_rate, tax_benefits,
                 main_supplier_id, supplier_code, last_purchase_price, avg_delivery_time,
+                purchase_unit, purchase_factor, purchase_freight_value, purchase_icms_value, purchase_other_costs_value, purchase_total_cost,
                 cost_price, margin, price, max_discount,
                 stock_quantity, min_stock, max_stock, location, lot_number,
                 net_weight, gross_weight, length_cm, width_cm, height_cm, volume_m3,
@@ -747,6 +869,15 @@ def produto_editar(id):
             update_cursor.execute(query, params)
             conn.commit()
             update_cursor.close()
+
+            # Recalcular custos em cascata após atualização de produto
+            try:
+                sp_cursor = conn.cursor()
+                sp_cursor.execute("CALL sp_recalcular_custos_fichas()")
+                conn.commit()
+                sp_cursor.close()
+            except Exception as sp_err:
+                print(f"[PRODUTO] Aviso: erro ao executar sp_recalcular_custos_fichas() apos edicao: {sp_err}")
             
             # MySQL retorna 0 em rowcount se os dados não mudaram, mas o UPDATE foi bem-sucedido
             # Portanto, não verificamos affected_rows - se chegou aqui sem exceção, deu certo
@@ -999,6 +1130,383 @@ def produto_excluir(id):
         flash('Erro ao excluir produto.', 'danger')
     
     return redirect(url_for('produto.produtos'))
+
+
+@produto_bp.route('/produtos/pacotes')
+@produto_visualizar_required
+def produto_pacotes_lista():
+    """Lista os pacotes comerciais cadastrados para os produtos.
+
+    Permite filtrar por produto e por termo de busca (nome do produto ou descrição do pacote).
+    """
+    conn = get_direct_db()
+    cursor = conn.cursor(dictionary=True)
+
+    search_term = (request.args.get('search_term') or '').strip()
+    produto_id = (request.args.get('produto_id') or '').strip()
+
+    base_query = """
+        SELECT
+            pp.id,
+            pp.produto_id,
+            pp.descricao,
+            pp.unidade_comercial,
+            pp.unidades_por_pacote,
+            pp.peso_pacote_kg,
+            pp.preco_pacote,
+            pp.preco_unidade,
+            pp.ativo,
+            pp.padrao_planejamento,
+            p.name AS produto_nome,
+            p.internal_code AS produto_codigo,
+            p.unit_measure AS produto_unidade,
+            COALESCE(
+                NULLIF(p.cost_price, 0),
+                NULLIF(p.purchase_total_cost, 0),
+                NULLIF(p.last_purchase_price, 0)
+            ) AS produto_custo_unitario
+        FROM produto_pacotes pp
+        INNER JOIN products p ON p.id = pp.produto_id
+    """
+
+    where_clauses = []
+    params = []
+
+    if produto_id and produto_id.isdigit():
+        where_clauses.append("pp.produto_id = %s")
+        params.append(int(produto_id))
+
+    if search_term:
+        like = f"%{search_term}%"
+        where_clauses.append("(p.name LIKE %s OR pp.descricao LIKE %s)")
+        params.extend([like, like])
+
+    if where_clauses:
+        base_query += " WHERE " + " AND ".join(where_clauses)
+
+    base_query += " ORDER BY p.name, pp.descricao"
+
+    cursor.execute(base_query, params)
+    pacotes = cursor.fetchall() or []
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        'produto_pacotes_lista.html',
+        pacotes=pacotes,
+        search_term=search_term,
+        produto_id=produto_id,
+    )
+
+
+@produto_bp.route('/produtos/pacotes/<int:id>/editar', methods=['GET', 'POST'])
+@produto_editar_required
+def produto_pacotes_editar(id):
+    """Edita um pacote comercial de produto (descricao, quantidade, preços, flags)."""
+    conn = get_direct_db()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT
+            pp.*,
+            p.name AS produto_nome,
+            p.internal_code AS produto_codigo,
+            p.unit_measure AS produto_unidade,
+            COALESCE(
+                NULLIF(p.cost_price, 0),
+                NULLIF(p.purchase_total_cost, 0),
+                NULLIF(p.last_purchase_price, 0)
+            ) AS produto_custo_unitario
+        FROM produto_pacotes pp
+        INNER JOIN products p ON p.id = pp.produto_id
+        WHERE pp.id = %s
+        """,
+        (id,),
+    )
+    pacote = cursor.fetchone()
+
+    if not pacote:
+        cursor.close()
+        conn.close()
+        flash('Pacote de produto não encontrado.', 'danger')
+        return redirect(url_for('produto.produto_pacotes_lista'))
+
+    if request.method == 'POST':
+        produto_id_raw = (request.form.get('produto_id') or '').strip()
+        if not produto_id_raw or not produto_id_raw.isdigit():
+            flash('Produto selecionado é inválido.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('produto.produto_pacotes_editar', id=id))
+
+        novo_produto_id = int(produto_id_raw)
+
+        # Opcional: validar se o produto existe e está ativo
+        cursor.execute(
+            "SELECT id FROM products WHERE id = %s AND active = TRUE",
+            (novo_produto_id,),
+        )
+        if cursor.fetchone() is None:
+            flash('Produto selecionado não foi encontrado ou está inativo.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('produto.produto_pacotes_editar', id=id))
+
+        descricao = (request.form.get('descricao') or '').strip()
+        unidade_comercial = (request.form.get('unidade_comercial') or '').strip()
+        unidades_por_pacote = safe_decimal(
+            request.form.get('unidades_por_pacote'),
+            default=pacote.get('unidades_por_pacote') or 1.0,
+        )
+        peso_pacote_kg = safe_decimal(request.form.get('peso_pacote_kg'), default=None)
+        preco_pacote = safe_decimal(request.form.get('preco_pacote'), default=None)
+        preco_unidade = safe_decimal(request.form.get('preco_unidade'), default=None)
+        ativo = 1 if request.form.get('ativo') in ('on', '1', 'true') else 0
+        padrao_planejamento = 1 if request.form.get('padrao_planejamento') in ('on', '1', 'true') else 0
+
+        if not descricao:
+            flash('Descrição do pacote é obrigatória.', 'danger')
+            cursor.close()
+            conn.close()
+            return render_template('produto_pacotes_form.html', pacote=pacote, is_new=False)
+
+        update_cursor = conn.cursor()
+        try:
+            # Garantir apenas um pacote padrão por produto
+            if padrao_planejamento:
+                update_cursor.execute(
+                    "UPDATE produto_pacotes SET padrao_planejamento = 0 WHERE produto_id = %s",
+                    (novo_produto_id,),
+                )
+
+            update_cursor.execute(
+                """
+                UPDATE produto_pacotes
+                SET produto_id = %s,
+                    descricao = %s,
+                    unidade_comercial = %s,
+                    unidades_por_pacote = %s,
+                    peso_pacote_kg = %s,
+                    preco_pacote = %s,
+                    preco_unidade = %s,
+                    ativo = %s,
+                    padrao_planejamento = %s
+                WHERE id = %s
+                """,
+                (
+                    novo_produto_id,
+                    descricao,
+                    unidade_comercial,
+                    unidades_por_pacote,
+                    peso_pacote_kg,
+                    preco_pacote,
+                    preco_unidade,
+                    ativo,
+                    padrao_planejamento,
+                    id,
+                ),
+            )
+            conn.commit()
+            flash('Pacote de produto atualizado com sucesso!', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Erro ao atualizar pacote de produto: {str(e)}', 'danger')
+        finally:
+            update_cursor.close()
+            cursor.close()
+            conn.close()
+
+        return redirect(url_for('produto.produto_pacotes_lista'))
+
+    cursor.close()
+    conn.close()
+    return render_template('produto_pacotes_form.html', pacote=pacote)
+
+
+@produto_bp.route('/produtos/pacotes/novo', methods=['GET', 'POST'])
+@produto_editar_required
+def produto_pacotes_novo():
+    """Cadastra um novo pacote comercial de produto.
+
+    Usa o mesmo formulário de edição, mas em modo de criação. O custo unitário é
+    sempre obtido do cadastro do produto (products.cost_price), e os custos/margens
+    são calculados na visualização.
+    """
+    conn = get_direct_db()
+    cursor = conn.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        produto_id_raw = (request.form.get('produto_id') or '').strip()
+
+        if not produto_id_raw or not produto_id_raw.isdigit():
+            flash('ID do produto é obrigatório e deve ser numérico.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('produto.produto_pacotes_novo'))
+
+        produto_id = int(produto_id_raw)
+
+        cursor.execute(
+            """
+            SELECT 
+                id, 
+                name, 
+                internal_code, 
+                unit_measure,
+                COALESCE(
+                    NULLIF(cost_price, 0),
+                    NULLIF(purchase_total_cost, 0),
+                    NULLIF(last_purchase_price, 0)
+                ) AS cost_price
+            FROM products
+            WHERE id = %s AND active = TRUE
+            """,
+            (produto_id,),
+        )
+        produto = cursor.fetchone()
+
+        if not produto:
+            flash('Produto informado não foi encontrado ou está inativo.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('produto.produto_pacotes_novo'))
+
+        descricao = (request.form.get('descricao') or '').strip()
+        unidade_comercial = (request.form.get('unidade_comercial') or '').strip()
+        unidades_por_pacote = safe_decimal(
+            request.form.get('unidades_por_pacote'),
+            default=1.0,
+        )
+        peso_pacote_kg = safe_decimal(request.form.get('peso_pacote_kg'), default=None)
+        preco_pacote = safe_decimal(request.form.get('preco_pacote'), default=None)
+        preco_unidade = safe_decimal(request.form.get('preco_unidade'), default=None)
+        ativo = 1 if request.form.get('ativo') in ('on', '1', 'true') else 0
+        padrao_planejamento = 1 if request.form.get('padrao_planejamento') in ('on', '1', 'true') else 0
+
+        if not descricao:
+            flash('Descrição do pacote é obrigatória.', 'danger')
+            pacote = {
+                'id': None,
+                'produto_id': produto['id'],
+                'produto_nome': produto['name'],
+                'produto_codigo': produto.get('internal_code'),
+                'produto_unidade': produto.get('unit_measure'),
+                'descricao': descricao,
+                'unidade_comercial': unidade_comercial,
+                'unidades_por_pacote': unidades_por_pacote,
+                'peso_pacote_kg': peso_pacote_kg,
+                'preco_pacote': preco_pacote,
+                'preco_unidade': preco_unidade,
+                'ativo': ativo,
+                'padrao_planejamento': padrao_planejamento,
+                'produto_custo_unitario': produto.get('cost_price'),
+            }
+            cursor.close()
+            conn.close()
+            return render_template('produto_pacotes_form.html', pacote=pacote, is_new=True)
+
+        insert_cursor = conn.cursor()
+        try:
+            # Garantir apenas um pacote padrão por produto
+            if padrao_planejamento:
+                insert_cursor.execute(
+                    "UPDATE produto_pacotes SET padrao_planejamento = 0 WHERE produto_id = %s",
+                    (produto_id,),
+                )
+
+            insert_cursor.execute(
+                """
+                INSERT INTO produto_pacotes (
+                    produto_id,
+                    descricao,
+                    unidade_comercial,
+                    unidades_por_pacote,
+                    peso_pacote_kg,
+                    preco_pacote,
+                    preco_unidade,
+                    ativo,
+                    padrao_planejamento
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    produto_id,
+                    descricao,
+                    unidade_comercial,
+                    unidades_por_pacote,
+                    peso_pacote_kg,
+                    preco_pacote,
+                    preco_unidade,
+                    ativo,
+                    padrao_planejamento,
+                ),
+            )
+            conn.commit()
+            flash('Pacote de produto cadastrado com sucesso!', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Erro ao cadastrar pacote de produto: {str(e)}', 'danger')
+        finally:
+            insert_cursor.close()
+            cursor.close()
+            conn.close()
+
+        return redirect(url_for('produto.produto_pacotes_lista', produto_id=produto_id))
+
+    # GET
+    produto = None
+    produto_id_param = (request.args.get('produto_id') or '').strip()
+    if produto_id_param and produto_id_param.isdigit():
+        cursor.execute(
+            """
+            SELECT 
+                id, 
+                name, 
+                internal_code, 
+                unit_measure,
+                COALESCE(
+                    NULLIF(cost_price, 0),
+                    NULLIF(purchase_total_cost, 0),
+                    NULLIF(last_purchase_price, 0)
+                ) AS cost_price
+            FROM products
+            WHERE id = %s AND active = TRUE
+            """,
+            (int(produto_id_param),),
+        )
+        produto = cursor.fetchone()
+
+    # Valores padrão ou vindos da querystring (usado ao duplicar pacote)
+    descricao_qs = (request.args.get('descricao') or '').strip()
+    unidade_com_qs = (request.args.get('unidade_comercial') or '').strip()
+    unidades_qs = safe_decimal(request.args.get('unidades_por_pacote'), default=1.0)
+    peso_qs = safe_decimal(request.args.get('peso_pacote_kg'), default=None)
+    preco_pacote_qs = safe_decimal(request.args.get('preco_pacote'), default=None)
+    preco_unidade_qs = safe_decimal(request.args.get('preco_unidade'), default=None)
+
+    cursor.close()
+    conn.close()
+
+    pacote = {
+        'id': None,
+        'produto_id': produto.get('id') if produto else None,
+        'produto_nome': produto.get('name') if produto else '',
+        'produto_codigo': produto.get('internal_code') if produto else '',
+        'produto_unidade': produto.get('unit_measure') if produto else '',
+        'descricao': descricao_qs or '',
+        'unidade_comercial': unidade_com_qs or '',
+        'unidades_por_pacote': unidades_qs,
+        'peso_pacote_kg': peso_qs,
+        'preco_pacote': preco_pacote_qs,
+        'preco_unidade': preco_unidade_qs,
+        'ativo': 1,
+        'padrao_planejamento': 0,
+        'produto_custo_unitario': produto.get('cost_price') if produto else None,
+    }
+
+    return render_template('produto_pacotes_form.html', pacote=pacote, is_new=True)
 
 # Rota para buscar subgrupos de um grupo via AJAX
 @produto_bp.route('/api/subgroups-by-group/<group_id>')

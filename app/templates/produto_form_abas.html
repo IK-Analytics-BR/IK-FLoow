@@ -92,7 +92,7 @@
                                                     <select class="form-select" id="category_id" name="category_id">
                                                         <option value="" {% if not produto or not produto.category_id %}selected{% endif %}>Selecione uma categoria</option>
                                                         {% for categoria in categorias %}
-                                                        <option value="{{ categoria.id }}" data-categoria-fiscal="{{ categoria.categoria_fiscal if categoria.categoria_fiscal else '' }}" {% if produto and produto.category_id == categoria.id %}selected{% endif %}>{{ categoria.name }}</option>
+                                                        <option value="{{ categoria.id }}" data-categoria-fiscal="{{ categoria.categoria_fiscal if categoria.categoria_fiscal else '' }}" {% if produto and (produto.category_id|string) == (categoria.id|string) %}selected{% endif %}>{{ categoria.name }}</option>
                                                         {% endfor %}
                                                     </select>
                                                     <label for="category_id">Categoria</label>
@@ -404,15 +404,87 @@
                                         
                                         <div class="row mb-3">
                                             <div class="col-md-6">
-                                                <div class="form-floating mb-3">
-                                                    <input type="number" class="form-control" id="last_purchase_price" name="last_purchase_price" placeholder="Último Preço de Compra" value="{{ produto.last_purchase_price if produto and produto.last_purchase_price else '' }}" step="0.00000001" min="0">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="last_purchase_price" name="last_purchase_price" placeholder="Último Preço de Compra" value="{{ produto.last_purchase_price if produto and produto.last_purchase_price is not none else '' }}" step="0.00000001" min="0">
                                                     <label for="last_purchase_price">Último Preço de Compra (R$)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Valor da unidade de compra (pacote, caixa, fardo etc.).
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <div class="form-floating mb-3">
+                                                <div class="form-floating mb-1">
                                                     <input type="number" class="form-control" id="avg_delivery_time" name="avg_delivery_time" placeholder="Prazo Médio de Entrega" value="{{ produto.avg_delivery_time if produto and produto.avg_delivery_time else '' }}" step="1" min="0">
                                                     <label for="avg_delivery_time">Prazo Médio de Entrega (dias)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Tempo médio de entrega do fornecedor para este produto.
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <select class="form-select" id="purchase_unit" name="purchase_unit">
+                                                        <option value="" {% if not produto or not produto.purchase_unit %}selected{% endif %}>Selecione a unidade de compra</option>
+                                                        {% for unit in unit_measures %}
+                                                        <option value="{{ unit.code }}" {% if produto and produto.purchase_unit == unit.code %}selected{% endif %}>{{ unit.code }} - {{ unit.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label for="purchase_unit">Unidade de Compra</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Ex.: PCT, CX, FARDO, conforme a embalagem de compra.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="purchase_factor" name="purchase_factor" placeholder="Fator de Conversão" value="{{ produto.purchase_factor if produto and produto.purchase_factor else '' }}" step="0.000001" min="0">
+                                                    <label for="purchase_factor">Fator de Conversão</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    1 unidade de compra = X {{ produto.unit_measure or 'unidade base' }}.
+                                                </div>
+                                            </div>
+                        
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="purchase_total_cost" name="purchase_total_cost" placeholder="Custo convertido por unidade de medida base" value="{{ produto.purchase_total_cost if produto and produto.purchase_total_cost else '' }}" step="0.00000001" min="0" readonly>
+                                                    <label for="purchase_total_cost">Custo Convertido (R$)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Custo por {{ produto.unit_measure or 'unidade base' }} (ex.: R$/KG, R$/L, R$/UND, R$/MIL). Calculado como Preço de Custo \/ Fator de Conversão.
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="purchase_freight_value" name="purchase_freight_value" placeholder="Frete por Unidade de Compra" value="{{ produto.purchase_freight_value if produto and produto.purchase_freight_value is not none else '0' }}" step="0.00000001" min="0">
+                                                    <label for="purchase_freight_value">Frete (R$)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Frete rateado por unidade de compra.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="purchase_icms_value" name="purchase_icms_value" placeholder="ICMS por Unidade de Compra" value="{{ produto.purchase_icms_value if produto and produto.purchase_icms_value is not none else '0' }}" step="0.00000001" min="0">
+                                                    <label for="purchase_icms_value">ICMS (R$)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Valor de ICMS em reais por unidade de compra.
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-floating mb-1">
+                                                    <input type="number" class="form-control" id="purchase_other_costs_value" name="purchase_other_costs_value" placeholder="Outros Custos por Unidade de Compra" value="{{ produto.purchase_other_costs_value if produto and produto.purchase_other_costs_value is not none else '0' }}" step="0.00000001" min="0">
+                                                    <label for="purchase_other_costs_value">Outros Custos (R$)</label>
+                                                </div>
+                                                <div class="form-text text-muted small">
+                                                    Outros rateios por unidade de compra (ex.: taxas, seguros).
                                                 </div>
                                             </div>
                                         </div>
@@ -1135,6 +1207,60 @@
             $('#volume_m3').val(roundedVolume.toFixed(3));
         }
     }
+    
+    // Cálculo de custos de compra (fallback em JavaScript puro)
+    function produtoRecalcPurchaseInline() {
+        function getNumeric(id) {
+            var el = document.getElementById(id);
+            if (!el) return 0;
+            var v = (el.value || '').replace(',', '.');
+            var n = parseFloat(v);
+            return isNaN(n) ? 0 : n;
+        }
+        var lastPurchase = getNumeric('last_purchase_price');
+        var freight = getNumeric('purchase_freight_value');
+        var icms = getNumeric('purchase_icms_value');
+        var others = getNumeric('purchase_other_costs_value');
+        var factor = getNumeric('purchase_factor');
+        
+        var total = lastPurchase + freight + icms + others;
+        var totalField = document.getElementById('purchase_total_cost');
+        if (totalField) {
+            if (total > 0) {
+                totalField.value = total.toFixed(8);
+            } else {
+                totalField.value = '';
+            }
+        }
+        
+        // Se houver fator e custo total, calcular preço de custo (unidade base)
+        if (total > 0 && factor > 0) {
+            var unitCost = total / factor;
+            var costField = document.getElementById('cost_price');
+            if (costField) {
+                costField.value = unitCost.toFixed(8);
+            }
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        var ids = [
+            'last_purchase_price',
+            'purchase_freight_value',
+            'purchase_icms_value',
+            'purchase_other_costs_value',
+            'purchase_factor'
+        ];
+        ids.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', produtoRecalcPurchaseInline);
+                el.addEventListener('change', produtoRecalcPurchaseInline);
+            }
+        });
+        // Calcular uma vez ao abrir a tela (edição)
+        produtoRecalcPurchaseInline();
+    });
     
     // loadSubgroups agora está definido no bloco de scripts acima
 </script>

@@ -1,0 +1,9 @@
+Salve os 7 screenshots nesta pasta com os seguintes nomes:
+
+1. poc_cronograma.png   — Print do Cronograma Semanal (timeline colorida seg-sex)
+2. poc_ops.png          — Print das Ordens de Producao (tabela com OPs)
+3. poc_planejamento.png — Print do Planejamento de Producao (sugestao com barras de nivel)
+4. poc_materiaprima.png — Print da Materia-prima Geral (resumo com situacao OK/Comprar)
+5. poc_massas.png       — Print do detalhe de Massas (tipo + insumos)
+6. poc_kanban.png       — Print do Kanban/Gantt de Producao
+7. poc_cotacoes.png     — Print da tela inicial com cotacoes (logo IK Flow + moedas)

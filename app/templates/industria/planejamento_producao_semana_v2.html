@@ -1,0 +1,702 @@
+{% extends "base.html" %}
+
+{% block title %}Planejamento de Produção - Semana{% endblock %}
+
+{% block content %}
+<style>
+    .kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .kpi-card { flex: 1 1 0; border-radius: 10px; padding: 14px 10px; color: #fff; text-align: center; cursor: pointer; transition: transform .15s, box-shadow .15s; user-select: none; position: relative; }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+    .kpi-card.kpi-active { box-shadow: 0 0 0 3px #fff, 0 0 0 5px currentColor; }
+    .kpi-card .kpi-value { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+    .kpi-card .kpi-label { font-size: 0.72rem; opacity: 0.92; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .kpi-danger  { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .kpi-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #333 !important; }
+    .kpi-success { background: linear-gradient(135deg, #28a745, #1e7e34); }
+    .kpi-info    { background: linear-gradient(135deg, #17a2b8, #117a8b); }
+
+    .stock-bar { height: 8px; border-radius: 4px; background: #e9ecef; overflow: hidden; min-width: 50px; cursor: pointer; }
+    .stock-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .stock-pct { font-size: 0.7rem; color: #666; }
+    .prod-row-clickable { cursor: pointer; }
+    .prod-row-clickable:hover td { background-color: rgba(0,123,255,0.04) !important; }
+    .modal-bar-row { display: flex; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .modal-bar-lbl { width: 110px; font-size: 0.82rem; font-weight: 500; color: #555; text-align: right; flex-shrink: 0; }
+    .modal-bar-track { flex: 1; height: 16px; background: #e9ecef; border-radius: 4px; position: relative; overflow: hidden; }
+    .modal-bar-fill { height: 100%; border-radius: 4px; }
+    .modal-bar-val { width: 65px; font-size: 0.85rem; font-weight: 700; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .modal-ref-line { position: absolute; top: 0; height: 100%; width: 2px; z-index: 1; }
+    .modal-minmax { font-size: 0.75rem; color: #888; }
+
+    .table-plan th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .badge-sug { font-size: 0.82rem; padding: 4px 10px; }
+    .tab-badge { font-size: 0.65rem; vertical-align: top; margin-left: 2px; }
+    .mp-table .text-end { font-variant-numeric: tabular-nums; }
+    tr.row-hidden { display: none !important; }
+</style>
+
+{# ── Macros para formatação ── #}
+{% macro fmt(val, decimals=2) %}{{ '{:,.{prec}f}'.format(val|float, prec=decimals).replace(',','X').replace('.',',').replace('X','.') }}{% endmacro %}
+
+{# ── Macro para tabela de MP reutilizável ── #}
+{% macro mp_table(items, table_id, empty_msg="Nenhum item calculado.") %}
+<div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover mp-table mb-0" id="{{ table_id }}">
+        <thead class="table-dark">
+            <tr class="table-plan">
+                <th style="width:32%">Matéria-prima</th>
+                <th style="width:7%" class="text-center">Unid.</th>
+                <th style="width:14%" class="text-end">Qtd necessária</th>
+                <th style="width:14%" class="text-end">Estoque atual</th>
+                <th style="width:14%" class="text-end">Saldo após prod.</th>
+                <th style="width:10%" class="text-center">Situação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if items %}
+                {% for mp in items %}
+                {% set saldo = (mp.saldo_estoque or 0)|float %}
+                {% set estoque = (mp.estoque_atual or 0)|float %}
+                {% set necessario = (mp.qtd_total or 0)|float %}
+                {% set pct = (estoque / necessario * 100) if necessario > 0 else 999 %}
+                {% set status_class = 'danger' if saldo < 0 else ('warning' if pct < 120 else 'ok') %}
+                <tr class="{% if saldo < 0 %}table-danger{% elif pct < 120 %}table-warning{% endif %}" data-status="{{ status_class }}">
+                    <td class="text-start fw-medium">{{ mp.nome }}</td>
+                    <td class="text-center"><small>{{ mp.unidade or '-' }}</small></td>
+                    <td class="text-end"><strong>{{ fmt(necessario) }}</strong></td>
+                    <td class="text-end">{{ fmt(estoque) }}</td>
+                    <td class="text-end fw-bold {% if saldo < 0 %}text-danger{% elif saldo < necessario * 0.3 %}text-warning{% else %}text-success{% endif %}">
+                        {{ fmt(saldo) }}
+                    </td>
+                    <td class="text-center">
+                        {% if saldo < 0 %}
+                            <span class="badge bg-danger badge-sug"><i class="fas fa-exclamation-triangle"></i> Comprar</span>
+                        {% elif pct < 120 %}
+                            <span class="badge bg-warning text-dark badge-sug"><i class="fas fa-exclamation-circle"></i> Atenção</span>
+                        {% else %}
+                            <span class="badge bg-success badge-sug"><i class="fas fa-check-circle"></i> OK</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">{{ empty_msg }}</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+{# ── Macro para KPI cards (com filtro) ── #}
+{% macro kpi_cards(items, target_table_id) %}
+{% set ns_kpi = namespace(total=0, comprar=0, atencao=0, ok=0) %}
+{% if items %}
+    {% for mp in items %}
+        {% set ns_kpi.total = ns_kpi.total + 1 %}
+        {% set saldo = (mp.saldo_estoque or 0)|float %}
+        {% set necessario = (mp.qtd_total or 0)|float %}
+        {% set pct = (((mp.estoque_atual or 0)|float) / necessario * 100) if necessario > 0 else 999 %}
+        {% if saldo < 0 %}{% set ns_kpi.comprar = ns_kpi.comprar + 1 %}
+        {% elif pct < 120 %}{% set ns_kpi.atencao = ns_kpi.atencao + 1 %}
+        {% else %}{% set ns_kpi.ok = ns_kpi.ok + 1 %}{% endif %}
+    {% endfor %}
+{% endif %}
+<div class="kpi-row" data-target="{{ target_table_id }}">
+    <div class="kpi-card kpi-info" data-filter="all" onclick="filterTable(this)">
+        <div class="kpi-value">{{ ns_kpi.total }}</div>
+        <div class="kpi-label">Total itens</div>
+    </div>
+    <div class="kpi-card kpi-danger" data-filter="danger" onclick="filterTable(this)">
+        <div class="kpi-value">{{ ns_kpi.comprar }}</div>
+        <div class="kpi-label"><i class="fas fa-shopping-cart"></i> Comprar</div>
+    </div>
+    <div class="kpi-card kpi-warning" data-filter="warning" onclick="filterTable(this)">
+        <div class="kpi-value">{{ ns_kpi.atencao }}</div>
+        <div class="kpi-label"><i class="fas fa-exclamation-circle"></i> Atenção</div>
+    </div>
+    <div class="kpi-card kpi-success" data-filter="ok" onclick="filterTable(this)">
+        <div class="kpi-value">{{ ns_kpi.ok }}</div>
+        <div class="kpi-label"><i class="fas fa-check-circle"></i> OK</div>
+    </div>
+</div>
+{% endmacro %}
+
+{# ── Contadores para badges nas abas ── #}
+{% set ns_tab = namespace(massa_alert=0, recheio_alert=0, emb_alert=0, mp_alert=0) %}
+{% if resultados %}
+    {% for mp in (resultados.mp_massa_totais or []) %}{% if (mp.saldo_estoque or 0)|float < 0 %}{% set ns_tab.massa_alert = ns_tab.massa_alert + 1 %}{% endif %}{% endfor %}
+    {% for mp in (resultados.mp_recheio_totais or []) %}{% if (mp.saldo_estoque or 0)|float < 0 %}{% set ns_tab.recheio_alert = ns_tab.recheio_alert + 1 %}{% endif %}{% endfor %}
+    {% for mp in (resultados.mp_embalagem_totais or []) %}{% if (mp.saldo_estoque or 0)|float < 0 %}{% set ns_tab.emb_alert = ns_tab.emb_alert + 1 %}{% endif %}{% endfor %}
+    {% for mp in (resultados.mp_totais or []) %}{% if (mp.saldo_estoque or 0)|float < 0 %}{% set ns_tab.mp_alert = ns_tab.mp_alert + 1 %}{% endif %}{% endfor %}
+{% endif %}
+
+{# ── Contadores para KPIs da aba Produto/Pacote ── #}
+{% set ns_prod = namespace(total=0, produzir=0, atencao=0, ok=0) %}
+{% for p in produtos %}
+    {% set ns_prod.total = ns_prod.total + 1 %}
+    {% if p.classe_urgencia == 'danger' %}{% set ns_prod.produzir = ns_prod.produzir + 1 %}
+    {% elif p.classe_urgencia == 'warning' %}{% set ns_prod.atencao = ns_prod.atencao + 1 %}
+    {% else %}{% set ns_prod.ok = ns_prod.ok + 1 %}{% endif %}
+{% endfor %}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                    <h4 class="mb-0">
+                        <i class="fas fa-industry me-2"></i>Planejamento de Produção Semanal
+                    </h4>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('produto.produto_pacotes_lista') }}" class="btn btn-sm btn-outline-light" target="_blank">
+                            <i class="fas fa-box-open me-1"></i> Pacotes de Produto
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Abas de navegação -->
+                    <ul class="nav nav-tabs mb-3" id="planejamentoTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-produtos-tab" data-bs-toggle="tab" data-bs-target="#tab-produtos" type="button" role="tab">
+                                <i class="fas fa-boxes me-1"></i> Produto / Pacote
+                                {% if ns_prod.produzir > 0 %}
+                                    <span class="badge bg-danger tab-badge">{{ ns_prod.produzir }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{% if not resultados %} disabled{% endif %}" id="tab-massas-tab" data-bs-toggle="tab" data-bs-target="#tab-massas" type="button" role="tab">
+                                <i class="fas fa-bread-slice me-1"></i> Massas
+                                {% if ns_tab.massa_alert > 0 %}<span class="badge bg-danger tab-badge">{{ ns_tab.massa_alert }}</span>{% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{% if not resultados %} disabled{% endif %}" id="tab-recheios-tab" data-bs-toggle="tab" data-bs-target="#tab-recheios" type="button" role="tab">
+                                <i class="fas fa-drumstick-bite me-1"></i> Recheios
+                                {% if ns_tab.recheio_alert > 0 %}<span class="badge bg-danger tab-badge">{{ ns_tab.recheio_alert }}</span>{% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{% if not resultados %} disabled{% endif %}" id="tab-embalagens-tab" data-bs-toggle="tab" data-bs-target="#tab-embalagens" type="button" role="tab">
+                                <i class="fas fa-box me-1"></i> Embalagens
+                                {% if ns_tab.emb_alert > 0 %}<span class="badge bg-danger tab-badge">{{ ns_tab.emb_alert }}</span>{% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link{% if not resultados %} disabled{% endif %}" id="tab-mp-tab" data-bs-toggle="tab" data-bs-target="#tab-mp" type="button" role="tab">
+                                <i class="fas fa-cubes me-1"></i> Matéria-prima
+                                {% if ns_tab.mp_alert > 0 %}<span class="badge bg-danger tab-badge">{{ ns_tab.mp_alert }}</span>{% endif %}
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="planejamentoTabsContent">
+                        <!-- ═══════════════ ABA 1: PRODUTO / PACOTE ═══════════════ -->
+                        <div class="tab-pane fade show active" id="tab-produtos" role="tabpanel">
+                            <form method="post">
+                                <div class="row mb-3 align-items-end">
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-semibold small text-muted">DATA INÍCIO</label>
+                                        <input type="date" name="data_inicio" value="{{ data_inicio }}" class="form-control">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-semibold small text-muted">DATA FIM</label>
+                                        <input type="date" name="data_fim" value="{{ data_fim }}" class="form-control">
+                                    </div>
+                                    <div class="col-md-{{ '3' if resultados else '4' }}">
+                                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                                            <i class="fas fa-calculator me-1"></i> Calcular Planejamento
+                                        </button>
+                                    </div>
+                                    {% if resultados %}
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-success btn-lg w-100" data-bs-toggle="modal" data-bs-target="#modalGerarOPs">
+                                            <i class="fas fa-cogs me-1"></i> Gerar Produção
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                    <div class="col-md-{{ '2' if resultados else '4' }}">
+                                        <div class="d-flex gap-2 justify-content-end small">
+                                            <span class="badge bg-danger px-2 py-1"><i class="fas fa-arrow-up"></i> Urgente</span>
+                                            <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-exclamation"></i> Atenção</span>
+                                            <span class="badge bg-success px-2 py-1"><i class="fas fa-check"></i> OK</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- KPIs Produto/Pacote -->
+                                <div class="kpi-row" data-target="tbl-produtos">
+                                    <div class="kpi-card kpi-info" data-filter="all" onclick="filterTable(this)">
+                                        <div class="kpi-value">{{ ns_prod.total }}</div>
+                                        <div class="kpi-label">Total pacotes</div>
+                                    </div>
+                                    <div class="kpi-card kpi-danger" data-filter="danger" onclick="filterTable(this)">
+                                        <div class="kpi-value">{{ ns_prod.produzir }}</div>
+                                        <div class="kpi-label"><i class="fas fa-fire"></i> Produzir</div>
+                                    </div>
+                                    <div class="kpi-card kpi-warning" data-filter="warning" onclick="filterTable(this)">
+                                        <div class="kpi-value">{{ ns_prod.atencao }}</div>
+                                        <div class="kpi-label"><i class="fas fa-exclamation-circle"></i> Atenção</div>
+                                    </div>
+                                    <div class="kpi-card kpi-success" data-filter="ok" onclick="filterTable(this)">
+                                        <div class="kpi-value">{{ ns_prod.ok }}</div>
+                                        <div class="kpi-label"><i class="fas fa-check-circle"></i> OK</div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive mb-4">
+                                    <table class="table table-bordered table-sm align-middle table-hover" id="tbl-produtos">
+                                        <thead class="table-dark">
+                                            <tr class="table-plan">
+                                                <th style="width:32%">Produto / Pacote</th>
+                                                <th style="width:10%" class="text-end">Estoque</th>
+                                                <th style="width:10%" class="text-end">Previsão</th>
+                                                <th style="width:10%" class="text-center">Sugestão</th>
+                                                <th style="width:18%" class="text-center">Nível</th>
+                                                <th style="width:20%">Qtd planejada</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if produtos %}
+                                                {% for p in produtos %}
+                                                    {% set prev = (previsao_pacotes.get(p.id) or 0)|float if previsao_pacotes else 0 %}
+                                                    {% set sug = (sugestao_pacotes.get(p.id) or 0)|float if sugestao_pacotes else 0 %}
+                                                    {% set est = (estoque_pacotes.get(p.id) or 0)|float if estoque_pacotes else 0 %}
+                                                    {% set min_pk = (min_pacotes.get(p.id) or 0)|float if min_pacotes is defined else 0 %}
+                                                    {% set max_pk = (max_pacotes.get(p.id) or 0)|float if max_pacotes is defined else 0 %}
+                                                    {% set est_f = est %}
+                                                    {% set apos_prod = est_f + sug %}
+                                                    {% set apos_venda = apos_prod - prev %}
+                                                    {% set pct_nivel = ((est_f / max_pk) * 100) if max_pk > 0 else (100 if est_f > 0 else 0) %}
+                                                    {% if pct_nivel > 100 %}{% set pct_nivel = 100 %}{% endif %}
+                                                    {% if pct_nivel < 0 %}{% set pct_nivel = 0 %}{% endif %}
+                                                    {% set status_class = p.classe_urgencia if p.classe_urgencia in ['danger','warning'] else 'ok' %}
+
+                                                <tr class="prod-row-clickable {% if p.classe_urgencia %}table-{{ p.classe_urgencia }}{% endif %}" data-status="{{ status_class }}"
+                                                    data-nome="{{ p.nome }}" data-pacote="{{ p.pacote_descricao or '' }}"
+                                                    data-estoque="{{ '%.2f'|format(est_f) }}" data-previsao="{{ '%.2f'|format(prev) }}"
+                                                    data-sugestao="{{ '%.2f'|format(sug) }}" data-atprod="{{ '%.2f'|format(apos_prod) }}"
+                                                    data-restante="{{ '%.2f'|format(apos_venda) }}" data-min="{{ '%.2f'|format(min_pk) }}"
+                                                    data-max="{{ '%.2f'|format(max_pk) }}" data-urgencia="{{ p.classe_urgencia or 'success' }}"
+                                                    onclick="openDetalhe(this)">
+                                                    <td class="text-start">
+                                                        <strong>{{ p.nome }}</strong>
+                                                        {% if p.pacote_descricao %}
+                                                            <small class="text-muted">/ {{ p.pacote_descricao }}</small>
+                                                        {% endif %}
+                                                        {% if resultados and resultados.quantidades_planejadas_unidades %}
+                                                            {% set qtd_un = resultados.quantidades_planejadas_unidades.get(p.produto_id) %}
+                                                            {% if qtd_un %}
+                                                                <br><small class="text-muted"><i class="fas fa-cog"></i> {{ fmt(qtd_un) }} un. planejadas</small>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <strong>{{ fmt(est_f) }}</strong>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        {% if prev > 0 %}{{ fmt(prev) }}{% else %}<span class="text-muted">-</span>{% endif %}
+                                                    </td>
+                                                    <td class="text-center">
+                                                        {% if sug > 0 %}
+                                                            <span class="badge bg-danger badge-sug">{{ fmt(sug) }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-success badge-sug">OK</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <div class="d-flex align-items-center gap-2 justify-content-center">
+                                                            <div class="stock-bar flex-grow-1" title="Clique para detalhes">
+                                                                <div class="stock-bar-fill" style="width:{{ pct_nivel|round(0) }}%; background:{% if pct_nivel < 25 %}#dc3545{% elif pct_nivel < 50 %}#ffc107{% else %}#28a745{% endif %};"></div>
+                                                            </div>
+                                                            <span class="stock-pct">{{ pct_nivel|round(0)|int }}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
+                                                               name="qtd_{{ p.id }}"
+                                                               value="{% if resultados and resultados.quantidades_planejadas %}{{ resultados.quantidades_planejadas.get(p.id) or '' }}{% elif sug > 0 %}{{ '%.2f'|format(sug) }}{% else %}{% endif %}"
+                                                               placeholder="{% if sug > 0 %}{{ '%.2f'|format(sug) }}{% else %}0{% endif %}">
+                                                        <input type="hidden" name="urg_{{ p.id }}" value="{{ status_class }}">
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center text-muted py-4">
+                                                        <i class="fas fa-info-circle me-1"></i> Nenhum produto final com ficha técnica ativa encontrado.
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <!-- ═══════════════ ABA 2: MASSAS ═══════════════ -->
+                        <div class="tab-pane fade" id="tab-massas" role="tabpanel">
+                            {% if resultados %}
+                            <div class="row mt-3">
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-bread-slice me-2 text-primary"></i>MASSA – total por tipo</h5>
+                                </div>
+                                <div class="col-12 mb-4">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered table-hover mb-0">
+                                            <thead class="table-dark">
+                                                <tr class="table-plan">
+                                                    <th style="width:50%">Ingrediente de MASSA</th>
+                                                    <th style="width:15%" class="text-center">Unidade</th>
+                                                    <th style="width:35%" class="text-end">Quantidade total estimada</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if resultados.massa_por_tipo %}
+                                                    {% for m in resultados.massa_por_tipo %}
+                                                    <tr>
+                                                        <td class="text-start fw-medium">{{ m.item_nome }}</td>
+                                                        <td class="text-center">{{ m.unidade or '-' }}</td>
+                                                        <td class="text-end"><strong>{{ fmt(m.qtd_total, 3) }}</strong></td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr><td colspan="3" class="text-center text-muted py-3">Nenhum tipo de MASSA calculado.</td></tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-cubes me-2 text-primary"></i>Matéria-prima para MASSAS – total por item</h5>
+                                </div>
+                                <div class="col-12 mb-4">
+                                    {{ kpi_cards(resultados.mp_massa_totais, "tbl-mp-massa") }}
+                                    {{ mp_table(resultados.mp_massa_totais, "tbl-mp-massa", "Nenhuma matéria-prima de MASSA calculada.") }}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mt-3"><i class="fas fa-info-circle me-1"></i> Calcule o planejamento na aba "Produto / Pacote" para visualizar os dados de MASSA.</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- ═══════════════ ABA 3: RECHEIOS ═══════════════ -->
+                        <div class="tab-pane fade" id="tab-recheios" role="tabpanel">
+                            {% if resultados %}
+                            <div class="row mt-3">
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-drumstick-bite me-2 text-primary"></i>RECHEIO – total por tipo</h5>
+                                </div>
+                                <div class="col-12 mb-4">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered table-hover mb-0">
+                                            <thead class="table-dark">
+                                                <tr class="table-plan">
+                                                    <th style="width:50%">Ingrediente de RECHEIO</th>
+                                                    <th style="width:15%" class="text-center">Unidade</th>
+                                                    <th style="width:35%" class="text-end">Quantidade total estimada</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if resultados.recheio_por_tipo %}
+                                                    {% for r in resultados.recheio_por_tipo %}
+                                                    <tr>
+                                                        <td class="text-start fw-medium">{{ r.item_nome }}</td>
+                                                        <td class="text-center">{{ r.unidade or '-' }}</td>
+                                                        <td class="text-end"><strong>{{ fmt(r.qtd_total, 3) }}</strong></td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr><td colspan="3" class="text-center text-muted py-3">Nenhum tipo de RECHEIO calculado.</td></tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-cubes me-2 text-primary"></i>Matéria-prima para RECHEIOS – total por item</h5>
+                                </div>
+                                <div class="col-12 mb-4">
+                                    {{ kpi_cards(resultados.mp_recheio_totais, "tbl-mp-recheio") }}
+                                    {{ mp_table(resultados.mp_recheio_totais, "tbl-mp-recheio", "Nenhuma matéria-prima de RECHEIO calculada.") }}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mt-3"><i class="fas fa-info-circle me-1"></i> Calcule o planejamento na aba "Produto / Pacote" para visualizar os dados de RECHEIO.</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- ═══════════════ ABA 4: EMBALAGENS ═══════════════ -->
+                        <div class="tab-pane fade" id="tab-embalagens" role="tabpanel">
+                            {% if resultados %}
+                            <div class="row mt-3">
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-box me-2 text-primary"></i>Embalagens – necessidade vs. estoque</h5>
+                                </div>
+                                <div class="col-12 mb-4">
+                                    {{ kpi_cards(resultados.mp_embalagem_totais, "tbl-mp-embalagem") }}
+                                    {{ mp_table(resultados.mp_embalagem_totais, "tbl-mp-embalagem", "Nenhuma embalagem calculada.") }}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mt-3"><i class="fas fa-info-circle me-1"></i> Calcule o planejamento na aba "Produto / Pacote" para visualizar os dados de Embalagens.</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- ═══════════════ ABA 5: MATÉRIA-PRIMA GERAL ═══════════════ -->
+                        <div class="tab-pane fade" id="tab-mp" role="tabpanel">
+                            {% if resultados %}
+                            <div class="row mt-3">
+                                <div class="col-12 mb-3">
+                                    <h5 class="border-bottom pb-2"><i class="fas fa-cubes me-2 text-primary"></i>Resumo geral – matéria-prima total (MASSA + RECHEIO + EMBALAGEM)</h5>
+                                </div>
+                                <div class="col-12">
+                                    {{ kpi_cards(resultados.mp_totais, "tbl-mp-geral") }}
+                                    {{ mp_table(resultados.mp_totais, "tbl-mp-geral", "Nenhuma matéria-prima calculada.") }}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mt-3"><i class="fas fa-info-circle me-1"></i> Calcule o planejamento na aba "Produto / Pacote" para visualizar os dados de Matéria-prima.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Geração de OPs -->
+<div class="modal fade" id="modalGerarOPs" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-success">
+            <div class="modal-header bg-success text-white py-2">
+                <h5 class="modal-title"><i class="fas fa-cogs me-2"></i>Confirmar Geração de Ordens de Produção</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Ao confirmar, o sistema irá gerar automaticamente as OPs necessárias para a semana,
+                    separadas por tipo: <strong>Massa</strong>, <strong>Recheio</strong> e <strong>Montagem/Empacotamento</strong>.
+                </div>
+
+                <h6 class="mb-2"><i class="fas fa-list-check me-1"></i> O que será criado:</h6>
+                <ul class="mb-3">
+                    <li><strong>OPs de Massa</strong> — 1 OP por tipo de massa necessária (agrupando todos os produtos)</li>
+                    <li><strong>OPs de Recheio</strong> — 1 OP por tipo de recheio necessário</li>
+                    <li><strong>OPs de Montagem</strong> — 1 OP por produto final (vinculada à linha de produção)</li>
+                </ul>
+
+                <h6 class="mb-2"><i class="fas fa-calendar-week me-1"></i> Cronograma sugerido:</h6>
+                <div class="row text-center small mb-3">
+                    <div class="col"><span class="badge bg-purple text-white px-2 py-1">Seg/Ter</span><br>Massa + Recheio</div>
+                    <div class="col"><span class="badge bg-info text-white px-2 py-1">Ter</span><br>Resfriamento</div>
+                    <div class="col"><span class="badge bg-primary px-2 py-1">Qua</span><br>Montagem</div>
+                    <div class="col"><span class="badge bg-success px-2 py-1">Qui</span><br>Empacotamento</div>
+                </div>
+
+                <div id="resumoOPs" class="border rounded p-2 bg-light small">
+                    <strong>Produtos com quantidade planejada:</strong>
+                    <div id="listaOPsResumo" class="mt-1"></div>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-success btn-lg" id="btnConfirmarOPs" onclick="submeterGerarOPs()">
+                    <i class="fas fa-check-double me-1"></i> Confirmar e Gerar OPs
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhe do Produto -->
+<div class="modal fade" id="modalDetalhe" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title" id="modalDetalheTitle"><i class="fas fa-chart-bar me-2"></i>Posição de Estoque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0" id="mdNome"></h6>
+                        <small class="text-muted" id="mdPacote"></small>
+                    </div>
+                    <span id="mdBadge" class="badge fs-6"></span>
+                </div>
+                <hr class="my-2">
+                <div id="mdBars" class="px-2"></div>
+                <div class="d-flex justify-content-between mt-2 modal-minmax" id="mdMinMax"></div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterTable(card) {
+    var row = card.closest('.kpi-row');
+    var targetId = row.getAttribute('data-target');
+    var table = document.getElementById(targetId);
+    if (!table) return;
+    var filter = card.getAttribute('data-filter');
+    var cards = row.querySelectorAll('.kpi-card');
+    var wasActive = card.classList.contains('kpi-active');
+    cards.forEach(function(c) { c.classList.remove('kpi-active'); });
+    if (wasActive) {
+        table.querySelectorAll('tbody tr[data-status]').forEach(function(tr) { tr.classList.remove('row-hidden'); });
+        return;
+    }
+    card.classList.add('kpi-active');
+    table.querySelectorAll('tbody tr[data-status]').forEach(function(tr) {
+        var status = tr.getAttribute('data-status');
+        tr.classList.toggle('row-hidden', filter !== 'all' && status !== filter);
+    });
+}
+
+function fmtBR(v) {
+    return parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function openDetalhe(tr) {
+    var d = tr.dataset;
+    document.getElementById('mdNome').textContent = d.nome;
+    document.getElementById('mdPacote').textContent = d.pacote ? '/ ' + d.pacote : '';
+
+    var badge = document.getElementById('mdBadge');
+    if (d.urgencia === 'danger') { badge.className = 'badge fs-6 bg-danger'; badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Urgente'; }
+    else if (d.urgencia === 'warning') { badge.className = 'badge fs-6 bg-warning text-dark'; badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Atenção'; }
+    else { badge.className = 'badge fs-6 bg-success'; badge.innerHTML = '<i class="fas fa-check-circle"></i> OK'; }
+
+    var est = parseFloat(d.estoque), prev = parseFloat(d.previsao), sug = parseFloat(d.sugestao);
+    var atprod = parseFloat(d.atprod), rest = parseFloat(d.restante);
+    var mn = parseFloat(d.min), mx = parseFloat(d.max);
+    var scaleMax = Math.max(est, atprod, prev, mx, rest, 1) * 1.05;
+
+    var bars = [
+        {label: 'Estoque atual',      val: est,    color: '#6c757d', prefix: ''},
+        {label: 'Previsão vendas',     val: prev,   color: '#ffc107', prefix: '−'},
+        {label: 'Sugestão produção',   val: sug,    color: '#007bff', prefix: '+'},
+        {label: 'Atual + Produção',    val: atprod,  color: '#17a2b8', prefix: ''},
+        {label: 'Restante após vendas', val: rest,   color: rest < 0 ? '#dc3545' : (rest < mn ? '#ffc107' : '#28a745'), prefix: ''}
+    ];
+
+    var pctMin = mx > 0 ? (mn / scaleMax * 100) : 0;
+    var pctMax = mx > 0 ? (mx / scaleMax * 100) : 0;
+
+    var html = '';
+    bars.forEach(function(b) {
+        var pct = Math.max(0, Math.min(100, b.val / scaleMax * 100));
+        var refLines = '';
+        if (mx > 0) {
+            refLines = '<div class="modal-ref-line" style="left:' + pctMin.toFixed(1) + '%; background:#dc3545; opacity:0.6;"></div>' +
+                       '<div class="modal-ref-line" style="left:' + pctMax.toFixed(1) + '%; background:#28a745; opacity:0.6;"></div>';
+        }
+        var valColor = b.color;
+        html += '<div class="modal-bar-row">' +
+            '<span class="modal-bar-lbl">' + b.label + '</span>' +
+            '<div class="modal-bar-track">' +
+                '<div class="modal-bar-fill" style="width:' + pct.toFixed(1) + '%; background:' + b.color + ';"></div>' +
+                refLines +
+            '</div>' +
+            '<span class="modal-bar-val" style="color:' + valColor + ';">' + b.prefix + fmtBR(b.val) + '</span>' +
+        '</div>';
+    });
+    document.getElementById('mdBars').innerHTML = html;
+
+    var mmHtml = '';
+    if (mx > 0) {
+        mmHtml = '<span><i class="fas fa-arrow-down text-danger"></i> Mín: ' + fmtBR(mn) + '</span>' +
+                 '<span><i class="fas fa-arrow-up text-success"></i> Máx: ' + fmtBR(mx) + '</span>';
+    }
+    document.getElementById('mdMinMax').innerHTML = mmHtml;
+
+    var modal = new bootstrap.Modal(document.getElementById('modalDetalhe'));
+    modal.show();
+}
+
+// ── Gerar OPs: popular resumo ao abrir modal ──
+function _getFiltroAtivo() {
+    var card = document.querySelector('.kpi-row[data-target="tbl-produtos"] .kpi-card.kpi-active');
+    return card ? (card.getAttribute('data-filter') || 'all') : 'all';
+}
+
+var modalGerarEl = document.getElementById('modalGerarOPs');
+if (modalGerarEl) {
+    modalGerarEl.addEventListener('show.bs.modal', function() {
+        var filtro = _getFiltroAtivo();
+        var rows = document.querySelectorAll('#tbl-produtos tbody tr[data-nome]');
+        var html = '';
+        var count = 0;
+        var filtroLabel = {'all':'Todos','danger':'Urgente','warning':'Atenção','ok':'OK'};
+
+        rows.forEach(function(tr) {
+            // Respeitar filtro KPI ativo
+            if (filtro !== 'all' && tr.getAttribute('data-status') !== filtro) return;
+
+            var input = tr.querySelector('input[name^="qtd_"]');
+            if (!input) return;
+            var val = parseFloat((input.value || '0').replace(',', '.'));
+            if (val > 0) {
+                count++;
+                var urg = tr.getAttribute('data-status');
+                var badge = urg === 'danger' ? '<span class="badge bg-danger ms-1">Urgente</span>'
+                          : urg === 'warning' ? '<span class="badge bg-warning text-dark ms-1">Atenção</span>'
+                          : '<span class="badge bg-success ms-1">OK</span>';
+                html += '<div class="d-flex justify-content-between border-bottom py-1">' +
+                    '<span>' + tr.dataset.nome + badge + '</span>' +
+                    '<strong>' + fmtBR(val) + ' pacotes</strong>' +
+                '</div>';
+            }
+        });
+
+        // Mostrar filtro ativo
+        var filtroHtml = '';
+        if (filtro !== 'all') {
+            filtroHtml = '<div class="alert alert-warning py-1 px-2 mb-2 small"><i class="fas fa-filter me-1"></i> Filtro ativo: <strong>' + (filtroLabel[filtro] || filtro) + '</strong> — apenas estes produtos terão OPs geradas.</div>';
+        }
+
+        if (count === 0) {
+            html = filtroHtml + '<div class="text-muted">Nenhum produto com quantidade preenchida' + (filtro !== 'all' ? ' no filtro selecionado' : '') + '.</div>';
+            document.getElementById('btnConfirmarOPs').disabled = true;
+        } else {
+            html = filtroHtml + '<div class="text-muted mb-1">' + count + ' produto(s) planejado(s):</div>' + html;
+            document.getElementById('btnConfirmarOPs').disabled = false;
+        }
+        document.getElementById('listaOPsResumo').innerHTML = html;
+    });
+}
+
+function submeterGerarOPs() {
+    var form = document.querySelector('#tab-produtos form');
+    if (!form) return;
+
+    // Enviar filtro ativo como campo hidden
+    var filtro = _getFiltroAtivo();
+    var hiddenFiltro = form.querySelector('input[name="filtro_urgencia"]');
+    if (!hiddenFiltro) {
+        hiddenFiltro = document.createElement('input');
+        hiddenFiltro.type = 'hidden';
+        hiddenFiltro.name = 'filtro_urgencia';
+        form.appendChild(hiddenFiltro);
+    }
+    hiddenFiltro.value = filtro;
+
+    var btn = document.getElementById('btnConfirmarOPs');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Gerando OPs...';
+    form.action = "{{ url_for('ordem_producao.gerar_ops_planejamento') }}";
+    form.submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}Planejamento {{ planejamento.codigo }} — Cronograma Semanal{% endblock %}
+
+{% block content %}
+<style>
+:root { --cor-massa: #7c3aed; --cor-recheio: #ea580c; --cor-montagem: #2563eb; --cor-empacotamento: #16a34a; }
+.badge-tipo-massa { background: var(--cor-massa); }
+.badge-tipo-recheio { background: var(--cor-recheio); }
+.badge-tipo-montagem { background: var(--cor-montagem); }
+.badge-tipo-empacotamento { background: var(--cor-empacotamento); }
+
+/* ── Cronograma Grid ── */
+.crono-grid { display: grid; gap: 0; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
+.crono-header { background: #1e293b; color: #fff; padding: 8px 6px; text-align: center; font-weight: 700; font-size: 0.82rem; border-right: 1px solid #334155; }
+.crono-header small { display: block; font-weight: 400; opacity: .7; font-size: 0.72rem; }
+.crono-linha-label { background: #f1f5f9; padding: 6px 10px; font-weight: 700; font-size: 0.78rem; border-bottom: 1px solid #dee2e6; border-right: 1px solid #dee2e6; display: flex; align-items: center; gap: 6px; position: sticky; left: 0; z-index: 2; }
+.crono-linha-label .linha-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.crono-cell { min-height: 70px; padding: 4px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; background: #fff; transition: background .15s; }
+.crono-cell.drag-over { background: #dbeafe !important; outline: 2px dashed #3b82f6; }
+.crono-cell:last-child { border-right: none; }
+
+/* ── Fase Card ── */
+.fase-card { border-radius: 6px; padding: 5px 7px; margin-bottom: 3px; color: #fff; cursor: grab; font-size: 0.74rem; transition: transform .1s, box-shadow .15s; position: relative; }
+.fase-card:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.25); z-index: 5; }
+.fase-card:active { cursor: grabbing; }
+.fase-card.dragging { opacity: .4; }
+.fase-card .fc-nome { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fase-card .fc-produto { opacity: .85; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fase-card .fc-info { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+.fase-card .fc-qty { font-weight: 700; font-size: 0.76rem; }
+.fase-card .fc-time { font-size: 0.66rem; opacity: .85; background: rgba(0,0,0,.2); border-radius: 3px; padding: 1px 4px; }
+.fase-card .fc-status { position: absolute; top: 3px; right: 5px; font-size: 0.6rem; }
+.fase-card.status-em_andamento { box-shadow: 0 0 0 2px #fbbf24 inset; }
+.fase-card.status-concluida { opacity: .45; }
+
+/* ── Popover de edição ── */
+.fase-popover { position: absolute; z-index: 100; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 12px; width: 260px; font-size: 0.82rem; }
+.fase-popover .fp-title { font-weight: 700; margin-bottom: 8px; font-size: 0.85rem; }
+.fase-popover label { font-weight: 600; font-size: 0.75rem; margin-bottom: 2px; }
+.fase-popover .form-control-sm { font-size: 0.78rem; }
+.fase-popover .btn-group-sm .btn { font-size: 0.72rem; }
+
+/* ── Tabs ── */
+.op-row:hover { background: #f8f9fa; }
+</style>
+
+<div class="container-fluid py-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-calendar-week me-2 text-primary"></i>{{ planejamento.codigo }}</h4>
+            <small class="text-muted">
+                {{ planejamento.data_inicio.strftime('%d/%m/%Y') }} a {{ planejamento.data_fim.strftime('%d/%m/%Y') }}
+                — Semana {{ planejamento.semana_ano }}/{{ planejamento.ano }}
+                — <span class="badge bg-{{ 'success' if planejamento.status == 'em_producao' else 'secondary' }}">{{ planejamento.status|upper }}</span>
+            </small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('ordem_producao.listar_planejamentos') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Planejamentos</a>
+            <a href="{{ url_for('ordem_producao.producao_gantt') }}" class="btn btn-primary btn-sm"><i class="fas fa-columns me-1"></i>Kanban</a>
+        </div>
+    </div>
+
+    <!-- KPIs compactos -->
+    <div class="row g-2 mb-3">
+        <div class="col"><div class="card border-0 shadow-sm text-center py-1"><div class="fs-4 fw-bold text-primary">{{ itens|length }}</div><small class="text-muted" style="font-size:.7rem">Produtos</small></div></div>
+        <div class="col"><div class="card border-0 shadow-sm text-center py-1"><div class="fs-4 fw-bold" style="color:var(--cor-massa)">{{ ops|selectattr('tipo_op_planejamento','equalto','massa')|list|length }}</div><small class="text-muted" style="font-size:.7rem">Massa</small></div></div>
+        <div class="col"><div class="card border-0 shadow-sm text-center py-1"><div class="fs-4 fw-bold" style="color:var(--cor-recheio)">{{ ops|selectattr('tipo_op_planejamento','equalto','recheio')|list|length }}</div><small class="text-muted" style="font-size:.7rem">Recheio</small></div></div>
+        <div class="col"><div class="card border-0 shadow-sm text-center py-1"><div class="fs-4 fw-bold" style="color:var(--cor-montagem)">{{ ops|selectattr('tipo_op_planejamento','equalto','montagem')|list|length }}</div><small class="text-muted" style="font-size:.7rem">Montagem</small></div></div>
+        <div class="col"><div class="card border-0 shadow-sm text-center py-1"><div class="fs-4 fw-bold text-dark">{{ fases|length }}</div><small class="text-muted" style="font-size:.7rem">Fases</small></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-cronograma"><i class="fas fa-calendar-alt me-1"></i>Cronograma</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ops"><i class="fas fa-clipboard-list me-1"></i>OPs ({{ ops|length }})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-itens"><i class="fas fa-box me-1"></i>Itens ({{ itens|length }})</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- ═══════════════ CRONOGRAMA SEMANAL ═══════════════ -->
+        <div class="tab-pane fade show active" id="tab-cronograma">
+
+            {% set dias_nome = {'0':'SEG','1':'TER','2':'QUA','3':'QUI','4':'SEX','5':'SAB'} %}
+            {% set n_dias = dias|length %}
+            {% set n_cols = n_dias + 1 %}
+
+            {% set linhas_usadas = [] %}
+            {% for f in fases %}
+                {% if f.linha_producao_id and f.linha_producao_id not in linhas_usadas %}
+                    {% if linhas_usadas.append(f.linha_producao_id) %}{% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% set tipos_fase = [
+                {'key': 'massa', 'label': 'Massa', 'cor': 'var(--cor-massa)', 'icon': 'fas fa-bread-slice'},
+                {'key': 'recheio', 'label': 'Recheio', 'cor': 'var(--cor-recheio)', 'icon': 'fas fa-drumstick-bite'},
+                {'key': 'montagem', 'label': 'Montagem', 'cor': 'var(--cor-montagem)', 'icon': 'fas fa-cogs'},
+                {'key': 'empacotamento', 'label': 'Empacotamento', 'cor': 'var(--cor-empacotamento)', 'icon': 'fas fa-box'}
+            ] %}
+
+            <div class="crono-grid" style="grid-template-columns: 140px repeat({{ n_dias }}, 1fr);">
+                <!-- Header row -->
+                <div class="crono-header" style="background:#0f172a;">Setor / Etapa</div>
+                {% for dia in dias %}
+                <div class="crono-header">{{ dias_nome.get(dia.weekday()|string, '') }}<small>{{ dia.strftime('%d/%m') }}</small></div>
+                {% endfor %}
+
+                <!-- Rows por tipo de fase (agrupa por tipo_op da OP: massa/recheio/montagem, + empacotamento pelo fase_tipo) -->
+                {% for tf in tipos_fase %}
+                    {% set fases_tipo = [] %}
+                    {% for f in fases %}
+                        {% if tf.key == 'empacotamento' and f.fase_tipo == 'empacotamento' %}
+                            {% if fases_tipo.append(f) %}{% endif %}
+                        {% elif tf.key != 'empacotamento' and f.tipo_op == tf.key and f.fase_tipo != 'empacotamento' %}
+                            {% if fases_tipo.append(f) %}{% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if fases_tipo %}
+                    <div class="crono-linha-label">
+                        <span class="linha-dot" style="background:{{ tf.cor }};"></span>
+                        <i class="{{ tf.icon }}" style="color:{{ tf.cor }}"></i>
+                        {{ tf.label }}
+                    </div>
+                    {% for dia in dias %}
+                    <div class="crono-cell" data-dia="{{ dia.strftime('%Y-%m-%d') }}" data-tipo="{{ tf.key }}"
+                         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                         ondragleave="this.classList.remove('drag-over')"
+                         ondrop="dropFase(event, this)">
+                        {% for fase in fases_tipo %}
+                            {% if fase.dia_semana and fase.dia_semana == dia %}
+                            {% set cor = fase.linha_cor or tf.cor %}
+                            <div class="fase-card status-{{ fase.status }}"
+                                 draggable="true"
+                                 ondragstart="dragFase(event, this)"
+                                 data-fase-id="{{ fase.id }}"
+                                 data-dia="{{ dia.strftime('%Y-%m-%d') }}"
+                                 data-quantidade="{{ fase.quantidade or 0 }}"
+                                 data-hora-inicio="{{ fase.hora_inicio or '' }}"
+                                 data-hora-fim="{{ fase.hora_fim or '' }}"
+                                 data-fase-nome="{{ fase.fase_nome }}"
+                                 data-produto="{{ fase.produto_nome }}"
+                                 data-numero-op="{{ fase.numero_op }}"
+                                 style="background:{{ cor }}"
+                                 onclick="abrirPopover(event, this)">
+                                <div class="fc-nome" title="{{ fase.fase_nome }}">{{ fase.fase_nome }}</div>
+                                <div class="fc-produto" title="{{ fase.produto_nome }}">{{ fase.numero_op }} — {{ fase.produto_nome }}</div>
+                                <div class="fc-info">
+                                    <span class="fc-qty">{{ "%.1f"|format(fase.quantidade or 0) }} kg</span>
+                                    {% if fase.hora_inicio and fase.hora_fim %}
+                                    <span class="fc-time">{{ (fase.hora_inicio|string)[:5] }}–{{ (fase.hora_fim|string)[:5] }}</span>
+                                    {% elif fase.hora_inicio %}
+                                    <span class="fc-time">{{ (fase.hora_inicio|string)[:5] }}–?</span>
+                                    {% endif %}
+                                </div>
+                                {% if fase.status == 'em_andamento' %}
+                                <span class="fc-status badge bg-warning text-dark">EM AND.</span>
+                                {% elif fase.status == 'concluida' %}
+                                <span class="fc-status badge bg-success">OK</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Fases sem tipo mapeado -->
+                {% set fases_outros = [] %}
+                {% for f in fases %}
+                    {% set matched = false %}
+                    {% for tf in tipos_fase %}
+                        {% if f.tipo_op == tf.key %}{% set matched = true %}{% endif %}
+                    {% endfor %}
+                    {% if not matched %}
+                        {% if fases_outros.append(f) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+                {% if fases_outros %}
+                <div class="crono-linha-label">
+                    <span class="linha-dot" style="background:#6b7280;"></span>
+                    <i class="fas fa-ellipsis-h text-secondary"></i> Outros
+                </div>
+                {% for dia in dias %}
+                <div class="crono-cell" data-dia="{{ dia.strftime('%Y-%m-%d') }}" data-tipo="outro"
+                     ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')"
+                     ondrop="dropFase(event, this)">
+                    {% for fase in fases_outros %}
+                        {% if fase.dia_semana and fase.dia_semana == dia %}
+                        <div class="fase-card" draggable="true" ondragstart="dragFase(event, this)"
+                             data-fase-id="{{ fase.id }}" data-dia="{{ dia.strftime('%Y-%m-%d') }}"
+                             data-quantidade="{{ fase.quantidade or 0 }}"
+                             data-hora-inicio="{{ fase.hora_inicio or '' }}" data-hora-fim="{{ fase.hora_fim or '' }}"
+                             data-fase-nome="{{ fase.fase_nome }}" data-produto="{{ fase.produto_nome }}"
+                             data-numero-op="{{ fase.numero_op }}"
+                             style="background:#6b7280" onclick="abrirPopover(event, this)">
+                            <div class="fc-nome">{{ fase.fase_nome }}</div>
+                            <div class="fc-produto">{{ fase.numero_op }} — {{ fase.produto_nome }}</div>
+                            <div class="fc-info">
+                                <span class="fc-qty">{{ "%.1f"|format(fase.quantidade or 0) }} kg</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+
+            <p class="text-muted mt-2" style="font-size:.75rem">
+                <i class="fas fa-info-circle me-1"></i>
+                Arraste os cards entre dias para reorganizar. Clique no card para editar quantidade e horários.
+            </p>
+        </div>
+
+        <!-- ═══════════════ OPs GERADAS ═══════════════ -->
+        <div class="tab-pane fade" id="tab-ops">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr><th>Nº OP</th><th>Tipo</th><th>Produto</th><th class="text-end">Quantidade</th><th>Linha</th><th>Status</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for op in ops %}
+                        <tr class="op-row">
+                            <td><a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="fw-bold text-decoration-none">{{ op.numero_op or '—' }}</a></td>
+                            <td><span class="badge badge-tipo-{{ op.tipo_op_planejamento }}">{{ op.tipo_op_planejamento|upper }}</span></td>
+                            <td>{{ op.produto_nome }}</td>
+                            <td class="text-end">{{ "%.0f"|format(op.quantidade or 0) }}</td>
+                            <td>{% if op.linha_nome %}<span class="badge" style="background:{{ op.linha_cor or '#6c757d' }}">{{ op.linha_nome }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                            <td><span class="badge bg-{{ 'warning' if op.op_status == 'em_producao' else ('success' if op.op_status == 'concluida' else ('danger' if op.op_status == 'cancelada' else 'secondary')) }}">{{ op.op_status }}</span></td>
+                            <td class="text-center"><a href="{{ url_for('ordem_producao.visualizar_op', id=op.ordem_producao_id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-center text-muted py-3">Nenhuma OP gerada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══════════════ ITENS PLANEJADOS ═══════════════ -->
+        <div class="tab-pane fade" id="tab-itens">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr><th>Produto</th><th class="text-end">Qtd Pacotes</th><th class="text-end">Qtd Unidades</th><th>Linha</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.produto_nome }}</td>
+                            <td class="text-end">{{ "%.0f"|format(item.qtd_pacotes or 0) }}</td>
+                            <td class="text-end">{{ "%.0f"|format(item.qtd_unidades or 0) }}</td>
+                            <td>{% if item.linha_nome %}<span class="badge" style="background:{{ item.linha_cor or '#6c757d' }}">{{ item.linha_nome }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Nenhum item.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ MODAL DIVIDIR FASE ═══════════════ -->
+<div class="modal fade" id="modalDividir" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2"><h6 class="modal-title"><i class="fas fa-cut me-1"></i>Dividir Quantidade</h6><button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2" id="dividirInfo"></p>
+                <div class="mb-2">
+                    <label class="form-label small fw-bold">Quantidade a mover</label>
+                    <input type="number" step="0.1" class="form-control form-control-sm" id="dividirQtd">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-bold">Dia destino</label>
+                    <select class="form-select form-select-sm" id="dividirDia">
+                        {% for dia in dias %}
+                        <option value="{{ dia.strftime('%Y-%m-%d') }}">{{ dias_nome.get(dia.weekday()|string,'') }} {{ dia.strftime('%d/%m') }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label small fw-bold">Hora início</label>
+                        <input type="time" class="form-control form-control-sm" id="dividirHoraIni">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-bold">Hora fim</label>
+                        <input type="time" class="form-control form-control-sm" id="dividirHoraFim">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-1">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-sm btn-primary" onclick="confirmarDividir()"><i class="fas fa-check me-1"></i>Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var _popoverAtual = null;
+var _faseIdDividir = null;
+
+/* ── Drag & Drop ── */
+function dragFase(ev, el) {
+    ev.dataTransfer.setData('fase_id', el.dataset.faseId);
+    ev.dataTransfer.setData('quantidade', el.dataset.quantidade);
+    el.classList.add('dragging');
+    setTimeout(function(){ el.classList.remove('dragging'); }, 300);
+}
+
+function dropFase(ev, cell) {
+    ev.preventDefault();
+    cell.classList.remove('drag-over');
+    var faseId = ev.dataTransfer.getData('fase_id');
+    var novoDia = cell.dataset.dia;
+    if (!faseId || !novoDia) return;
+
+    fetch("{{ url_for('ordem_producao.atualizar_fase', fase_id=0) }}".replace('/0/', '/' + faseId + '/'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({dia_semana: novoDia})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) location.reload();
+        else alert('Erro: ' + (d.erro || 'desconhecido'));
+    })
+    .catch(e => alert('Erro de rede: ' + e));
+}
+
+/* ── Popover de edição inline ── */
+function abrirPopover(ev, el) {
+    ev.stopPropagation();
+    fecharPopover();
+
+    var faseId = el.dataset.faseId;
+    var rect = el.getBoundingClientRect();
+    var pop = document.createElement('div');
+    pop.className = 'fase-popover';
+    pop.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 280) + 'px';
+    pop.innerHTML = `
+        <div class="fp-title">${el.dataset.faseNome} <small class="text-muted">(${el.dataset.numeroOp})</small></div>
+        <div class="mb-2"><label>Quantidade (kg)</label><input type="number" step="0.1" class="form-control form-control-sm" id="pop_qty" value="${el.dataset.quantidade}"></div>
+        <div class="row g-2 mb-2">
+            <div class="col-6"><label>Hora início</label><input type="time" class="form-control form-control-sm" id="pop_hi" value="${(el.dataset.horaInicio||'').substring(0,5)}"></div>
+            <div class="col-6"><label>Hora fim</label><input type="time" class="form-control form-control-sm" id="pop_hf" value="${(el.dataset.horaFim||'').substring(0,5)}"></div>
+        </div>
+        <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-primary flex-fill" onclick="salvarPopover(${faseId})"><i class="fas fa-save me-1"></i>Salvar</button>
+            <button class="btn btn-sm btn-outline-warning" onclick="abrirDividir(${faseId}, ${el.dataset.quantidade}, '${el.dataset.faseNome}')" title="Dividir quantidade"><i class="fas fa-cut"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="fecharPopover()"><i class="fas fa-times"></i></button>
+        </div>
+    `;
+    document.body.appendChild(pop);
+    _popoverAtual = pop;
+}
+
+function fecharPopover() {
+    if (_popoverAtual) { _popoverAtual.remove(); _popoverAtual = null; }
+}
+document.addEventListener('click', function(e) {
+    if (_popoverAtual && !_popoverAtual.contains(e.target) && !e.target.closest('.fase-card')) fecharPopover();
+});
+
+function salvarPopover(faseId) {
+    var qty = document.getElementById('pop_qty').value;
+    var hi = document.getElementById('pop_hi').value;
+    var hf = document.getElementById('pop_hf').value;
+    var body = {};
+    if (qty) body.quantidade = parseFloat(qty);
+    if (hi) body.hora_inicio = hi;
+    if (hf) body.hora_fim = hf;
+
+    fetch("{{ url_for('ordem_producao.atualizar_fase', fase_id=0) }}".replace('/0/', '/' + faseId + '/'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) location.reload();
+        else alert('Erro: ' + (d.erro || 'desconhecido'));
+    })
+    .catch(e => alert('Erro: ' + e));
+}
+
+/* ── Dividir fase ── */
+function abrirDividir(faseId, qtdAtual, nome) {
+    fecharPopover();
+    _faseIdDividir = faseId;
+    document.getElementById('dividirInfo').textContent = nome + ' — Total: ' + parseFloat(qtdAtual).toFixed(1) + ' kg';
+    document.getElementById('dividirQtd').value = (parseFloat(qtdAtual) / 2).toFixed(1);
+    document.getElementById('dividirQtd').max = qtdAtual;
+    new bootstrap.Modal(document.getElementById('modalDividir')).show();
+}
+
+function confirmarDividir() {
+    if (!_faseIdDividir) return;
+    var body = {
+        quantidade: parseFloat(document.getElementById('dividirQtd').value),
+        dia_semana: document.getElementById('dividirDia').value,
+        hora_inicio: document.getElementById('dividirHoraIni').value,
+        hora_fim: document.getElementById('dividirHoraFim').value
+    };
+
+    fetch("{{ url_for('ordem_producao.dividir_fase', fase_id=0) }}".replace('/0/', '/' + _faseIdDividir + '/'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) location.reload();
+        else alert('Erro: ' + (d.erro || 'desconhecido'));
+    })
+    .catch(e => alert('Erro: ' + e));
+}
+</script>
+{% endblock %}

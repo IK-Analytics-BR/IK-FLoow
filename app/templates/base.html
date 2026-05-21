@@ -305,6 +305,9 @@
                                     <a href="{{ url_for('produto.produtos') }}"><i class="fas fa-box"></i> Produtos</a>
                                 </li>
                                 <li>
+                                    <a href="{{ url_for('produto.produto_pacotes_lista') }}"><i class="fas fa-box-open"></i> Pacotes de Produtos</a>
+                                </li>
+                                <li>
                                     {% if blueprint_exists('ncm') %}
                                     <a href="{{ url_for('ncm.ncms') }}"><i class="fas fa-barcode"></i> NCM</a>
                                     {% else %}
@@ -387,6 +390,15 @@
                         {% if is_admin or permissoes.get('industria.ops', {}).get('visualizar') %}
                         <li>
                             <a href="{{ url_for('ordem_producao.listar_ops') }}"><i class="fas fa-tasks"></i> Ordem de Produção</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('ordem_producao.planejamento_producao_semana') }}"><i class="fas fa-calendar-alt"></i> Planejamento Produção</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('ordem_producao.listar_planejamentos') }}"><i class="fas fa-calendar-week text-info"></i> Planejamentos Semanais</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('ordem_producao.relatorio_perdas') }}"><i class="fas fa-chart-line text-danger"></i> Relatório de Perdas</a>
                         </li>
                         {% endif %}
                         
@@ -709,6 +721,33 @@
                 </li>
                 {% endif %}
                 
+                <!-- Desenvolvimento Econômico -->
+                {% if is_admin or permissoes.get('dev_economico', {}).get('visualizar') or not tem_alguma_permissao %}
+                <li>
+                    <a href="#devEconomicoSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-chart-line"></i> Dev. Econômico
+                    </a>
+                    <ul class="collapse list-unstyled" id="devEconomicoSubmenu">
+                        <li><a href="/dev-economico/"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                        <li><a href="/dev-economico/diagnostico"><i class="fas fa-stethoscope"></i> Diagnóstico</a></li>
+                        <li><a href="/dev-economico/agroindustria"><i class="fas fa-tractor"></i> Agroindústria</a></li>
+                        <li><a href="/dev-economico/investimentos"><i class="fas fa-hand-holding-usd"></i> Investimentos</a></li>
+                        <li><a href="/dev-economico/logistica"><i class="fas fa-truck"></i> Logística</a></li>
+                        <li><a href="/dev-economico/turismo"><i class="fas fa-umbrella-beach"></i> Turismo</a></li>
+                        <li><a href="/dev-economico/inovacao"><i class="fas fa-laptop-code"></i> Inovação</a></li>
+                        <li><a href="/dev-economico/qualificacao"><i class="fas fa-graduation-cap"></i> Qualificação</a></li>
+                        <li><a href="/dev-economico/infraestrutura"><i class="fas fa-hard-hat"></i> Infraestrutura</a></li>
+                        <li><a href="/dev-economico/compras"><i class="fas fa-shopping-bag"></i> Compras Gov.</a></li>
+                        <li><a href="/dev-economico/governanca"><i class="fas fa-landmark"></i> Governança</a></li>
+                        <li class="mt-1" style="border-top:1px solid rgba(255,255,255,.1);padding-top:4px;">
+                            <a href="/dev-economico/iaem" style="color:#22d3ee;"><i class="fas fa-crystal-ball"></i> 🔮 IAEM (Preditivo)</a>
+                        </li>
+                        <li><a href="/dev-economico/encadeamento" style="color:#a78bfa;"><i class="fas fa-dna"></i> 🧬 Encadeamento</a></li>
+                        <li><a href="/dev-economico/simulador" style="color:#38bdf8;"><i class="fas fa-calculator"></i> 🧭 Simulador</a></li>
+                    </ul>
+                </li>
+                {% endif %}
+
                 <!-- Ajuda -->
                 <li>
                     <a href="/docs/manual_usuario.md" target="_blank">

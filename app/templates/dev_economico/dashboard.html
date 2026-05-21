@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Portal de Desenvolvimento Econômico - MS{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-chart-line me-2"></i>Portal de Desenvolvimento Econômico</h2>
+            <div class="subtitle">Mato Grosso do Sul — Dados reais IBGE, IPEA, CAGED, COMEX STAT</div>
+        </div>
+        <div class="d-none d-md-block">
+            <span class="badge bg-light text-dark"><i class="fas fa-map-marker-alt me-1"></i>79 Municípios</span>
+        </div>
+    </div>
+</div>
+
+<!-- Navegação do Portal -->
+<nav class="dev-eco-nav">
+    <div class="d-flex flex-wrap gap-1">
+        <a href="{{ url_for('dev_economico.dashboard') }}" class="nav-link active"><i class="fas fa-tachometer-alt"></i>Dashboard</a>
+        <a href="{{ url_for('dev_economico.diagnostico') }}" class="nav-link"><i class="fas fa-stethoscope"></i>Diagnóstico</a>
+        <a href="{{ url_for('dev_economico.agroindustria') }}" class="nav-link"><i class="fas fa-tractor"></i>Agroindústria</a>
+        <a href="{{ url_for('dev_economico.investimentos') }}" class="nav-link"><i class="fas fa-hand-holding-usd"></i>Investimentos</a>
+        <a href="{{ url_for('dev_economico.logistica') }}" class="nav-link"><i class="fas fa-truck"></i>Logística</a>
+        <a href="{{ url_for('dev_economico.turismo') }}" class="nav-link"><i class="fas fa-umbrella-beach"></i>Turismo</a>
+        <a href="{{ url_for('dev_economico.inovacao') }}" class="nav-link"><i class="fas fa-laptop-code"></i>Inovação</a>
+        <a href="{{ url_for('dev_economico.qualificacao') }}" class="nav-link"><i class="fas fa-graduation-cap"></i>Qualificação</a>
+        <a href="{{ url_for('dev_economico.infraestrutura') }}" class="nav-link"><i class="fas fa-hard-hat"></i>Infraestrutura</a>
+        <a href="{{ url_for('dev_economico.compras') }}" class="nav-link"><i class="fas fa-shopping-bag"></i>Compras</a>
+        <a href="{{ url_for('dev_economico.governanca') }}" class="nav-link"><i class="fas fa-landmark"></i>Governança</a>
+    </div>
+</nav>
+
+<!-- KPIs Principais -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon bg-teal"><i class="fas fa-city"></i></div>
+                <div>
+                    <div class="kpi-value">{{ totais.total_municipios or 79 }}</div>
+                    <div class="kpi-label">Municípios</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon bg-blue"><i class="fas fa-users"></i></div>
+                <div>
+                    <div class="kpi-value">{{ "%.1f"|format((totais.populacao_total or 2839188) / 1000000) }} mi</div>
+                    <div class="kpi-label">População</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon bg-green"><i class="fas fa-dollar-sign"></i></div>
+                <div>
+                    <div class="kpi-value">R$ {{ "%.1f"|format((totais.pib_total or 130500000) / 1000000) }} bi</div>
+                    <div class="kpi-label">PIB Estadual</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon bg-orange"><i class="fas fa-chart-bar"></i></div>
+                <div>
+                    <div class="kpi-value">{{ "%.3f"|format(totais.idhm_medio or 0.729) }}</div>
+                    <div class="kpi-label">IDH Médio</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos Principais -->
+<div class="row g-3 mb-4">
+    <!-- PIB por Setor -->
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie me-2"></i>PIB por Setor Econômico</h5>
+                <div class="subtitle">Composição do PIB estadual — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:320px;">
+                    <canvas id="chartPibSetorial"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Top Municípios por PIB -->
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy me-2"></i>Top Municípios por PIB</h5>
+                <div class="subtitle">Maiores economias de MS — Fonte: IBGE</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:320px;">
+                    <canvas id="chartTopPib"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cadeias Produtivas + Indicadores -->
+<div class="row g-3 mb-4">
+    <!-- Cadeias Produtivas -->
+    <div class="col-md-7">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-link me-2"></i>Principais Cadeias Produtivas</h5>
+                <div class="subtitle">Participação no PIB estadual — Dados reais</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-start">Cadeia</th>
+                                <th>Setor</th>
+                                <th>% PIB</th>
+                                <th>Empregos</th>
+                                <th>Potencial</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in cadeias %}
+                            <tr>
+                                <td class="text-start fw-semibold">{{ c.nome }}</td>
+                                <td><span class="dev-eco-badge badge-ativo">{{ c.setor }}</span></td>
+                                <td class="fw-bold" style="color:#08a5b2;">{{ c.participacao_pib }}%</td>
+                                <td>{{ "{:,.0f}".format(c.empregos_diretos) }}</td>
+                                <td>
+                                    <span class="dev-eco-badge badge-{{ c.potencial_crescimento|lower }}">
+                                        {{ c.potencial_crescimento }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Indicadores de Governança -->
+    <div class="col-md-5">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-bullseye me-2"></i>Indicadores vs Metas</h5>
+                <div class="subtitle">Monitoramento de desenvolvimento</div>
+            </div>
+            <div class="card-body p-3">
+                {% for ind in indicadores %}
+                {% set pct = ((ind.valor_atual / ind.meta * 100) if ind.meta > 0 else 0)|round|int %}
+                {% set pct = [pct, 100]|min %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold" style="font-size:0.82rem;">{{ ind.nome }}</span>
+                        <span class="fw-bold" style="font-size:0.78rem; color:{% if pct >= 80 %}#16a34a{% elif pct >= 50 %}#d97706{% else %}#dc2626{% endif %};">{{ pct }}%</span>
+                    </div>
+                    <div class="dev-eco-progress">
+                        <div class="progress-bar {% if pct >= 80 %}bg-success{% elif pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             style="width:{{ pct }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1" style="font-size:0.72rem; color:#9ca3af;">
+                        <span>{{ ind.fonte }}</span>
+                        <span>{{ ind.ano_referencia }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ranking de Municípios -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5><i class="fas fa-sort-amount-down me-2"></i>Ranking de Municípios</h5>
+                    <div class="subtitle">Principais municípios de MS por indicadores econômicos</div>
+                </div>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th class="text-start">Município</th>
+                                <th>Região</th>
+                                <th>População</th>
+                                <th>PIB (R$ mil)</th>
+                                <th>PIB per capita</th>
+                                <th>IDH-M</th>
+                                <th>Vocação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in municipios %}
+                            <tr>
+                                <td class="fw-bold text-muted">{{ loop.index }}</td>
+                                <td class="text-start fw-semibold">{{ m.nome }}</td>
+                                <td><span class="dev-eco-badge badge-ativo">{{ m.regiao_macro }}</span></td>
+                                <td>{{ "{:,.0f}".format(m.populacao) }}</td>
+                                <td class="fw-bold">{{ "{:,.0f}".format(m.pib_total) }}</td>
+                                <td>R$ {{ "{:,.0f}".format(m.pib_per_capita) }}</td>
+                                <td>{{ "%.3f"|format(m.idhm) }}</td>
+                                <td style="font-size:0.78rem;">{{ m.vocacao_principal }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4 Eixos Estratégicos -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <h5 class="fw-bold mb-3"><i class="fas fa-compass me-2" style="color:#08a5b2;"></i>Eixos Estratégicos para MS</h5>
+    </div>
+    <div class="col-md-3">
+        <div class="eixo-card">
+            <div class="eixo-icon" style="background:rgba(34,197,94,0.12); color:#16a34a;"><i class="fas fa-tractor"></i></div>
+            <h6 class="fw-bold">Agroindustrialização</h6>
+            <p style="font-size:0.8rem; color:#6b7280;">Agregar valor à produção agropecuária. MS é o 5º maior produtor de soja e 4º maior rebanho bovino.</p>
+            <a href="{{ url_for('dev_economico.agroindustria') }}" class="btn btn-sm btn-outline-success">Ver detalhes</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="eixo-card">
+            <div class="eixo-icon" style="background:rgba(59,130,246,0.12); color:#2563eb;"><i class="fas fa-truck"></i></div>
+            <h6 class="fw-bold">Logística Internacional</h6>
+            <p style="font-size:0.8rem; color:#6b7280;">Rota Bioceânica, fronteiras com Paraguai e Bolívia. Posição estratégica para comércio exterior.</p>
+            <a href="{{ url_for('dev_economico.logistica') }}" class="btn btn-sm btn-outline-primary">Ver detalhes</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="eixo-card">
+            <div class="eixo-icon" style="background:rgba(245,158,11,0.12); color:#d97706;"><i class="fas fa-leaf"></i></div>
+            <h6 class="fw-bold">Bioenergia e Sustentabilidade</h6>
+            <p style="font-size:0.8rem; color:#6b7280;">14 usinas de etanol, celulose sustentável em Três Lagoas. Potencial em energia solar e biomassa.</p>
+            <a href="{{ url_for('dev_economico.diagnostico') }}" class="btn btn-sm btn-outline-warning">Ver detalhes</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="eixo-card">
+            <div class="eixo-icon" style="background:rgba(139,92,246,0.12); color:#7c3aed;"><i class="fas fa-umbrella-beach"></i></div>
+            <h6 class="fw-bold">Turismo e Economia Verde</h6>
+            <p style="font-size:0.8rem; color:#6b7280;">Bonito referência mundial. Pantanal patrimônio UNESCO. Ecoturismo, rural e aventura.</p>
+            <a href="{{ url_for('dev_economico.turismo') }}" class="btn btn-sm btn-outline-secondary">Ver detalhes</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ============================================================
+// Gráficos do Dashboard — Dados do MySQL via Jinja2
+// ============================================================
+
+// PIB por Setor (Doughnut)
+const ctxPib = document.getElementById('chartPibSetorial').getContext('2d');
+new Chart(ctxPib, {
+    type: 'doughnut',
+    data: {
+        labels: ['Agropecuária', 'Indústria', 'Serviços', 'Administração Pública'],
+        datasets: [{
+            data: [
+                {% for m in municipios %}{% if loop.first %}0{% endif %}{% endfor %}
+                {{ municipios|sum(attribute='pib_agropecuaria')|default(28000000) }},
+                {{ municipios|sum(attribute='pib_industria')|default(22000000) }},
+                {{ municipios|sum(attribute='pib_servicos')|default(48000000) }},
+                {{ municipios|sum(attribute='pib_administracao')|default(18000000) }}
+            ],
+            backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        let pct = ((ctx.raw / total) * 100).toFixed(1);
+                        return ctx.label + ': R$ ' + (ctx.raw / 1000000).toFixed(1) + ' bi (' + pct + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Top Municípios por PIB (Bar horizontal)
+const ctxTop = document.getElementById('chartTopPib').getContext('2d');
+new Chart(ctxTop, {
+    type: 'bar',
+    data: {
+        labels: [{% for m in municipios[:10] %}'{{ m.nome }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'PIB (R$ milhões)',
+            data: [{% for m in municipios[:10] %}{{ (m.pib_total / 1000)|round|int }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#08a5b2',
+            borderRadius: 6,
+            barThickness: 22
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        return 'R$ ' + ctx.raw.toLocaleString('pt-BR') + ' milhões';
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { 
+                grid: { display: false },
+                ticks: { 
+                    callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR') + ' mi'; },
+                    font: { size: 11 }
+                }
+            },
+            y: { 
+                grid: { display: false },
+                ticks: { font: { size: 11 } }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Compras Governamentais - Dev Econômico MS{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-shopping-bag me-2"></i>{% if municipio_filtrado %}Compras Públicas — {{ municipio_filtrado.nome }}{% else %}Compras Governamentais como Fomento{% endif %}</h2>
+            <div class="subtitle">{% if municipio_filtrado %}Programas de compras públicas aplicáveis a {{ municipio_filtrado.nome }}{% else %}Compras locais, Lei Complementar 123, MEI e cooperativas{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+{% include 'dev_economico/_filtro_banner.html' %}
+
+{% if municipio_filtrado %}
+<div class="alert alert-warning py-2 px-3 mb-3" style="font-size:.78rem;border-radius:6px;">
+    <i class="fas fa-info-circle me-1"></i>
+    Os dados de compras governamentais são de abrangência estadual. Os programas e instrumentos abaixo podem ser adotados por <strong>{{ municipio_filtrado.nome }}</strong>.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-green"><i class="fas fa-file-invoice-dollar"></i></div><div><div class="kpi-value">R$ 2,8 bi</div><div class="kpi-label">Compras Públicas/Ano</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-blue"><i class="fas fa-store"></i></div><div><div class="kpi-value">42%</div><div class="kpi-label">Compras Locais</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-teal"><i class="fas fa-user-tie"></i></div><div><div class="kpi-value">185 mil</div><div class="kpi-label">MEIs Ativos</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon bg-orange"><i class="fas fa-percentage"></i></div><div><div class="kpi-value">25%</div><div class="kpi-label">Reserva p/ MPE</div></div></div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Programas de Compras -->
+    <div class="col-md-6">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-gavel me-2"></i>Programas de Compras Locais</h5>
+                <div class="subtitle">Instrumentos legais e programas de fomento</div>
+            </div>
+            <div class="card-body p-3">
+                {% set programas_compras = [
+                    ('Lei Complementar 123/2006', 'Tratamento diferenciado para MPE em licitações. Margem de preferência de até 10%.', 'Federal', 'fas fa-balance-scale'),
+                    ('Programa Compra MS', 'Preferência para produtos e serviços de fornecedores locais do estado.', 'Estadual', 'fas fa-shopping-cart'),
+                    ('PNAE - Alimentação Escolar', '30% mínimo de compras da agricultura familiar para merenda escolar.', 'Federal', 'fas fa-apple-alt'),
+                    ('PAA - Programa Aquisição Alimentos', 'Compra direta de alimentos da agricultura familiar.', 'Federal', 'fas fa-carrot'),
+                    ('Pregão Eletrônico', 'Modalidade que amplia participação de fornecedores locais.', 'Municipal', 'fas fa-laptop'),
+                    ('Cadastro de Fornecedores', 'Cadastro municipal simplificado para MEI e pequenas empresas.', 'Municipal', 'fas fa-id-card')
+                ] %}
+                {% for nome, desc, nivel, icone in programas_compras %}
+                <div class="dev-eco-list-item">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="{{ icone }}" style="color:#08a5b2; margin-top:3px; width:18px;"></i>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold" style="font-size:0.85rem;">{{ nome }}</span>
+                                <span class="dev-eco-badge badge-ativo">{{ nivel }}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:#6b7280;">{{ desc }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicadores e Ações -->
+    <div class="col-md-6">
+        <div class="dev-eco-card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie me-2"></i>Indicadores de Compras</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set indicadores = [
+                    ('Compras de fornecedores locais', 42, 60),
+                    ('Compras da agricultura familiar (PNAE)', 32, 40),
+                    ('Participação de MPE em licitações', 55, 75),
+                    ('Licitações via pregão eletrônico', 78, 90),
+                    ('Fornecedores MEI cadastrados', 35, 50),
+                    ('Compras sustentáveis (selo verde)', 15, 30)
+                ] %}
+                {% for nome, atual, meta in indicadores %}
+                {% set pct = (atual / meta * 100)|round|int %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span style="font-size:0.82rem;">{{ nome }}</span>
+                        <span class="fw-bold" style="font-size:0.78rem;">{{ atual }}% <span style="color:#9ca3af; font-weight:normal;">/ meta {{ meta }}%</span></span>
+                    </div>
+                    <div class="dev-eco-progress">
+                        <div class="progress-bar {% if pct >= 80 %}bg-success{% elif pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ pct }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks me-2"></i>Ações Municipais</h5>
+            </div>
+            <div class="card-body p-3">
+                {% set acoes = [
+                    'Regulamentar LC 123 no município',
+                    'Criar cadastro simplificado de fornecedores',
+                    'Capacitar MPE para participar de licitações',
+                    'Ampliar compras da agricultura familiar',
+                    'Implantar pregão eletrônico',
+                    'Publicar calendário anual de compras',
+                    'Criar programa de compras sustentáveis'
+                ] %}
+                {% for acao in acoes %}
+                <div class="d-flex align-items-center gap-2 py-2 border-bottom" style="font-size:0.82rem;">
+                    <i class="fas fa-check-circle" style="color:#22c55e;"></i>
+                    <span>{{ acao }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

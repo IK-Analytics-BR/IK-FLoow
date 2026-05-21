@@ -51,6 +51,51 @@ $(document).ready(function() {
     $('#margin').on('input change', function() {
         calculateSalePrice();
     });
+
+    // =====================
+    // Cálculo de custos de compra
+    // =====================
+
+    function recalculatePurchaseCosts() {
+        const lastPurchase = parseFloat($('#last_purchase_price').val()) || 0;
+        const freight = parseFloat($('#purchase_freight_value').val()) || 0;
+        const icmsValue = parseFloat($('#purchase_icms_value').val()) || 0;
+        const otherCosts = parseFloat($('#purchase_other_costs_value').val()) || 0;
+        const factor = parseFloat($('#purchase_factor').val()) || 0;
+        const currentCostPrice = parseFloat($('#cost_price').val()) || 0;
+
+        // Custo da unidade de compra (ex.: PCT)
+        let baseCost = 0;
+
+        if (lastPurchase > 0 || freight > 0 || icmsValue > 0 || otherCosts > 0) {
+            // Se houver componentes informados na aba Compras, eles definem o custo do PCT
+            baseCost = lastPurchase + freight + icmsValue + otherCosts;
+            // Atualiza o Preço de Custo na aba Identificação Básica com o custo do PCT
+            $('#cost_price').val(baseCost.toFixed(8));
+            $('#cost_price').trigger('input');
+        } else {
+            // Caso contrário, usa o Preço de Custo já informado (custo do PCT)
+            baseCost = currentCostPrice;
+        }
+
+        // Custo convertido por unidade base (ex.: custo por KG)
+        let convertedCost = 0;
+        if (baseCost > 0 && factor > 0) {
+            convertedCost = baseCost / factor;
+        }
+
+        if (convertedCost > 0) {
+            $('#purchase_total_cost').val(convertedCost.toFixed(8));
+        } else {
+            $('#purchase_total_cost').val('');
+        }
+    }
+
+    // Disparar recálculo sempre que algum componente de custo ou fator mudar
+    $('#last_purchase_price, #purchase_freight_value, #purchase_icms_value, #purchase_other_costs_value, #purchase_factor')
+        .on('input change', function() {
+            recalculatePurchaseCosts();
+        });
     
     // Função para calcular o preço de venda com base no custo e markup
     window.calculateSalePrice = function() {
@@ -92,6 +137,9 @@ $(document).ready(function() {
     // Inicializar os valores formatados
     updateFormattedPrice('#cost_price', '#formatted_cost_price');
     updateFormattedPrice('#price', '#formatted_price');
+
+    // Inicializar totais de compra/custo unitário se já houver dados (edição)
+    recalculatePurchaseCosts();
 });
 
 // Adicionar estilos para os valores formatados

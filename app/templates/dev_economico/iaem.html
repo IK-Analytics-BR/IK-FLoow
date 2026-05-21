@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}IAEM - Índice de Antecipação Econômica Municipal{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.iaem-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0d9488 100%);color:#fff;border-radius:12px;padding:2rem;margin-bottom:1.5rem}
+.iaem-hero h2{font-size:1.6rem;font-weight:800;margin-bottom:.3rem}
+.iaem-hero .subtitle{color:#94a3b8;font-size:.88rem}
+.iaem-badge-forte{background:#16a34a;color:#fff;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.iaem-badge-expansao{background:#22d3ee;color:#0f172a;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.iaem-badge-estavel{background:#f59e0b;color:#0f172a;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.iaem-badge-retracao{background:#ef4444;color:#fff;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.iaem-score-big{font-size:2.8rem;font-weight:900;line-height:1}
+.iaem-score-big.verde{color:#16a34a}.iaem-score-big.azul{color:#22d3ee}.iaem-score-big.amarelo{color:#f59e0b}.iaem-score-big.vermelho{color:#ef4444}
+.radar-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b}
+.radar-bar{height:8px;border-radius:4px;transition:width .6s ease}
+.prob-card{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:1rem;text-align:center}
+.prob-value{font-size:2rem;font-weight:900}
+.prob-label{font-size:.72rem;color:#94a3b8}
+.rank-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:6px;transition:background .2s}
+.rank-row:hover{background:rgba(8,165,178,.08)}
+.rank-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem}
+.rank-1{background:#fbbf24;color:#0f172a}.rank-2{background:#94a3b8;color:#0f172a}.rank-3{background:#cd7f32;color:#fff}
+.rank-default{background:#1e293b;color:#94a3b8}
+.trend-up{color:#16a34a}.trend-down{color:#ef4444}.trend-stable{color:#f59e0b}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="iaem-hero">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.5rem">🔮</span>
+                <h2 class="mb-0">Índice de Antecipação Econômica Municipal</h2>
+            </div>
+            <div class="subtitle">Modelo preditivo de nowcasting municipal — Pix + Empresas + Emprego + Uso do Solo + Exportação + Logística</div>
+            <div class="mt-2" style="font-size:.75rem;color:#64748b;">
+                <i class="fas fa-clock me-1"></i>Última atualização: {{ data_calculo or 'hoje' }} |
+                <i class="fas fa-database me-1"></i>{{ total_municipios or 79 }} municípios analisados |
+                <i class="fas fa-chart-line me-1"></i>6 dimensões, {{ total_municipios or 79 }} scores
+            </div>
+        </div>
+        <a href="{{ url_for('dev_economico.dashboard') }}" class="btn btn-sm btn-outline-light"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    </div>
+</div>
+
+<!-- KPIs Resumo -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon" style="background:#16a34a;"><i class="fas fa-rocket"></i></div><div><div class="kpi-value">{{ expansao_forte }}</div><div class="kpi-label">Expansão Forte</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon" style="background:#22d3ee;"><i class="fas fa-arrow-trend-up"></i></div><div><div class="kpi-value">{{ expansao }}</div><div class="kpi-label">Em Expansão</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon" style="background:#f59e0b;"><i class="fas fa-minus"></i></div><div><div class="kpi-value">{{ estavel }}</div><div class="kpi-label">Estável</div></div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="dev-eco-kpi p-3"><div class="d-flex align-items-center gap-3"><div class="kpi-icon" style="background:#ef4444;"><i class="fas fa-arrow-trend-down"></i></div><div><div class="kpi-value">{{ retracao }}</div><div class="kpi-label">Em Retração</div></div></div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Ranking IAEM -->
+    <div class="col-md-7">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy me-2"></i>Ranking IAEM — Top Municípios</h5>
+                <div class="subtitle">Municípios com maior probabilidade de crescimento econômico</div>
+            </div>
+            <div class="card-body p-3">
+                {% for item in ranking %}
+                <div class="rank-row">
+                    <div class="rank-num {% if loop.index <= 3 %}rank-{{ loop.index }}{% else %}rank-default{% endif %}">{{ loop.index }}</div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold" style="font-size:.88rem;">{{ item.nome }}</span>
+                                <span style="font-size:.7rem;color:#9ca3af;" class="ms-2">{{ item.vocacao_principal }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="iaem-score-big {% if item.iaem_score >= 80 %}verde{% elif item.iaem_score >= 65 %}azul{% elif item.iaem_score >= 50 %}amarelo{% else %}vermelho{% endif %}" style="font-size:1.4rem;">{{ "%.1f"|format(item.iaem_score) }}</span>
+                                <span class="{% if item.iaem_classificacao == 'Expansão Forte' %}iaem-badge-forte{% elif item.iaem_classificacao == 'Expansão' %}iaem-badge-expansao{% elif item.iaem_classificacao == 'Estável' %}iaem-badge-estavel{% else %}iaem-badge-retracao{% endif %}">{{ item.iaem_classificacao }}</span>
+                            </div>
+                        </div>
+                        <!-- Barra de componentes -->
+                        <div class="d-flex gap-1 mt-1" style="height:6px;">
+                            <div style="flex:{{ item.score_pix }};background:#3b82f6;border-radius:3px;" title="Pix: {{ item.score_pix }}"></div>
+                            <div style="flex:{{ item.score_empresas }};background:#8b5cf6;border-radius:3px;" title="Empresas: {{ item.score_empresas }}"></div>
+                            <div style="flex:{{ item.score_emprego }};background:#22c55e;border-radius:3px;" title="Emprego: {{ item.score_emprego }}"></div>
+                            <div style="flex:{{ item.score_uso_solo }};background:#f59e0b;border-radius:3px;" title="Solo: {{ item.score_uso_solo }}"></div>
+                            <div style="flex:{{ item.score_exportacao }};background:#ef4444;border-radius:3px;" title="Export: {{ item.score_exportacao }}"></div>
+                            <div style="flex:{{ item.score_logistica }};background:#06b6d4;border-radius:3px;" title="Logística: {{ item.score_logistica }}"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#6b7280;">
+                            <span>6m: <strong class="{% if item.prob_crescimento_6m >= 70 %}trend-up{% elif item.prob_crescimento_6m >= 50 %}trend-stable{% else %}trend-down{% endif %}">{{ "%.0f"|format(item.prob_crescimento_6m) }}%</strong></span>
+                            <span>12m: <strong class="{% if item.prob_crescimento_12m >= 70 %}trend-up{% elif item.prob_crescimento_12m >= 50 %}trend-stable{% else %}trend-down{% endif %}">{{ "%.0f"|format(item.prob_crescimento_12m) }}%</strong></span>
+                            <span>24m: <strong class="{% if item.prob_crescimento_24m >= 70 %}trend-up{% elif item.prob_crescimento_24m >= 50 %}trend-stable{% else %}trend-down{% endif %}">{{ "%.0f"|format(item.prob_crescimento_24m) }}%</strong></span>
+                            <span><i class="fas fa-{% if item.tendencia == 'Alta' %}arrow-up trend-up{% elif item.tendencia == 'Baixa' %}arrow-down trend-down{% else %}minus trend-stable{% endif %}"></i> {{ item.tendencia }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuição e Radar -->
+    <div class="col-md-5">
+        <!-- Distribuição por classificação -->
+        <div class="dev-eco-card mb-3">
+            <div class="card-header"><h5><i class="fas fa-chart-pie me-2"></i>Distribuição IAEM</h5></div>
+            <div class="card-body p-3">
+                <div class="chart-container" style="height:220px;"><canvas id="chartDistribuicao"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Previsões agregadas -->
+        <div class="dev-eco-card mb-3">
+            <div class="card-header"><h5><i class="fas fa-crystal-ball me-2"></i>Probabilidade Média de Crescimento</h5></div>
+            <div class="card-body p-3">
+                <div class="row g-2">
+                    <div class="col-4">
+                        <div class="prob-card">
+                            <div class="prob-value" style="color:#22c55e;">{{ "%.0f"|format(media_prob_6m) }}%</div>
+                            <div class="prob-label">6 meses</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="prob-card">
+                            <div class="prob-value" style="color:#3b82f6;">{{ "%.0f"|format(media_prob_12m) }}%</div>
+                            <div class="prob-label">12 meses</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="prob-card">
+                            <div class="prob-value" style="color:#8b5cf6;">{{ "%.0f"|format(media_prob_24m) }}%</div>
+                            <div class="prob-label">24 meses</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legenda componentes -->
+        <div class="dev-eco-card">
+            <div class="card-header"><h5><i class="fas fa-sliders-h me-2"></i>Componentes do IAEM</h5></div>
+            <div class="card-body p-3">
+                {% set componentes = [
+                    ('Fluxo Pix (PJ)', 25, '#3b82f6', 'fas fa-money-bill-wave'),
+                    ('Dinâmica Empresarial', 20, '#8b5cf6', 'fas fa-building'),
+                    ('Mercado de Trabalho', 20, '#22c55e', 'fas fa-users'),
+                    ('Uso do Solo', 15, '#f59e0b', 'fas fa-satellite'),
+                    ('Comércio Exterior', 10, '#ef4444', 'fas fa-ship'),
+                    ('Logística', 10, '#06b6d4', 'fas fa-truck')
+                ] %}
+                {% for nome, peso, cor, icone in componentes %}
+                <div class="d-flex align-items-center gap-2 py-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <i class="{{ icone }}" style="color:{{ cor }};width:18px;"></i>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between" style="font-size:.82rem;">
+                            <span>{{ nome }}</span>
+                            <span class="fw-bold" style="color:{{ cor }};">{{ peso }}%</span>
+                        </div>
+                        <div class="dev-eco-progress" style="height:4px;">
+                            <div class="progress-bar" style="width:{{ peso * 4 }}%;background:{{ cor }};"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Metodologia -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-flask me-2"></i>Metodologia do IAEM</h5>
+                <div class="subtitle">Modelo de nowcasting municipal — como funciona</div>
+            </div>
+            <div class="card-body p-3">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background:#0f172a08;border-left:4px solid #3b82f6;">
+                            <h6 style="font-size:.88rem;"><i class="fas fa-database me-1" style="color:#3b82f6;"></i>1. Coleta de Dados</h6>
+                            <ul style="font-size:.78rem;color:#6b7280;padding-left:1.2rem;margin:0;">
+                                <li>Pix: BCB (mensal)</li>
+                                <li>Empresas: Junta Comercial (mensal)</li>
+                                <li>Emprego: CAGED/MTE (mensal)</li>
+                                <li>Uso do Solo: MapBiomas (anual)</li>
+                                <li>Exportação: COMEX STAT (mensal)</li>
+                                <li>Logística: ANTT/DNIT (trimestral)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background:#0f172a08;border-left:4px solid #8b5cf6;">
+                            <h6 style="font-size:.88rem;"><i class="fas fa-cogs me-1" style="color:#8b5cf6;"></i>2. Processamento</h6>
+                            <ul style="font-size:.78rem;color:#6b7280;padding-left:1.2rem;margin:0;">
+                                <li>Normalização 0-100 por dimensão</li>
+                                <li>Variação temporal (MoM, YoY)</li>
+                                <li>Z-score municipal vs estadual</li>
+                                <li>Detecção de outliers</li>
+                                <li>Média ponderada dos 6 scores</li>
+                                <li>Classificação por quintis</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background:#0f172a08;border-left:4px solid #22c55e;">
+                            <h6 style="font-size:.88rem;"><i class="fas fa-chart-line me-1" style="color:#22c55e;"></i>3. Outputs</h6>
+                            <ul style="font-size:.78rem;color:#6b7280;padding-left:1.2rem;margin:0;">
+                                <li>Score IAEM (0-100)</li>
+                                <li>Classificação (5 níveis)</li>
+                                <li>Prob. crescimento 6/12/24m</li>
+                                <li>Setor destaque</li>
+                                <li>Tendência (Alta/Estável/Baixa)</li>
+                                <li>Alertas de cluster emergente</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new Chart(document.getElementById('chartDistribuicao').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Expansão Forte', 'Expansão', 'Estável', 'Retração'],
+        datasets: [{
+            data: [{{ expansao_forte }}, {{ expansao }}, {{ estavel }}, {{ retracao }}],
+            backgroundColor: ['#16a34a', '#22d3ee', '#f59e0b', '#ef4444'],
+            borderWidth: 2, borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } } }
+    }
+});
+</script>
+{% endblock %}

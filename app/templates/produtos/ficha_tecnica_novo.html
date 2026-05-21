@@ -122,7 +122,8 @@ document.getElementById('buscaProduto').addEventListener('input', function() {
         return;
     }
     
-    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}&categoria=6`)
+    // Removido o filtro fixo de categoria=6 para permitir buscar qualquer produto ativo
+    fetch(`/produtos/fichas-tecnicas/api/buscar-produtos?q=${encodeURIComponent(termo)}`)
         .then(r => r.json())
         .then(produtos => {
             lista.innerHTML = '';
@@ -139,7 +140,7 @@ document.getElementById('buscaProduto').addEventListener('input', function() {
                     <div>
                         <strong>${p.codigo || p.id}</strong> - ${p.nome}
                     </div>
-                    <span class="badge bg-primary">R$ ${p.custo.toFixed(2)}</span>
+                    <span class="badge bg-primary">R$ ${p.custo.toFixed(3)}</span>
                 `;
                 item.onclick = function(e) {
                     e.preventDefault();

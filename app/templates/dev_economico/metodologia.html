@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Metodologia — Portal Dev Econômico MS{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_economico.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dev-eco-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="fas fa-book-open me-2"></i>Metodologia e Fontes de Dados</h2>
+            <div class="subtitle">Como são calculados os indicadores do Portal de Desenvolvimento Econômico</div>
+        </div>
+    </div>
+</div>
+
+{% include 'dev_economico/_nav.html' %}
+
+<!-- IAEM -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line me-2"></i>IAEM — Índice de Antecipação Econômica Municipal</h5>
+                <div class="subtitle">Índice composto que mede a probabilidade de crescimento econômico de cada município</div>
+            </div>
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">O que é o IAEM?</h6>
+                <p style="font-size:.88rem;color:#374151;">
+                    O IAEM é um <strong>índice preditivo</strong> que combina 6 dimensões econômicas para estimar a probabilidade de crescimento 
+                    de cada município nos próximos 6, 12 e 24 meses. O score varia de <strong>0 a 100</strong>, onde valores mais altos indicam 
+                    maior dinamismo econômico.
+                </p>
+
+                <h6 class="fw-bold mb-3 mt-4" style="color:#0f172a;">Componentes e Pesos</h6>
+                <p style="font-size:.82rem;color:#6b7280;" class="mb-3">O IAEM é calculado como média ponderada de 6 sub-índices, cada um variando de 0 a 100:</p>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#3b82f6;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-credit-card"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Pix</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 25%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Dinâmica financeira municipal via transações Pix.<br>
+                                <strong>Proxy utilizado:</strong> PIB per capita como indicador de fluxo financeiro.<br>
+                                <strong>Lógica:</strong> Municípios com maior PIB per capita tendem a ter maior volume de transações financeiras, indicando economia mais ativa.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                PIB/cap ≥ R$ 80 mil → 90 pts | ≥ R$ 50 mil → 80 pts | ≥ R$ 30 mil → 70 pts | ≥ R$ 20 mil → 60 pts | ≥ R$ 15 mil → 50 pts | &lt; R$ 15 mil → 35 pts
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-building"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Empresas</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 20%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Dinâmica empresarial — abertura, fechamento e estoque de empresas.<br>
+                                <strong>Proxy utilizado:</strong> População como indicador de base empresarial.<br>
+                                <strong>Lógica:</strong> Municípios mais populosos possuem ecossistema empresarial mais diversificado e resiliente.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                Pop ≥ 500 mil → 82 pts | ≥ 100 mil → 75 pts | ≥ 50 mil → 68 pts | ≥ 20 mil → 58 pts | ≥ 10 mil → 48 pts | &lt; 10 mil → 35 pts
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#22c55e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-briefcase"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Emprego</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 20%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Mercado de trabalho formal — saldo CAGED, estoque e salário médio.<br>
+                                <strong>Proxy utilizado:</strong> PIB total como indicador de capacidade de geração de emprego.<br>
+                                <strong>Lógica:</strong> Economias maiores geram mais postos de trabalho e têm mercado mais dinâmico.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                PIB ≥ R$ 10 bi → 85 pts | ≥ R$ 3 bi → 75 pts | ≥ R$ 1 bi → 65 pts | ≥ R$ 500 mi → 55 pts | &lt; R$ 500 mi → 40 pts
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#f59e0b;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-seedling"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Uso do Solo</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 15%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Expansão produtiva do solo — área plantada, conversão de pastagem, novos projetos.<br>
+                                <strong>Proxy utilizado:</strong> Participação do PIB agropecuário no PIB total.<br>
+                                <strong>Lógica:</strong> Maior participação agropecuária indica uso produtivo intensivo do solo, típico de MS.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                Agro/PIB ≥ 40% → 88 pts | ≥ 25% → 78 pts | ≥ 15% → 65 pts | &lt; 15% → 45 pts
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#ef4444;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-ship"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Exportação</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 10%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Comércio exterior — volume exportado, diversificação de destinos.<br>
+                                <strong>Proxy utilizado:</strong> Participação do PIB industrial no PIB total.<br>
+                                <strong>Lógica:</strong> Municípios com base industrial forte tendem a exportar mais e gerar divisas.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                Ind/PIB ≥ 35% → 90 pts | ≥ 20% → 75 pts | ≥ 10% → 60 pts | &lt; 10% → 35 pts
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3" style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div style="width:32px;height:32px;background:#06b6d4;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;"><i class="fas fa-truck"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="font-size:.88rem;">Score Logística</div>
+                                    <div style="font-size:.72rem;color:#6b7280;">Peso: 10%</div>
+                                </div>
+                            </div>
+                            <p style="font-size:.78rem;color:#374151;margin:0;">
+                                <strong>O que mede:</strong> Atividade logística — fluxo de cargas, infraestrutura de transporte.<br>
+                                <strong>Proxy utilizado:</strong> População como indicador de hub logístico.<br>
+                                <strong>Lógica:</strong> Centros urbanos maiores concentram infraestrutura logística e fluxo de mercadorias.
+                            </p>
+                            <div class="mt-2" style="font-size:.7rem;color:#9ca3af;">
+                                Pop ≥ 200 mil → 82 pts | ≥ 50 mil → 70 pts | ≥ 20 mil → 58 pts | &lt; 20 mil → 40 pts
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">Fórmula do IAEM</h6>
+                <div class="p-3 rounded-3 mb-3" style="background:#f8fafc;border:1px solid #e2e8f0;font-family:monospace;font-size:.85rem;">
+                    <strong>IAEM</strong> = (Pix × <span style="color:#3b82f6;">0,25</span>) + (Empresas × <span style="color:#8b5cf6;">0,20</span>) + (Emprego × <span style="color:#22c55e;">0,20</span>) + (Uso Solo × <span style="color:#f59e0b;">0,15</span>) + (Exportação × <span style="color:#ef4444;">0,10</span>) + (Logística × <span style="color:#06b6d4;">0,10</span>)
+                </div>
+
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">Classificação</h6>
+                <div class="d-flex gap-3 flex-wrap mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge" style="background:#16a34a;font-size:.78rem;padding:4px 10px;">Expansão Forte</span>
+                        <span style="font-size:.78rem;color:#374151;">IAEM ≥ 78</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge" style="background:#0891b2;font-size:.78rem;padding:4px 10px;">Expansão</span>
+                        <span style="font-size:.78rem;color:#374151;">IAEM ≥ 62</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge" style="background:#d97706;font-size:.78rem;padding:4px 10px;">Estável</span>
+                        <span style="font-size:.78rem;color:#374151;">IAEM ≥ 48</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge" style="background:#dc2626;font-size:.78rem;padding:4px 10px;">Retração</span>
+                        <span style="font-size:.78rem;color:#374151;">IAEM &lt; 48</span>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">Probabilidades de Crescimento</h6>
+                <p style="font-size:.82rem;color:#374151;">
+                    As probabilidades de crescimento são derivadas do IAEM score com fatores de decaimento temporal:
+                </p>
+                <ul style="font-size:.82rem;color:#374151;">
+                    <li><strong>6 meses:</strong> IAEM × 1,08 (limitado a 95%) — horizonte curto, maior confiança</li>
+                    <li><strong>12 meses:</strong> IAEM × 0,98 (limitado a 92%) — horizonte médio</li>
+                    <li><strong>24 meses:</strong> IAEM × 0,88 (limitado a 88%) — horizonte longo, maior incerteza</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GAPS / ENCADEAMENTOS -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-puzzle-piece me-2"></i>Gaps — Encadeamentos Produtivos Latentes</h5>
+                <div class="subtitle">Oportunidades de industrialização identificadas pela análise de cadeia produtiva</div>
+            </div>
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">O que são os Gaps?</h6>
+                <p style="font-size:.88rem;color:#374151;">
+                    Os <strong>Gaps</strong> (ou Encadeamentos Produtivos Latentes) representam <strong>oportunidades de industrialização</strong> 
+                    que poderiam existir em um município mas ainda não existem. São identificados pela análise da cadeia produtiva local: 
+                    o município produz a matéria-prima, mas não a transforma — importando o produto acabado de outras regiões.
+                </p>
+
+                <h6 class="fw-bold mb-3 mt-4" style="color:#0f172a;">Como são identificados?</h6>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3 text-center" style="background:rgba(8,165,178,0.06);border:1px solid rgba(8,165,178,0.15);">
+                            <div style="font-size:1.5rem;color:#08a5b2;"><i class="fas fa-search"></i></div>
+                            <div class="fw-bold mt-2" style="font-size:.85rem;">1. Mapeamento</div>
+                            <p style="font-size:.75rem;color:#6b7280;margin:0;">Identificação da matéria-prima produzida localmente (ex: soja, leite, eucalipto, bovinos)</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3 text-center" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);">
+                            <div style="font-size:1.5rem;color:#3b82f6;"><i class="fas fa-industry"></i></div>
+                            <div class="fw-bold mt-2" style="font-size:.85rem;">2. Análise de Cadeia</div>
+                            <p style="font-size:.75rem;color:#6b7280;margin:0;">Verificação de quais indústrias de transformação estão ausentes no município (ex: esmagadora, frigorífico, laticínio)</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3 text-center" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);">
+                            <div style="font-size:1.5rem;color:#f59e0b;"><i class="fas fa-calculator"></i></div>
+                            <div class="fw-bold mt-2" style="font-size:.85rem;">3. Cálculo do Gap</div>
+                            <p style="font-size:.75rem;color:#6b7280;margin:0;">Estimativa do valor da oportunidade: quanto a região importa do produto que poderia ser fabricado localmente</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded-3 text-center" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);">
+                            <div style="font-size:1.5rem;color:#22c55e;"><i class="fas fa-check-circle"></i></div>
+                            <div class="fw-bold mt-2" style="font-size:.85rem;">4. Viabilidade</div>
+                            <p style="font-size:.75rem;color:#6b7280;margin:0;">Avaliação de viabilidade técnica, investimento necessário, empregos potenciais e payback estimado</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-3" style="color:#0f172a;">Variáveis do Gap</h6>
+                <div class="table-responsive">
+                    <table class="table dev-eco-table mb-0" style="font-size:.82rem;">
+                        <thead>
+                            <tr>
+                                <th class="text-start">Variável</th>
+                                <th class="text-start">Descrição</th>
+                                <th class="text-start">Fonte / Cálculo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-semibold text-start">Matéria-prima</td>
+                                <td class="text-start">Produto primário produzido no município</td>
+                                <td class="text-start">Vocação econômica + dados IBGE de produção</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Produção atual (ton)</td>
+                                <td class="text-start">Volume de produção da matéria-prima</td>
+                                <td class="text-start">Estimado a partir do PIB agropecuário/industrial</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Indústria ausente</td>
+                                <td class="text-start">Tipo de indústria de transformação que não existe</td>
+                                <td class="text-start">Análise de cadeia produtiva por vocação municipal</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Gap (R$)</td>
+                                <td class="text-start">Valor da oportunidade — quanto a região importa</td>
+                                <td class="text-start">PIB setorial × fator de importação regional</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Empregos potenciais</td>
+                                <td class="text-start">Postos de trabalho que seriam gerados</td>
+                                <td class="text-start">Base populacional + multiplicador setorial</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Investimento estimado</td>
+                                <td class="text-start">Capital necessário para implantar a indústria</td>
+                                <td class="text-start">PIB setorial × fator de investimento</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Payback</td>
+                                <td class="text-start">Tempo estimado de retorno do investimento</td>
+                                <td class="text-start">2,5 a 5 anos conforme porte e setor</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Viabilidade</td>
+                                <td class="text-start">Alta, Média ou Baixa</td>
+                                <td class="text-start">Combinação de volume de produção, infraestrutura e demanda</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-3 mt-4" style="color:#0f172a;">Lógica de Geração por Vocação</h6>
+                <p style="font-size:.82rem;color:#374151;">
+                    Cada município recebe gaps baseados em sua vocação econômica principal:
+                </p>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#f0fdf4;font-size:.78rem;">
+                            <strong style="color:#16a34a;"><i class="fas fa-cow me-1"></i>Pecuária:</strong> Frigorífico, Laticínio, Cooperativa de Beneficiamento
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#eff6ff;font-size:.78rem;">
+                            <strong style="color:#2563eb;"><i class="fas fa-seedling me-1"></i>Grãos/Soja:</strong> Esmagadora, Fábrica de Ração, Biodiesel
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#fefce8;font-size:.78rem;">
+                            <strong style="color:#ca8a04;"><i class="fas fa-industry me-1"></i>Celulose:</strong> Papel Tissue, Embalagens, Biomassa
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#fdf2f8;font-size:.78rem;">
+                            <strong style="color:#be185d;"><i class="fas fa-cogs me-1"></i>Serviços:</strong> Centro de Distribuição, Hub Logístico, Data Center
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#f0fdfa;font-size:.78rem;">
+                            <strong style="color:#0d9488;"><i class="fas fa-mountain me-1"></i>Turismo:</strong> Eco-resort, Centro de Convenções, Indústria de Alimentos Regionais
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 rounded" style="background:#faf5ff;font-size:.78rem;">
+                            <strong style="color:#7c3aed;"><i class="fas fa-gem me-1"></i>Mineração:</strong> Beneficiamento Mineral, Siderurgia, Cerâmica Industrial
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FONTES -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="dev-eco-card">
+            <div class="card-header">
+                <h5><i class="fas fa-database me-2"></i>Fontes de Dados</h5>
+                <div class="subtitle">Bases de dados utilizadas nos cálculos e indicadores</div>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                            <h6 class="fw-bold" style="font-size:.88rem;"><i class="fas fa-landmark me-2" style="color:#08a5b2;"></i>Dados Econômicos</h6>
+                            <ul style="font-size:.78rem;color:#374151;margin:0;padding-left:1.2rem;">
+                                <li><strong>PIB Municipal:</strong> IBGE — Produto Interno Bruto dos Municípios (último ano disponível)</li>
+                                <li><strong>População:</strong> IBGE — Estimativas populacionais</li>
+                                <li><strong>IDH-M:</strong> Atlas do Desenvolvimento Humano (PNUD/IPEA/FJP)</li>
+                                <li><strong>Empregos:</strong> CAGED/MTE — Cadastro Geral de Empregados e Desempregados</li>
+                                <li><strong>Exportações:</strong> MDIC — Comex Stat</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                            <h6 class="fw-bold" style="font-size:.88rem;"><i class="fas fa-chart-bar me-2" style="color:#08a5b2;"></i>Dados Setoriais</h6>
+                            <ul style="font-size:.78rem;color:#374151;margin:0;padding-left:1.2rem;">
+                                <li><strong>Produção Agrícola:</strong> IBGE — PAM (Produção Agrícola Municipal)</li>
+                                <li><strong>Pecuária:</strong> IBGE — PPM (Pesquisa Pecuária Municipal)</li>
+                                <li><strong>Indústria:</strong> IBGE — PIA (Pesquisa Industrial Anual)</li>
+                                <li><strong>Turismo:</strong> MTur — Mapa do Turismo Brasileiro</li>
+                                <li><strong>Infraestrutura:</strong> DNIT, ANTT, ANAC, ANTAQ</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 p-3 rounded-3" style="background:#fffbeb;border:1px solid #fde68a;font-size:.78rem;color:#92400e;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Nota importante:</strong> Os valores de IAEM e Gaps são estimativas baseadas em proxies dos dados oficiais disponíveis. 
+                    Em uma versão de produção, os scores seriam alimentados por dados em tempo real (Pix via BACEN, CAGED mensal, Comex Stat, etc.) 
+                    e modelos de machine learning calibrados com séries históricas. Os valores atuais servem como demonstração da metodologia e 
+                    estrutura analítica do portal.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -121,7 +121,7 @@
                         {% for ficha in fichas %}
                         <tr>
                             <td>{{ ficha.id }}</td>
-                            <td><code>{{ ficha.produto_codigo or '-' }}</code></td>
+                            <td><code>{{ ficha.produto_codigo or ficha.produto_id }}</code></td>
                             <td>
                                 <strong>{{ ficha.produto_nome }}</strong>
                                 <br>
@@ -131,7 +131,7 @@
                                 <span class="badge bg-info">{{ ficha.qtd_itens }}</span>
                             </td>
                             <td class="text-end">
-                                R$ {{ "%.2f"|format(ficha.custo_total_base or 0) }}
+                                R$ {{ "%.3f"|format(ficha.custo_total_base or 0) }}
                             </td>
                             <td class="text-center">{{ ficha.tempo_producao_horas or 0 }}h</td>
                             <td class="text-center">

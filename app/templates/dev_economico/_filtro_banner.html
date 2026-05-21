@@ -1,0 +1,14 @@
+{% if municipio_filtrado %}
+<div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between" style="font-size:.82rem;border-radius:6px">
+    <div>
+        <i class="fas fa-filter me-1"></i>
+        Exibindo dados de <strong>{{ municipio_filtrado.nome }}</strong>
+        {% if municipio_filtrado.regiao_macro %}<span class="text-muted ms-1">({{ municipio_filtrado.regiao_macro }})</span>{% endif %}
+        {% if municipio_filtrado.populacao %}<span class="badge bg-secondary ms-2">Pop: {{ "{:,.0f}".format(municipio_filtrado.populacao) }}</span>{% endif %}
+        {% if municipio_filtrado.vocacao_principal %}<span class="badge bg-success ms-1">{{ municipio_filtrado.vocacao_principal }}</span>{% endif %}
+    </div>
+    <a href="{{ request.path }}" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem">
+        <i class="fas fa-times me-1"></i>Limpar filtro
+    </a>
+</div>
+{% endif %}

@@ -83,9 +83,10 @@ def industria_ops_excluir_required(f):
             return redirect(url_for('ordem_producao.listar_ops'))
         return f(*args, **kwargs)
     return decorated_function
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from decimal import InvalidOperation
+import random
 
 # Helper Kardex
 try:
@@ -268,6 +269,8 @@ def producao_gantt():
                 og.id AS grupo_id,
                 o.id AS orcamento_id,
                 o.numero AS orcamento_numero,
+                op.planejamento_id,
+                ps.codigo AS planejamento_codigo,
                 (SELECT MAX(log.created_at) 
                  FROM op_lotes_etapas_log log 
                  WHERE log.lote_id = l.id 
@@ -285,6 +288,7 @@ def producao_gantt():
             LEFT JOIN orcamento_op_itens oi ON oi.ordem_producao_id = v.id
             LEFT JOIN orcamento_op_grupos og ON og.id = oi.grupo_id
             LEFT JOIN orcamentos o ON o.id = og.orcamento_id
+            LEFT JOIN planejamentos_semanais ps ON ps.id = op.planejamento_id
             LEFT JOIN lider_operadores lo ON lo.operador_id = l.operador_id
             LEFT JOIN users u_lider ON u_lider.id = lo.lider_id
             LEFT JOIN users u_operador ON u_operador.id = l.operador_id
@@ -346,22 +350,53 @@ def producao_gantt():
             atual['count'] += 1
 
         # Montar grupos (linhas) e matriz grupo x etapa
+        # Grupos podem vir de orçamentos OU de planejamentos semanais
         grupos = {}
         for it in lotes:
             gid = it.get('grupo_id')
-            if not gid:
-                # Se OP não tiver vínculo, não entra na visão por Grupo
-                continue
-            if gid not in grupos:
-                grupos[gid] = {
-                    'grupo_id': gid,
-                    'orcamento_id': it.get('orcamento_id'),
-                    'orcamento_numero': it.get('orcamento_numero'),
-                    'cliente_nome': it.get('cliente_nome')
-                }
+            plan_id = it.get('planejamento_id')
+
+            if gid:
+                # Grupo de orçamento
+                if gid not in grupos:
+                    grupos[gid] = {
+                        'grupo_id': gid,
+                        'orcamento_id': it.get('orcamento_id'),
+                        'orcamento_numero': it.get('orcamento_numero'),
+                        'cliente_nome': it.get('cliente_nome'),
+                        'planejamento_id': None,
+                        'planejamento_codigo': None,
+                    }
+            elif plan_id:
+                # Grupo virtual de planejamento (usa ID negativo para não colidir)
+                vkey = -plan_id
+                if vkey not in grupos:
+                    grupos[vkey] = {
+                        'grupo_id': vkey,
+                        'orcamento_id': None,
+                        'orcamento_numero': None,
+                        'cliente_nome': 'Produção p/ Estoque',
+                        'planejamento_id': plan_id,
+                        'planejamento_codigo': it.get('planejamento_codigo') or f'PL-{plan_id}',
+                    }
+                # Marcar o lote com o grupo virtual para o loop abaixo
+                it['grupo_id'] = vkey
+            else:
+                # OP avulsa sem orçamento nem planejamento — grupo "Avulso"
+                avulso_key = 0
+                if avulso_key not in grupos:
+                    grupos[avulso_key] = {
+                        'grupo_id': avulso_key,
+                        'orcamento_id': None,
+                        'orcamento_numero': None,
+                        'cliente_nome': it.get('cliente_nome') or 'Avulso',
+                        'planejamento_id': None,
+                        'planejamento_codigo': None,
+                    }
+                it['grupo_id'] = avulso_key
 
         grupos_lista = list(grupos.values())
-        grupos_lista.sort(key=lambda x: (x.get('orcamento_numero') or ''), reverse=True)
+        grupos_lista.sort(key=lambda x: (x.get('orcamento_numero') or '', x.get('planejamento_codigo') or ''), reverse=True)
 
         ops_por_grupo_etapa = {}
         for g in grupos_lista:
@@ -372,7 +407,7 @@ def producao_gantt():
         for it in lotes:
             gid = it.get('grupo_id')
             etid = it.get('lote_etapa_atual_id')
-            if not gid or not etid:
+            if gid is None or not etid:
                 continue
             if gid not in ops_por_grupo_etapa:
                 continue
@@ -488,7 +523,9 @@ def producao_gantt_v2():
                 e.icone AS etapa_icone,
                 og.id AS grupo_id,
                 o.id AS orcamento_id,
-                o.numero AS orcamento_numero
+                o.numero AS orcamento_numero,
+                op.planejamento_id,
+                ps.codigo AS planejamento_codigo
             FROM op_lotes l
             INNER JOIN ordens_producao op ON op.id = l.ordem_producao_id
             INNER JOIN vw_ordens_producao_resumo v ON v.id = op.id
@@ -496,6 +533,7 @@ def producao_gantt_v2():
             LEFT JOIN orcamento_op_itens oi ON oi.ordem_producao_id = v.id
             LEFT JOIN orcamento_op_grupos og ON og.id = oi.grupo_id
             LEFT JOIN orcamentos o ON o.id = og.orcamento_id
+            LEFT JOIN planejamentos_semanais ps ON ps.id = op.planejamento_id
             WHERE 1=1
         """
 
@@ -547,18 +585,45 @@ def producao_gantt_v2():
         grupos = {}
         for it in lotes:
             gid = it.get('grupo_id')
-            if not gid:
-                continue
-            if gid not in grupos:
-                grupos[gid] = {
-                    'grupo_id': gid,
-                    'orcamento_id': it.get('orcamento_id'),
-                    'orcamento_numero': it.get('orcamento_numero'),
-                    'cliente_nome': it.get('cliente_nome')
-                }
+            plan_id = it.get('planejamento_id')
+
+            if gid:
+                if gid not in grupos:
+                    grupos[gid] = {
+                        'grupo_id': gid,
+                        'orcamento_id': it.get('orcamento_id'),
+                        'orcamento_numero': it.get('orcamento_numero'),
+                        'cliente_nome': it.get('cliente_nome'),
+                        'planejamento_id': None,
+                        'planejamento_codigo': None,
+                    }
+            elif plan_id:
+                vkey = -plan_id
+                if vkey not in grupos:
+                    grupos[vkey] = {
+                        'grupo_id': vkey,
+                        'orcamento_id': None,
+                        'orcamento_numero': None,
+                        'cliente_nome': 'Produção p/ Estoque',
+                        'planejamento_id': plan_id,
+                        'planejamento_codigo': it.get('planejamento_codigo') or f'PL-{plan_id}',
+                    }
+                it['grupo_id'] = vkey
+            else:
+                avulso_key = 0
+                if avulso_key not in grupos:
+                    grupos[avulso_key] = {
+                        'grupo_id': avulso_key,
+                        'orcamento_id': None,
+                        'orcamento_numero': None,
+                        'cliente_nome': it.get('cliente_nome') or 'Avulso',
+                        'planejamento_id': None,
+                        'planejamento_codigo': None,
+                    }
+                it['grupo_id'] = avulso_key
 
         grupos_lista = list(grupos.values())
-        grupos_lista.sort(key=lambda x: (x.get('orcamento_numero') or ''), reverse=True)
+        grupos_lista.sort(key=lambda x: (x.get('orcamento_numero') or '', x.get('planejamento_codigo') or ''), reverse=True)
 
         etapa_pos = {int(e.get('id')): idx for idx, e in enumerate(etapas_render)}
 
@@ -567,7 +632,7 @@ def producao_gantt_v2():
             gid = it.get('grupo_id')
             etid = it.get('lote_etapa_atual_id')
             op_id = it.get('op_id')
-            if not gid or not etid or not op_id:
+            if gid is None or not etid or not op_id:
                 continue
             try:
                 etid_int = int(etid)
@@ -1055,6 +1120,8 @@ def listar_ops():
             SELECT
                 v.*,
                 op.empresa_id,
+                op.prioridade,
+                op.tipo_op,
                 o.numero AS orcamento_numero,
                 og.id AS grupo_id,
                 og.orcamento_id
@@ -1116,6 +1183,2125 @@ def listar_ops():
     except Exception as e:
         flash(f'Erro ao carregar ordens de produção: {str(e)}', 'danger')
         return render_template('industria/ordem_producao_lista.html', ops=[], clientes=[])
+
+
+@ordem_producao_bp.route('/planejamento', methods=['GET', 'POST'])
+@industria_ops_visualizar_required
+def planejamento_producao_semana():
+    """Tela de planejamento de produção por período (simulação de consumo).
+
+    O usuário informa quantidades planejadas para produtos finais e o sistema
+    calcula o consumo total estimado de:
+      - Itens da ficha técnica (incluindo MASSA/RECHEIO e embalagens)
+      - Matérias-primas (agrupadas por produto)
+
+    Não cria OPs, apenas retorna os cálculos em tela.
+    """
+    db = get_db()
+
+    # Filtros básicos (apenas referência visual por enquanto)
+    data_inicio = (request.args.get('data_inicio') or '').strip()
+    data_fim = (request.args.get('data_fim') or '').strip()
+
+    # Buscar apenas PACOTES de PRODUTOS FINAIS que possuem template ativo
+    # Cada linha representará um pacote comercial específico (unidade de planejamento)
+    try:
+        produtos = db.fetch_all(
+            """
+            SELECT
+                pp.id AS id,                 -- identificador do pacote (usado no formulário)
+                pp.produto_id,               -- produto final ao qual o pacote pertence
+                p.internal_code AS codigo,
+                p.name AS nome,
+                p.unit_measure AS unidade,
+                p.category AS grupo_nome,
+                COALESCE(p.stock_quantity, 0) AS estoque_unidades,
+                COALESCE(cs.min_stock, 0) AS min_estoque_unidades,
+                COALESCE(cs.max_stock, 0) AS max_estoque_unidades,
+                pp.descricao AS pacote_descricao,
+                pp.unidade_comercial AS pacote_unidade_comercial,
+                pp.unidades_por_pacote AS pacote_unidades_por_pacote,
+                pp.padrao_planejamento
+            FROM produto_pacotes pp
+            INNER JOIN products p
+                    ON p.id = pp.produto_id
+            LEFT JOIN current_stock cs
+                   ON cs.product_id = p.id
+                  AND cs.location_id = 1
+            INNER JOIN produto_templates_producao t
+                    ON t.produto_id = p.id
+                   AND t.ativo = 1
+            WHERE pp.ativo = 1
+              AND (p.category IS NULL OR p.category <> 'Semiacabado (Massa/Recheio/Caldo)')
+              AND p.name NOT LIKE 'MASSA - %%'
+              AND p.name NOT LIKE 'RECHEIO - %%'
+            ORDER BY p.name, pp.descricao
+            """
+        ) or []
+    except Exception:
+        # Fallback defensivo: caso tabela de pacotes não exista, volta para visão por produto
+        produtos = db.fetch_all(
+            """
+            SELECT DISTINCT
+                p.id AS id,
+                p.id AS produto_id,
+                p.internal_code AS codigo,
+                p.name AS nome,
+                p.unit_measure AS unidade,
+                p.category AS grupo_nome,
+                COALESCE(p.stock_quantity, 0) AS estoque_unidades,
+                COALESCE(cs.min_stock, 0) AS min_estoque_unidades,
+                COALESCE(cs.max_stock, 0) AS max_estoque_unidades,
+                NULL AS pacote_descricao,
+                NULL AS pacote_unidade_comercial,
+                1 AS pacote_unidades_por_pacote,
+                0 AS padrao_planejamento
+            FROM products p
+            LEFT JOIN current_stock cs
+                   ON cs.product_id = p.id
+                  AND cs.location_id = 1
+            INNER JOIN produto_templates_producao t ON t.produto_id = p.id AND t.ativo = 1
+            WHERE (p.category IS NULL OR p.category <> 'Semiacabado (Massa/Recheio/Caldo)')
+              AND p.name NOT LIKE 'MASSA - %%'
+              AND p.name NOT LIKE 'RECHEIO - %%'
+            ORDER BY p.name
+            """
+        ) or []
+
+    # Estoque atual em PACOTES (calculado a partir do estoque em unidades do produto)
+    estoque_pacotes = {}
+    min_pacotes = {}
+    max_pacotes = {}
+    for prod in produtos:
+        try:
+            estoque_un = float(prod.get('estoque_unidades') or 0.0)
+        except (TypeError, ValueError):
+            estoque_un = 0.0
+        try:
+            unidades_por_pacote = float(prod.get('pacote_unidades_por_pacote') or 1.0) or 1.0
+        except (TypeError, ValueError):
+            unidades_por_pacote = 1.0
+        if unidades_por_pacote <= 0:
+            unidades_por_pacote = 1.0
+
+        # Estoque atual em pacotes
+        estoque_pk = estoque_un / unidades_por_pacote if unidades_por_pacote > 0 else 0.0
+        prod['estoque_pacotes'] = estoque_pk
+        estoque_pacotes[prod['id']] = estoque_pk
+
+        # Estoque mínimo / máximo convertidos para pacotes
+        try:
+            min_un = float(prod.get('min_estoque_unidades') or 0.0)
+        except (TypeError, ValueError):
+            min_un = 0.0
+        try:
+            max_un = float(prod.get('max_estoque_unidades') or 0.0)
+        except (TypeError, ValueError):
+            max_un = 0.0
+
+        min_pk = min_un / unidades_por_pacote if unidades_por_pacote > 0 else 0.0
+        max_pk = max_un / unidades_por_pacote if unidades_por_pacote > 0 else 0.0
+
+        prod['min_pacotes'] = min_pk
+        prod['max_pacotes'] = max_pk
+        min_pacotes[prod['id']] = min_pk
+        max_pacotes[prod['id']] = max_pk
+
+    # Previsão de vendas semanais por PACOTE
+    # 1) Tenta ler da tabela fixa produto_pacotes_previsao (valores já em pacotes/semana)
+    # 2) Para os pacotes sem previsão fixa (ou se a tabela não existir), usa fallback
+    #    calculando a média das últimas 4 semanas em estoque_movimentacoes
+    previsao_pacotes = {}
+    if produtos:
+        # 1) Previsão fixa por pacote
+        pacote_ids = sorted({p.get('id') for p in produtos if p.get('id') is not None})
+        if pacote_ids:
+            try:
+                ids_tuple = tuple(pacote_ids)
+                placeholders_ids = ','.join(['%s'] * len(ids_tuple))
+                rows_prev = db.fetch_all(
+                    f"""
+                    SELECT
+                        pacote_id,
+                        previsao_semanal_pacotes
+                    FROM produto_pacotes_previsao
+                    WHERE pacote_id IN ({placeholders_ids})
+                    """,
+                    ids_tuple,
+                ) or []
+                for r in rows_prev:
+                    pid = r.get('pacote_id')
+                    try:
+                        prev_pk = float(r.get('previsao_semanal_pacotes') or 0.0)
+                    except (TypeError, ValueError):
+                        prev_pk = 0.0
+                    if pid is not None:
+                        previsao_pacotes[pid] = prev_pk
+            except Exception as e:
+                # Se a tabela não existir ou der erro, apenas loga e segue para o fallback
+                print(f"[PLANEJAMENTO] Aviso ao ler produto_pacotes_previsao: {e}")
+
+        # 2) Fallback: calcular previsão a partir de vendas para os pacotes ainda sem previsão
+        pacotes_sem_prev = [p for p in produtos if p.get('id') not in previsao_pacotes]
+        if pacotes_sem_prev:
+            produto_ids = sorted({p.get('produto_id') or p.get('id') for p in pacotes_sem_prev})
+            vendas = []
+            try:
+                ids_tuple = tuple(produto_ids)
+                placeholders_ids = ','.join(['%s'] * len(ids_tuple))
+                vendas = db.fetch_all(
+                    f"""
+                    SELECT
+                        em.produto_id,
+                        COALESCE(SUM(em.quantidade), 0) AS qtd_total
+                    FROM estoque_movimentacoes em
+                    WHERE em.tipo = 'venda'
+                      AND em.produto_id IN ({placeholders_ids})
+                      AND em.created_at >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
+                    GROUP BY em.produto_id
+                    """,
+                    ids_tuple,
+                ) or []
+            except Exception as e:
+                # Em caso de erro, apenas loga e segue com previsão zero
+                print(f"[PLANEJAMENTO] Aviso ao calcular previsão semanal (fallback vendas): {e}")
+                vendas = []
+
+            previsao_unidades = {}
+            num_semanas_base = 4.0  # média das últimas 4 semanas
+            for v in vendas:
+                pid = v.get('produto_id')
+                try:
+                    qtd_total = float(v.get('qtd_total') or 0.0)
+                except (TypeError, ValueError):
+                    qtd_total = 0.0
+                if pid is not None and num_semanas_base > 0:
+                    previsao_unidades[pid] = qtd_total / num_semanas_base
+
+            # Converter previsão em unidades -> pacotes para os pacotes SEM previsão fixa
+            for prod in pacotes_sem_prev:
+                produto_id = prod.get('produto_id') or prod.get('id')
+                try:
+                    unidades_por_pacote = float(prod.get('pacote_unidades_por_pacote') or 1.0) or 1.0
+                except (TypeError, ValueError):
+                    unidades_por_pacote = 1.0
+                if unidades_por_pacote <= 0:
+                    unidades_por_pacote = 1.0
+                prev_un = float(previsao_unidades.get(produto_id, 0.0) or 0.0)
+                prev_pk = prev_un / unidades_por_pacote if unidades_por_pacote > 0 else 0.0
+                previsao_pacotes[prod['id']] = prev_pk
+
+        # Garantir que todos os produtos tenham o campo previsao_pacotes preenchido
+        for prod in produtos:
+            pacote_id = prod.get('id')
+            prod['previsao_pacotes'] = float(previsao_pacotes.get(pacote_id, 0.0) or 0.0)
+
+    # Sugestão de produção em pacotes
+    # Regras acordadas:
+    #   1) Se houver faixa min/max configurada, calcular uma quantidade que, APÓS as vendas
+    #      previstas, mantenha o estoque no início da faixa VERDE (entre min e max, mais
+    #      próximo do máximo) – nunca deixando o saldo zerar ou encostar no mínimo.
+    #   2) Se não houver faixa min/max, usar a regra simples: sugestão = previsão - estoque
+    #      (mínimo 0).
+    sugestao_pacotes = {}
+    for prod in produtos:
+        pacote_id = prod.get('id')
+        prev_pk = float(previsao_pacotes.get(pacote_id, 0.0) or 0.0)
+        estoque_pk = float(estoque_pacotes.get(pacote_id, 0.0) or 0.0)
+        min_pk = float(min_pacotes.get(pacote_id, 0.0) or 0.0)
+        max_pk = float(max_pacotes.get(pacote_id, 0.0) or 0.0)
+
+        if max_pk > min_pk:
+            # Faixa configurada -> queremos que o saldo APÓS vendas fique no início da faixa verde
+            faixa = max_pk - min_pk
+            alvo_verde = min_pk + (2.0 / 3.0) * faixa
+
+            # Produção mínima para:
+            #   - Cobrir a previsão de vendas; e
+            #   - Manter um saldo alvo_verde após vender a previsão.
+            #   saldo_final = estoque_pk + sugestao - prev_pk >= alvo_verde
+            #   => sugestao >= alvo_verde + prev_pk - estoque_pk
+            sug = alvo_verde + prev_pk - estoque_pk
+        else:
+            # Sem faixa configurada, aplica-se apenas a previsão vs estoque (não zera estoque
+            # se já houver mais do que a previsão)
+            sug = prev_pk - estoque_pk
+
+        if sug < 0:
+            sug = 0.0
+
+        sugestao_pacotes[pacote_id] = sug
+        prod['sugestao_pacotes'] = sug
+
+    # Classificação de urgência por faixa de estoque (min/max) em pacotes
+    #  - estoque <= 33% do intervalo -> danger
+    #  - entre 33% e 66% -> warning
+    #  - acima de 66% -> success
+    for prod in produtos:
+        pacote_id = prod.get('id')
+        estoque_pk = float(estoque_pacotes.get(pacote_id, 0.0) or 0.0)
+        min_pk = float(min_pacotes.get(pacote_id, 0.0) or 0.0)
+        max_pk = float(max_pacotes.get(pacote_id, 0.0) or 0.0)
+        sug = float(sugestao_pacotes.get(pacote_id, 0.0) or 0.0)
+
+        classe = 'success'
+        if max_pk > min_pk:
+            faixa = max_pk - min_pk
+            nivel = (estoque_pk - min_pk) / faixa
+            if nivel < (1.0 / 3.0):
+                classe = 'danger'
+            elif nivel < (2.0 / 3.0):
+                classe = 'warning'
+            else:
+                classe = 'success'
+        else:
+            # Se não houver range configurado, usar sugestão como fallback
+            if sug > 0:
+                classe = 'warning'
+            else:
+                classe = 'success'
+
+        prod['classe_urgencia'] = classe
+
+    # Ordenar produtos pela sugestão de produção (maior urgência primeiro)
+    produtos.sort(key=lambda p: float(p.get('sugestao_pacotes') or 0.0), reverse=True)
+
+    resultados = None
+
+    if request.method == 'POST':
+        # Manter datas preenchidas após o POST
+        data_inicio = (request.form.get('data_inicio') or data_inicio).strip()
+        data_fim = (request.form.get('data_fim') or data_fim).strip()
+
+        # Quantidades planejadas por PACOTE (campo nome: qtd_<pacote_id>)
+        # Regra: se o usuário NÃO informar nada para o pacote, usar automaticamente
+        # a sugestão calculada para aquele item. Assim, ao clicar em "Calcular
+        # planejamento" sem editar os campos, o sistema usa 100% das sugestões.
+        quantidades_planejadas = {}
+        for prod in produtos:
+            pacote_id = prod['id']
+            key = f"qtd_{pacote_id}"
+            raw = (request.form.get(key) or '').strip()
+
+            if raw:
+                try:
+                    q = float(raw.replace(',', '.'))
+                except ValueError:
+                    q = 0.0
+                # Se o usuário digitou explicitamente, respeitamos o valor digitado
+                if q > 0:
+                    quantidades_planejadas[pacote_id] = q
+            else:
+                # Campo em branco -> usar sugestão padrão da linha, se houver
+                try:
+                    q_sug = float(sugestao_pacotes.get(pacote_id, 0.0) or 0.0)
+                except (TypeError, ValueError):
+                    q_sug = 0.0
+                if q_sug > 0:
+                    quantidades_planejadas[pacote_id] = q_sug
+
+        # Mapa de unidades por PACOTE (por pacote_id)
+        unidades_por_pacote_map = {}
+        for prod in produtos:
+            try:
+                unidades_por_pacote = float(prod.get('pacote_unidades_por_pacote') or 1)
+            except (TypeError, ValueError):
+                unidades_por_pacote = 1.0
+            unidades_por_pacote_map[prod['id']] = unidades_por_pacote
+
+        # Converter planejamento em pacotes -> unidades por PRODUTO FINAL
+        quantidades_planejadas_unidades = {}
+        for prod in produtos:
+            pacote_id = prod.get('id')
+            produto_id = prod.get('produto_id') or prod.get('id')
+            qtd_pacotes = quantidades_planejadas.get(pacote_id, 0.0)
+            if qtd_pacotes <= 0:
+                continue
+            unidades_por_pacote = unidades_por_pacote_map.get(pacote_id, 1.0)
+            qtd_unidades = qtd_pacotes * unidades_por_pacote
+            quantidades_planejadas_unidades[produto_id] = (
+                quantidades_planejadas_unidades.get(produto_id, 0.0) + qtd_unidades
+            )
+
+        if quantidades_planejadas_unidades:
+            # Carregar itens de template por PRODUTO FINAL para evitar N consultas
+            ids_tuple = tuple(quantidades_planejadas_unidades.keys())
+            placeholders = ','.join(['%s'] * len(ids_tuple))
+
+            itens = db.fetch_all(
+                f"""
+                SELECT
+                    p.id              AS produto_final_id,
+                    p.name            AS produto_final_nome,
+                    ti.tipo_item,
+                    ti.quantidade,
+                    ti.unidade_medida,
+                    ip.id             AS item_produto_id,
+                    ip.name           AS item_produto_nome,
+                    ip.category       AS item_categoria,
+                    ti.descricao
+                FROM produto_templates_producao t
+                INNER JOIN products p       ON p.id = t.produto_id
+                INNER JOIN produto_template_itens ti ON ti.template_id = t.id
+                INNER JOIN products ip      ON ip.id = ti.produto_id
+                WHERE t.ativo = 1
+                  AND t.versao = 1
+                  AND p.id IN ({placeholders})
+                """,
+                ids_tuple,
+            ) or []
+
+            # Agregadores
+            consumo_ft = []             # todos os itens (para debug futuro)
+            consumo_massa = []          # itens MASSA
+            consumo_recheio = []        # itens RECHEIO
+            consumo_embalagem = []      # itens de empacotamento / consumo interno
+            consumo_outros = []         # demais seções não classificadas
+            mp_detalhado = []           # matérias-primas detalhadas por produto (nível 1)
+            mp_totais = {}              # matérias-primas agrupadas (explodidas, geral)
+            mp_massa_totais = {}        # MP usadas em MASSAS (explodidas)
+            mp_recheio_totais = {}      # MP usadas em RECHEIOS (explodidas)
+            mp_embalagem_totais = {}    # MP usadas em EMBALAGENS (explodidas)
+            embalagem_totais_map = {}   # totais por item de embalagem
+
+            template_cache = {}
+            produto_cache = {}
+
+            def _explodir_materia_prima(produto_id, qtd_unidades, acc_dict, visitados=None):
+                if not produto_id or qtd_unidades <= 0:
+                    return
+                if visitados is None:
+                    visitados = set()
+                if produto_id in visitados:
+                    return
+                visitados.add(produto_id)
+
+                template_id = template_cache.get(produto_id)
+                if template_id is None:
+                    tpl = db.fetch_one(
+                        """
+                        SELECT id
+                        FROM produto_templates_producao
+                        WHERE produto_id = %s AND ativo = 1
+                        ORDER BY versao DESC
+                        LIMIT 1
+                        """,
+                        (produto_id,),
+                    )
+                    template_id = tpl['id'] if tpl else 0
+                    template_cache[produto_id] = template_id
+
+                if template_id:
+                    itens_tpl = db.fetch_all(
+                        """
+                        SELECT produto_id, quantidade
+                        FROM produto_template_itens
+                        WHERE template_id = %s
+                        """,
+                        (template_id,),
+                    ) or []
+                    for it_tpl in itens_tpl:
+                        filho_id = it_tpl.get('produto_id')
+                        if not filho_id:
+                            continue
+                        try:
+                            qtd_por_un_filho = float(it_tpl.get('quantidade') or 0)
+                        except (TypeError, ValueError):
+                            qtd_por_un_filho = 0.0
+                        if qtd_por_un_filho <= 0:
+                            continue
+                        qtd_total_filho = qtd_por_un_filho * qtd_unidades
+                        _explodir_materia_prima(filho_id, qtd_total_filho, acc_dict, visitados)
+                else:
+                    prod_info = produto_cache.get(produto_id)
+                    if prod_info is None:
+                        prod_info = db.fetch_one(
+                            "SELECT id, name, unit_measure FROM products WHERE id = %s",
+                            (produto_id,),
+                        )
+                        produto_cache[produto_id] = prod_info
+                    if not prod_info:
+                        visitados.remove(produto_id)
+                        return
+                    key = prod_info['id']
+                    mp = acc_dict.get(key) or {
+                        'produto_id': prod_info['id'],
+                        'nome': prod_info['name'],
+                        'unidade': prod_info.get('unit_measure'),
+                        'qtd_total': 0.0,
+                    }
+                    mp['qtd_total'] += qtd_unidades
+                    acc_dict[key] = mp
+
+                visitados.remove(produto_id)
+
+            for it in itens:
+                prod_final_id = it['produto_final_id']
+                qtd_planejada_unidades = quantidades_planejadas_unidades.get(prod_final_id, 0)
+                if qtd_planejada_unidades <= 0:
+                    continue
+
+                qtd_por_un = float(it.get('quantidade') or 0)
+                if qtd_por_un <= 0:
+                    continue
+
+                qtd_total = qtd_por_un * qtd_planejada_unidades
+
+                # Identificar seção (MASSA / RECHEIO / EMBALAGEM / MP / OUTROS)
+                descricao = (it.get('descricao') or '').strip()
+                item_nome = (it.get('item_produto_nome') or '').strip()
+                tipo_item = (it.get('tipo_item') or '').strip().lower()
+                item_categoria = (it.get('item_categoria') or '').strip().upper()
+
+                texto_nome_desc = f"{descricao} {item_nome}".upper()
+                texto_cat_nome = f"{item_categoria} {item_nome}".upper()
+
+                secao = 'OUTROS'
+                # MASSA / RECHEIO priorizando o nome/descrição do item
+                if 'RECHEIO' in texto_nome_desc:
+                    secao = 'RECHEIO'
+                elif 'MASSA' in texto_nome_desc:
+                    secao = 'MASSA'
+                # EMBALAGENS / EMPACOTAMENTO / rótulos
+                elif any(k in texto_cat_nome for k in ('EMBALAGEM', 'EMBALAG', 'EMPACOTAMENTO', 'ETIQUETA', 'RÓTULO', 'ROTULO')):
+                    secao = 'EMBALAGEM'
+                # Matérias-primas em geral (quando não são claramente massa/recheio)
+                elif tipo_item == 'materia_prima' or any(
+                    k in texto_cat_nome for k in ('MATERIA-PRIMA', 'MATÉRIA-PRIMA', 'MP ')
+                ):
+                    secao = 'MP'
+                else:
+                    # Fallback: usar prefixo da descrição, se existir
+                    if descricao and '-' in descricao:
+                        prefix = descricao.split('-', 1)[0].strip().upper()
+                        if prefix in ('MASSA', 'RECHEIO'):
+                            secao = prefix
+                        elif prefix in ('EMPACOTAMENTO', 'EMBALAGEM'):
+                            secao = 'EMBALAGEM'
+
+                row = {
+                    'produto_final_nome': it['produto_final_nome'],
+                    'tipo_item': it['tipo_item'],
+                    'item_nome': it['item_produto_nome'],
+                    'descricao': descricao,
+                    'unidade': it.get('unidade_medida'),
+                    'qtd_por_unidade': qtd_por_un,
+                    'qtd_planejada': qtd_planejada_unidades,
+                    'qtd_total': qtd_total,
+                    'secao': secao,
+                }
+
+                consumo_ft.append(row)
+
+                if secao == 'MASSA':
+                    consumo_massa.append(row)
+                elif secao == 'RECHEIO':
+                    consumo_recheio.append(row)
+                elif secao == 'EMBALAGEM':
+                    consumo_embalagem.append(row)
+
+                    # Totais por item de embalagem (independente do produto final)
+                    key_emb = (row['item_nome'], row.get('unidade'))
+                    emb = embalagem_totais_map.get(key_emb) or {
+                        'item_nome': row['item_nome'],
+                        'unidade': row.get('unidade'),
+                        'qtd_total': 0.0,
+                    }
+                    emb['qtd_total'] += qtd_total
+                    embalagem_totais_map[key_emb] = emb
+                else:
+                    consumo_outros.append(row)
+
+                # Matéria-prima:
+                # - itens marcados como tipo_item = 'materia_prima'
+                # - e também itens classificados na seção EMBALAGEM (mesmo que sejam consumo_interno)
+                is_mp_tipo = (it['tipo_item'] == 'materia_prima')
+                is_mp_embalagem = (secao == 'EMBALAGEM')
+
+                if is_mp_tipo:
+                    mp_detalhado.append(row)
+
+                    key_mp = it['item_produto_id']
+                    if not key_mp:
+                        continue
+
+                    template_id = template_cache.get(key_mp)
+                    if template_id is None:
+                        tpl = db.fetch_one(
+                            """
+                            SELECT id
+                            FROM produto_templates_producao
+                            WHERE produto_id = %s AND ativo = 1
+                            ORDER BY versao DESC
+                            LIMIT 1
+                            """,
+                            (key_mp,),
+                        )
+                        template_id = tpl['id'] if tpl else 0
+                        template_cache[key_mp] = template_id
+
+                    # Se o item tem template próprio, tratamos como semiacabado
+                    # e explodimos até chegar nas MPs reais
+                    if template_id:
+                        if secao == 'MASSA':
+                            _explodir_materia_prima(key_mp, qtd_total, mp_massa_totais)
+                            _explodir_materia_prima(key_mp, qtd_total, mp_totais)
+                        elif secao == 'RECHEIO':
+                            _explodir_materia_prima(key_mp, qtd_total, mp_recheio_totais)
+                            _explodir_materia_prima(key_mp, qtd_total, mp_totais)
+                        elif secao == 'EMBALAGEM':
+                            _explodir_materia_prima(key_mp, qtd_total, mp_embalagem_totais)
+                            _explodir_materia_prima(key_mp, qtd_total, mp_totais)
+                        else:
+                            _explodir_materia_prima(key_mp, qtd_total, mp_totais)
+                    else:
+                        # Sem template próprio: trata como MP folha
+                        mp = mp_totais.get(key_mp) or {
+                            'produto_id': it['item_produto_id'],
+                            'nome': it['item_produto_nome'],
+                            'unidade': it.get('unidade_medida'),
+                            'qtd_total': 0.0,
+                        }
+                        mp['qtd_total'] += qtd_total
+                        mp_totais[key_mp] = mp
+
+                        if secao == 'MASSA':
+                            mp_m = mp_massa_totais.get(key_mp) or {
+                                'produto_id': it['item_produto_id'],
+                                'nome': it['item_produto_nome'],
+                                'unidade': it.get('unidade_medida'),
+                                'qtd_total': 0.0,
+                            }
+                            mp_m['qtd_total'] += qtd_total
+                            mp_massa_totais[key_mp] = mp_m
+
+                        if secao == 'RECHEIO':
+                            mp_r = mp_recheio_totais.get(key_mp) or {
+                                'produto_id': it['item_produto_id'],
+                                'nome': it['item_produto_nome'],
+                                'unidade': it.get('unidade_medida'),
+                                'qtd_total': 0.0,
+                            }
+                            mp_r['qtd_total'] += qtd_total
+                            mp_recheio_totais[key_mp] = mp_r
+
+                        if secao == 'EMBALAGEM':
+                            mp_e = mp_embalagem_totais.get(key_mp) or {
+                                'produto_id': it['item_produto_id'],
+                                'nome': it['item_produto_nome'],
+                                'unidade': it.get('unidade_medida'),
+                                'qtd_total': 0.0,
+                            }
+                            mp_e['qtd_total'] += qtd_total
+                            mp_embalagem_totais[key_mp] = mp_e
+
+                elif is_mp_embalagem:
+                    # Itens de EMBALAGEM que não são marcados como materia_prima
+                    # (geralmente consumo_interno) também devem ser tratados como MP
+                    key_mp = it['item_produto_id']
+                    if not key_mp:
+                        continue
+
+                    mp = mp_totais.get(key_mp) or {
+                        'produto_id': it['item_produto_id'],
+                        'nome': it['item_produto_nome'],
+                        'unidade': it.get('unidade_medida'),
+                        'qtd_total': 0.0,
+                    }
+                    mp['qtd_total'] += qtd_total
+                    mp_totais[key_mp] = mp
+
+                    mp_e = mp_embalagem_totais.get(key_mp) or {
+                        'produto_id': it['item_produto_id'],
+                        'nome': it['item_produto_nome'],
+                        'unidade': it.get('unidade_medida'),
+                        'qtd_total': 0.0,
+                    }
+                    mp_e['qtd_total'] += qtd_total
+                    mp_embalagem_totais[key_mp] = mp_e
+
+            # Completar dados de estoque para todas as matérias-primas agregadas
+            mp_ids = set(mp_totais.keys())
+            mp_estoque_map = {}
+            if mp_ids:
+                try:
+                    ids_tuple = tuple(mp_ids)
+                    placeholders_ids = ','.join(['%s'] * len(ids_tuple))
+                    rows_mp_stock = db.fetch_all(
+                        f"""
+                        SELECT
+                            p.id,
+                            COALESCE(cs.quantity, p.stock_quantity, 0) AS estoque_atual
+                        FROM products p
+                        LEFT JOIN current_stock cs
+                               ON cs.product_id = p.id
+                              AND cs.location_id = 1
+                        WHERE p.id IN ({placeholders_ids})
+                        """,
+                        ids_tuple,
+                    ) or []
+                except Exception as e:
+                    print(f"[PLANEJAMENTO] Aviso ao buscar estoque de MP: {e}")
+                    rows_mp_stock = []
+
+                for r in rows_mp_stock:
+                    try:
+                        estoque = float(r.get('estoque_atual') or 0.0)
+                    except (TypeError, ValueError):
+                        estoque = 0.0
+                    mp_estoque_map[r['id']] = estoque
+
+                # Se todos os estoques de MP vierem zerados, simular valores
+                # apenas para esta tela de planejamento (não grava no banco).
+                if mp_estoque_map and all((v or 0.0) <= 0.0 for v in mp_estoque_map.values()):
+                    for pid in mp_ids:
+                        mp_info = mp_totais.get(pid)
+                        if not mp_info:
+                            continue
+                        try:
+                            qtd_total_mp = float(mp_info.get('qtd_total') or 0.0)
+                        except (TypeError, ValueError):
+                            qtd_total_mp = 0.0
+                        if qtd_total_mp <= 0:
+                            estoque_simulado = 0.0
+                        else:
+                            fator = random.uniform(0.0, 1.5)
+                            estoque_simulado = qtd_total_mp * fator
+                        mp_estoque_map[pid] = estoque_simulado
+
+                def _aplicar_estoque_mp(mp_map):
+                    for v in mp_map.values():
+                        pid = v.get('produto_id')
+                        try:
+                            qtd_total_mp = float(v.get('qtd_total') or 0.0)
+                        except (TypeError, ValueError):
+                            qtd_total_mp = 0.0
+                        estoque_atual_mp = float(mp_estoque_map.get(pid, 0.0))
+                        v['estoque_atual'] = estoque_atual_mp
+                        v['saldo_estoque'] = estoque_atual_mp - qtd_total_mp
+                        v['tem_saldo_suficiente'] = estoque_atual_mp >= qtd_total_mp
+
+                _aplicar_estoque_mp(mp_totais)
+                _aplicar_estoque_mp(mp_massa_totais)
+                _aplicar_estoque_mp(mp_recheio_totais)
+                _aplicar_estoque_mp(mp_embalagem_totais)
+
+            # Agregados específicos de MASSA / RECHEIO
+            # - Total de massa/recheio por produto final (soma de ingredientes)
+            # - Total de cada ingrediente por tipo de massa/recheio
+            massa_totais_map = {}
+            massa_ingredientes_map = {}
+            for row in consumo_massa:
+                # Considerar apenas matérias-primas na agregação
+                if row.get('tipo_item') != 'materia_prima':
+                    continue
+
+                prod_nome = row['produto_final_nome']
+                qtd_total = float(row.get('qtd_total') or 0)
+
+                # Total de massa por produto
+                mt = massa_totais_map.get(prod_nome) or {
+                    'produto_final_nome': prod_nome,
+                    'qtd_total': 0.0,
+                }
+                mt['qtd_total'] += qtd_total
+                massa_totais_map[prod_nome] = mt
+
+                # Ingredientes por tipo de massa
+                key_ing = (prod_nome, row['item_nome'], row.get('unidade'))
+                ing = massa_ingredientes_map.get(key_ing) or {
+                    'produto_final_nome': prod_nome,
+                    'item_nome': row['item_nome'],
+                    'unidade': row.get('unidade'),
+                    'qtd_total': 0.0,
+                }
+                ing['qtd_total'] += qtd_total
+                massa_ingredientes_map[key_ing] = ing
+
+            recheio_totais_map = {}
+            recheio_ingredientes_map = {}
+            for row in consumo_recheio:
+                if row.get('tipo_item') != 'materia_prima':
+                    continue
+
+                prod_nome = row['produto_final_nome']
+                qtd_total = float(row.get('qtd_total') or 0)
+
+                rt = recheio_totais_map.get(prod_nome) or {
+                    'produto_final_nome': prod_nome,
+                    'qtd_total': 0.0,
+                }
+                rt['qtd_total'] += qtd_total
+                recheio_totais_map[prod_nome] = rt
+
+                key_ing = (prod_nome, row['item_nome'], row.get('unidade'))
+                ing = recheio_ingredientes_map.get(key_ing) or {
+                    'produto_final_nome': prod_nome,
+                    'item_nome': row['item_nome'],
+                    'unidade': row.get('unidade'),
+                    'qtd_total': 0.0,
+                }
+                ing['qtd_total'] += qtd_total
+                recheio_ingredientes_map[key_ing] = ing
+
+            massa_totais = sorted(
+                massa_totais_map.values(),
+                key=lambda x: x['produto_final_nome'],
+            )
+
+            massa_ingredientes = sorted(
+                massa_ingredientes_map.values(),
+                key=lambda x: (x['produto_final_nome'], x['item_nome']),
+            )
+
+            recheio_totais = sorted(
+                recheio_totais_map.values(),
+                key=lambda x: x['produto_final_nome'],
+            )
+
+            recheio_ingredientes = sorted(
+                recheio_ingredientes_map.values(),
+                key=lambda x: (x['produto_final_nome'], x['item_nome']),
+            )
+
+            # Totais de MASSA/RECHEIO por tipo de ingrediente (independente do produto final)
+            massa_por_tipo_map = {}
+            for row in massa_ingredientes:
+                key = (row['item_nome'], row.get('unidade'))
+                reg = massa_por_tipo_map.get(key) or {
+                    'item_nome': row['item_nome'],
+                    'unidade': row.get('unidade'),
+                    'qtd_total': 0.0,
+                }
+                reg['qtd_total'] += float(row.get('qtd_total') or 0.0)
+                massa_por_tipo_map[key] = reg
+
+            recheio_por_tipo_map = {}
+            for row in recheio_ingredientes:
+                key = (row['item_nome'], row.get('unidade'))
+                reg = recheio_por_tipo_map.get(key) or {
+                    'item_nome': row['item_nome'],
+                    'unidade': row.get('unidade'),
+                    'qtd_total': 0.0,
+                }
+                reg['qtd_total'] += float(row.get('qtd_total') or 0.0)
+                recheio_por_tipo_map[key] = reg
+
+            massa_por_tipo = sorted(
+                massa_por_tipo_map.values(),
+                key=lambda x: x['item_nome'],
+            )
+
+            recheio_por_tipo = sorted(
+                recheio_por_tipo_map.values(),
+                key=lambda x: x['item_nome'],
+            )
+
+            # Ordenar resultados detalhados para exibição em cada seção
+            def _sort_key(x):
+                return (
+                    x['produto_final_nome'],
+                    x['tipo_item'],
+                    x['item_nome'],
+                )
+
+            consumo_massa.sort(key=_sort_key)
+            consumo_recheio.sort(key=_sort_key)
+            consumo_embalagem.sort(key=_sort_key)
+            consumo_outros.sort(key=_sort_key)
+            mp_detalhado.sort(key=_sort_key)
+
+            embalagem_totais = sorted(
+                embalagem_totais_map.values(),
+                key=lambda x: x['item_nome'],
+            )
+
+            mp_ordenadas = sorted(
+                mp_totais.values(),
+                key=lambda x: x['nome'],
+            )
+
+            mp_massa_ordenadas = sorted(
+                mp_massa_totais.values(),
+                key=lambda x: x['nome'],
+            )
+
+            mp_recheio_ordenadas = sorted(
+                mp_recheio_totais.values(),
+                key=lambda x: x['nome'],
+            )
+
+            mp_embalagem_ordenadas = sorted(
+                mp_embalagem_totais.values(),
+                key=lambda x: x['nome'],
+            )
+
+            resultados = {
+                'consumo_massa': consumo_massa,
+                'consumo_recheio': consumo_recheio,
+                'consumo_embalagem': consumo_embalagem,
+                'consumo_outros': consumo_outros,
+                'massa_totais': massa_totais,
+                'massa_ingredientes': massa_ingredientes,
+                'massa_por_tipo': massa_por_tipo,
+                'recheio_totais': recheio_totais,
+                'recheio_ingredientes': recheio_ingredientes,
+                'recheio_por_tipo': recheio_por_tipo,
+                'embalagem_totais': embalagem_totais,
+                'mp_detalhado': mp_detalhado,
+                'mp_totais': mp_ordenadas,
+                'mp_massa_totais': mp_massa_ordenadas,
+                'mp_recheio_totais': mp_recheio_ordenadas,
+                'mp_embalagem_totais': mp_embalagem_ordenadas,
+                # quantidade de pacotes digitada pelo usuário
+                'quantidades_planejadas': quantidades_planejadas,
+                # quantidade equivalente em unidades de produto final (para consumo de ficha técnica)
+                'quantidades_planejadas_unidades': quantidades_planejadas_unidades,
+            }
+
+    return render_template(
+        'industria/planejamento_producao_semana_v2.html',
+        produtos=produtos,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        resultados=resultados,
+        estoque_pacotes=estoque_pacotes,
+        previsao_pacotes=previsao_pacotes,
+        sugestao_pacotes=sugestao_pacotes,
+        min_pacotes=min_pacotes,
+        max_pacotes=max_pacotes,
+    )
+
+
+@ordem_producao_bp.route('/planejamento/gerar-ops', methods=['POST'])
+@industria_ops_criar_required
+def gerar_ops_planejamento():
+    """Gera OPs automaticamente a partir do planejamento semanal confirmado.
+
+    Fluxo:
+    1. Cria registro em planejamentos_semanais
+    2. Salva itens planejados em planejamento_semanal_itens
+    3. Identifica semiacabados (MASSA / RECHEIO) necessários
+    4. Cria OPs separadas:
+       - 1 OP por tipo de MASSA (agrupando todos os produtos que usam aquela massa)
+       - 1 OP por tipo de RECHEIO (idem)
+       - 1 OP de MONTAGEM por produto final (vinculada à linha de produção)
+    5. Cria fases (op_fases_producao) distribuídas na semana
+    6. Redireciona para a tela de cronograma semanal
+    """
+    db = get_db()
+
+    try:
+        # ── 1. Ler dados do formulário ──
+        data_inicio = (request.form.get('data_inicio') or '').strip()
+        data_fim = (request.form.get('data_fim') or '').strip()
+
+        if not data_inicio or not data_fim:
+            flash('Informe as datas de início e fim do planejamento.', 'warning')
+            return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+        try:
+            dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Datas inválidas.', 'danger')
+            return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+        semana_iso = dt_inicio.isocalendar()[1]
+        ano = dt_inicio.year
+
+        # Verificar se já existe planejamento para esta semana
+        existente = db.fetch_one(
+            "SELECT id, codigo FROM planejamentos_semanais WHERE ano = %s AND semana_ano = %s AND status != 'cancelado'",
+            (ano, semana_iso)
+        )
+        if existente:
+            flash(f'Já existe planejamento para esta semana: {existente["codigo"]}. Cancele-o primeiro se quiser refazer.', 'warning')
+            return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+        # ── 2. Buscar produtos planejados (mesma lógica do GET) ──
+        produtos = db.fetch_all("""
+            SELECT
+                pp.id AS id, pp.produto_id, p.name AS nome,
+                pp.unidades_por_pacote AS pacote_unidades_por_pacote
+            FROM produto_pacotes pp
+            INNER JOIN products p ON p.id = pp.produto_id
+            INNER JOIN produto_templates_producao t ON t.produto_id = p.id AND t.ativo = 1
+            WHERE pp.ativo = 1
+              AND (p.category IS NULL OR p.category <> 'Semiacabado (Massa/Recheio/Caldo)')
+              AND p.name NOT LIKE 'MASSA - %%'
+              AND p.name NOT LIKE 'RECHEIO - %%'
+            ORDER BY p.name
+        """) or []
+
+        if not produtos:
+            flash('Nenhum produto encontrado para gerar OPs.', 'warning')
+            return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+        # Ler filtro de urgência (danger/warning/ok/all)
+        filtro_urgencia = (request.form.get('filtro_urgencia') or 'all').strip()
+        filtro_map = {'danger': 'danger', 'warning': 'warning', 'ok': 'ok'}
+
+        # Ler quantidades e urgências do formulário
+        quantidades = {}  # pacote_id -> qtd_pacotes
+        urgencias = {}    # pacote_id -> classe_urgencia (danger/warning/ok)
+        for prod in produtos:
+            pid = prod['id']
+            urg = (request.form.get(f'urg_{pid}') or 'ok').strip()
+            urgencias[pid] = urg
+
+            # Filtrar: se há filtro ativo, pular produtos que não correspondem
+            if filtro_urgencia != 'all' and urg != filtro_urgencia:
+                continue
+
+            raw = (request.form.get(f'qtd_{pid}') or '').strip()
+            if raw:
+                try:
+                    q = float(raw.replace(',', '.'))
+                except ValueError:
+                    q = 0.0
+                if q > 0:
+                    quantidades[pid] = q
+
+        if not quantidades:
+            flash('Nenhuma quantidade informada. Preencha ao menos um item.', 'warning')
+            return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+        # ── 3. Criar planejamento semanal ──
+        codigo = f"PL-{ano}-S{semana_iso:02d}"
+        planejamento_id = db.insert("""
+            INSERT INTO planejamentos_semanais
+                (codigo, semana_ano, ano, data_inicio, data_fim, status, created_by, confirmado_por, confirmado_em)
+            VALUES (%s, %s, %s, %s, %s, 'confirmado', %s, %s, NOW())
+        """, (codigo, semana_iso, ano, data_inicio, data_fim,
+              session.get('user_id'), session.get('user_id')))
+
+        # ── 4. Salvar itens e converter pacotes -> unidades ──
+        quantidades_unidades = {}  # produto_id -> qtd_unidades
+        produto_map = {}  # produto_id -> product info
+
+        for prod in produtos:
+            pid = prod['id']
+            qtd_pk = quantidades.get(pid, 0.0)
+            if qtd_pk <= 0:
+                continue
+
+            produto_id = prod['produto_id']
+            try:
+                un_por_pk = float(prod.get('pacote_unidades_por_pacote') or 1) or 1.0
+            except (TypeError, ValueError):
+                un_por_pk = 1.0
+            qtd_un = qtd_pk * un_por_pk
+
+            # Buscar linha de produção para este produto
+            linha = db.fetch_one(
+                "SELECT linha_id FROM linha_producao_produtos WHERE produto_id = %s LIMIT 1",
+                (produto_id,)
+            )
+            linha_id = linha['linha_id'] if linha else None
+
+            db.insert("""
+                INSERT INTO planejamento_semanal_itens
+                    (planejamento_id, pacote_id, produto_id, qtd_pacotes, qtd_unidades, linha_producao_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (planejamento_id, pid, produto_id, qtd_pk, qtd_un, linha_id))
+
+            quantidades_unidades[produto_id] = quantidades_unidades.get(produto_id, 0.0) + qtd_un
+            # Mapear urgência: danger->urgente, warning->atencao, ok->normal
+            urg_classe = urgencias.get(pid, 'ok')
+            prioridade_op = 'urgente' if urg_classe == 'danger' else ('atencao' if urg_classe == 'warning' else 'normal')
+            if produto_id not in produto_map:
+                produto_map[produto_id] = {
+                    'nome': prod['nome'],
+                    'linha_id': linha_id,
+                    'prioridade': prioridade_op,
+                }
+
+        # ── 5. Identificar semiacabados (MASSA / RECHEIO) necessários ──
+        # Para cada produto final planejado, buscar itens do template
+        ids_tuple = tuple(quantidades_unidades.keys())
+        placeholders = ','.join(['%s'] * len(ids_tuple))
+
+        itens_template = db.fetch_all(f"""
+            SELECT
+                t.produto_id AS produto_final_id,
+                ti.produto_id AS item_id,
+                ti.quantidade AS qtd_por_unidade,
+                ti.descricao,
+                ip.name AS item_nome,
+                ip.category AS item_categoria
+            FROM produto_templates_producao t
+            INNER JOIN produto_template_itens ti ON ti.template_id = t.id
+            INNER JOIN products ip ON ip.id = ti.produto_id
+            WHERE t.ativo = 1 AND t.produto_id IN ({placeholders})
+        """, ids_tuple) or []
+
+        # Agrupar semiacabados por tipo
+        massa_necessaria = {}   # item_id -> {nome, qtd_total, prioridade}
+        recheio_necessario = {}  # item_id -> {nome, qtd_total, prioridade}
+
+        # Mapa de prioridade: urgente > atencao > normal
+        _prio_rank = {'urgente': 3, 'atencao': 2, 'normal': 1}
+        def _maior_prio(a, b):
+            return a if _prio_rank.get(a, 0) >= _prio_rank.get(b, 0) else b
+
+        for it in itens_template:
+            prod_final_id = it['produto_final_id']
+            qtd_planejada = quantidades_unidades.get(prod_final_id, 0)
+            if qtd_planejada <= 0:
+                continue
+
+            qtd_por_un = float(it.get('qtd_por_unidade') or 0)
+            if qtd_por_un <= 0:
+                continue
+
+            qtd_total = qtd_por_un * qtd_planejada
+            item_id = it['item_id']
+            item_nome = (it.get('item_nome') or '').upper()
+            descricao = (it.get('descricao') or '').upper()
+            texto = f"{item_nome} {descricao}"
+
+            # Herdar prioridade do produto final que demanda este semiacabado
+            prio_prod = produto_map.get(prod_final_id, {}).get('prioridade', 'normal')
+
+            if 'MASSA' in texto or item_nome.startswith('MASSA'):
+                m = massa_necessaria.get(item_id) or {'id': item_id, 'nome': it['item_nome'], 'qtd_total': 0.0, 'prioridade': 'normal'}
+                m['qtd_total'] += qtd_total
+                m['prioridade'] = _maior_prio(m['prioridade'], prio_prod)
+                massa_necessaria[item_id] = m
+            elif 'RECHEIO' in texto or item_nome.startswith('RECHEIO'):
+                r = recheio_necessario.get(item_id) or {'id': item_id, 'nome': it['item_nome'], 'qtd_total': 0.0, 'prioridade': 'normal'}
+                r['qtd_total'] += qtd_total
+                r['prioridade'] = _maior_prio(r['prioridade'], prio_prod)
+                recheio_necessario[item_id] = r
+
+        # ── 6. Buscar empresa padrão ──
+        empresa = db.fetch_one("SELECT id FROM empresas WHERE ativo = 1 ORDER BY id LIMIT 1")
+        empresa_id = empresa['id'] if empresa else 1
+
+        # ── 7. Preparar dias da semana e buscar etapas do sistema existente ──
+        ops_criadas = []
+        dias_semana = []
+        d = dt_inicio
+        while d <= dt_fim:
+            if d.weekday() < 6:  # Seg a Sáb
+                dias_semana.append(d)
+            d += timedelta(days=1)
+
+        # Buscar etapas iniciais por nome (criadas no script 070)
+        # Reutiliza o sistema existente de producao_etapas + op_lotes + Kanban
+        def _buscar_etapa(nome):
+            et = db.fetch_one(
+                "SELECT id FROM producao_etapas WHERE nome = %s AND ativo = 1 LIMIT 1",
+                (nome,)
+            )
+            return et['id'] if et else None
+
+        etapa_preparar_massa = _buscar_etapa('Preparar Massa')
+        etapa_preparar_recheio = _buscar_etapa('Preparar Recheio')
+        etapa_montagem = _buscar_etapa('Montagem / Modelagem')
+        # Fallback: primeira etapa ativa
+        if not etapa_preparar_massa or not etapa_preparar_recheio or not etapa_montagem:
+            fallback = db.fetch_one(
+                "SELECT id FROM producao_etapas WHERE ativo = 1 ORDER BY ordem, id LIMIT 1"
+            )
+            fallback_id = fallback['id'] if fallback else None
+            etapa_preparar_massa = etapa_preparar_massa or fallback_id
+            etapa_preparar_recheio = etapa_preparar_recheio or fallback_id
+            etapa_montagem = etapa_montagem or fallback_id
+
+        def _criar_op_com_lote(produto_id, quantidade, tipo_op, etapa_id,
+                               linha_id=None, tpl_id=None, prioridade='normal'):
+            """Cria OP + lote inicial (reutiliza sistema existente de op_lotes/etapas)."""
+            op_id = db.insert("""
+                INSERT INTO ordens_producao
+                    (empresa_id, produto_id, quantidade, tipo_op, status,
+                     data_solicitacao, data_prevista, planejamento_id,
+                     linha_producao_id, etapa_atual_id,
+                     template_usado_id, usou_template, prioridade, created_by)
+                VALUES (%s, %s, %s, %s, 'pendente', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                empresa_id, produto_id, quantidade, tipo_op,
+                data_inicio, data_fim, planejamento_id,
+                linha_id, etapa_id,
+                tpl_id, 1 if tpl_id else 0,
+                prioridade,
+                session.get('user_id')
+            ))
+
+            # Aplicar template se existir
+            if tpl_id:
+                try:
+                    _aplicar_template_em_op(db, op_id, tpl_id)
+                except Exception:
+                    pass
+
+            # Criar lote inicial (100%) — integra com Kanban/operador/líder existente
+            try:
+                db.insert(
+                    "INSERT INTO op_lotes (ordem_producao_id, sequencia, quantidade, etapa_atual_id, align_side, status) VALUES (%s, 1, %s, %s, 'full', 'pendente')",
+                    (op_id, quantidade, etapa_id)
+                )
+            except Exception:
+                pass
+
+            return op_id
+
+        # ── 8. Gerar OPs de MASSA ──
+        for item_id, massa in massa_necessaria.items():
+            tpl = db.fetch_one(
+                "SELECT id FROM produto_templates_producao WHERE produto_id = %s AND ativo = 1 LIMIT 1",
+                (item_id,)
+            )
+
+            op_id = _criar_op_com_lote(
+                produto_id=item_id,
+                quantidade=massa['qtd_total'],
+                tipo_op='massa',
+                etapa_id=etapa_preparar_massa,
+                tpl_id=tpl['id'] if tpl else None,
+                prioridade=massa.get('prioridade', 'normal'),
+            )
+
+            # Vincular ao planejamento
+            db.insert("""
+                INSERT INTO planejamento_semanal_ops
+                    (planejamento_id, ordem_producao_id, tipo_op_planejamento, produto_semiacabado_id)
+                VALUES (%s, %s, 'massa', %s)
+            """, (planejamento_id, op_id, item_id))
+
+            # Cronograma sugerido (op_fases_producao): Preparação (dia 1) + Cozimento (dia 1) + Resfriamento (dia 2)
+            dia_prep = dias_semana[0] if dias_semana else dt_inicio
+            dia_resf = dias_semana[1] if len(dias_semana) > 1 else dia_prep
+
+            db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana, quantidade, status)
+                VALUES (%s, %s, 'preparacao', 1, %s, %s, 'pendente')
+            """, (op_id, f"Preparar {massa['nome']}", dia_prep, massa['qtd_total']))
+
+            fase_coz_id = db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana, quantidade, status)
+                VALUES (%s, %s, 'cozimento', 2, %s, %s, 'pendente')
+            """, (op_id, f"Cozinhar {massa['nome']}", dia_prep, massa['qtd_total']))
+
+            db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana, quantidade, status, dependencia_fase_id)
+                VALUES (%s, %s, 'resfriamento', 3, %s, %s, 'pendente', %s)
+            """, (op_id, f"Resfriar {massa['nome']}", dia_resf, massa['qtd_total'], fase_coz_id))
+
+            ops_criadas.append({'op_id': op_id, 'tipo': 'massa', 'produto': massa['nome']})
+
+        # ── 9. Gerar OPs de RECHEIO ──
+        for item_id, recheio in recheio_necessario.items():
+            tpl = db.fetch_one(
+                "SELECT id FROM produto_templates_producao WHERE produto_id = %s AND ativo = 1 LIMIT 1",
+                (item_id,)
+            )
+
+            op_id = _criar_op_com_lote(
+                produto_id=item_id,
+                quantidade=recheio['qtd_total'],
+                tipo_op='recheio',
+                etapa_id=etapa_preparar_recheio,
+                tpl_id=tpl['id'] if tpl else None,
+                prioridade=recheio.get('prioridade', 'normal'),
+            )
+
+            db.insert("""
+                INSERT INTO planejamento_semanal_ops
+                    (planejamento_id, ordem_producao_id, tipo_op_planejamento, produto_semiacabado_id)
+                VALUES (%s, %s, 'recheio', %s)
+            """, (planejamento_id, op_id, item_id))
+
+            # Cronograma sugerido: Preparação (dia 1) + Cozimento (dia 1)
+            dia_rech = dias_semana[0] if dias_semana else dt_inicio
+
+            db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana, quantidade, status)
+                VALUES (%s, %s, 'preparacao', 1, %s, %s, 'pendente')
+            """, (op_id, f"Preparar {recheio['nome']}", dia_rech, recheio['qtd_total']))
+
+            db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana, quantidade, status)
+                VALUES (%s, %s, 'cozimento', 2, %s, %s, 'pendente')
+            """, (op_id, f"Cozinhar {recheio['nome']}", dia_rech, recheio['qtd_total']))
+
+            ops_criadas.append({'op_id': op_id, 'tipo': 'recheio', 'produto': recheio['nome']})
+
+        # ── 10. Gerar OPs de MONTAGEM por produto final ──
+        for produto_id, qtd_un in quantidades_unidades.items():
+            info = produto_map.get(produto_id, {})
+            linha_id = info.get('linha_id')
+
+            tpl = db.fetch_one(
+                "SELECT id FROM produto_templates_producao WHERE produto_id = %s AND ativo = 1 LIMIT 1",
+                (produto_id,)
+            )
+
+            op_id = _criar_op_com_lote(
+                produto_id=produto_id,
+                quantidade=qtd_un,
+                tipo_op='montagem',
+                etapa_id=etapa_montagem,
+                linha_id=linha_id,
+                tpl_id=tpl['id'] if tpl else None,
+                prioridade=info.get('prioridade', 'normal'),
+            )
+
+            db.insert("""
+                INSERT INTO planejamento_semanal_ops
+                    (planejamento_id, ordem_producao_id, tipo_op_planejamento, linha_producao_id)
+                VALUES (%s, %s, 'montagem', %s)
+            """, (planejamento_id, op_id, linha_id))
+
+            # Cronograma sugerido: Montagem (dia 3) + Empacotamento (dia 4)
+            dia_mont = dias_semana[2] if len(dias_semana) > 2 else (dias_semana[-1] if dias_semana else dt_inicio)
+            dia_emb = dias_semana[3] if len(dias_semana) > 3 else dia_mont
+
+            fase_mont_id = db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana,
+                     quantidade, status, linha_producao_id)
+                VALUES (%s, %s, 'montagem', 1, %s, %s, 'pendente', %s)
+            """, (op_id, f"Montar {info.get('nome', '')}", dia_mont, qtd_un, linha_id))
+
+            db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana,
+                     quantidade, status, linha_producao_id, dependencia_fase_id)
+                VALUES (%s, %s, 'empacotamento', 2, %s, %s, 'pendente', %s, %s)
+            """, (op_id, f"Empacotar {info.get('nome', '')}", dia_emb, qtd_un, linha_id, fase_mont_id))
+
+            ops_criadas.append({'op_id': op_id, 'tipo': 'montagem', 'produto': info.get('nome', '')})
+
+        # ── 10. Atualizar status do planejamento ──
+        db.execute_query(
+            "UPDATE planejamentos_semanais SET status = 'em_producao' WHERE id = %s",
+            (planejamento_id,)
+        )
+
+        n_massa = sum(1 for o in ops_criadas if o['tipo'] == 'massa')
+        n_recheio = sum(1 for o in ops_criadas if o['tipo'] == 'recheio')
+        n_montagem = sum(1 for o in ops_criadas if o['tipo'] == 'montagem')
+
+        flash(
+            f'Planejamento {codigo} confirmado! '
+            f'{len(ops_criadas)} OPs geradas: '
+            f'{n_massa} de massa, {n_recheio} de recheio, {n_montagem} de montagem.',
+            'success'
+        )
+
+        return redirect(url_for('ordem_producao.visualizar_planejamento', id=planejamento_id))
+
+    except Exception as e:
+        flash(f'Erro ao gerar OPs: {str(e)}', 'danger')
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('ordem_producao.planejamento_producao_semana'))
+
+
+@ordem_producao_bp.route('/planejamentos')
+@industria_ops_visualizar_required
+def listar_planejamentos():
+    """Lista todos os planejamentos semanais com status e ações."""
+    db = get_db()
+    try:
+        planejamentos = db.fetch_all("""
+            SELECT ps.*, u.name AS criado_por_nome,
+                   (SELECT COUNT(*) FROM planejamento_semanal_ops pso WHERE pso.planejamento_id = ps.id) AS total_ops,
+                   (SELECT COUNT(*) FROM planejamento_semanal_itens psi WHERE psi.planejamento_id = ps.id) AS total_itens
+            FROM planejamentos_semanais ps
+            LEFT JOIN users u ON u.id = ps.created_by
+            ORDER BY ps.data_inicio DESC, ps.id DESC
+        """) or []
+        return render_template('industria/planejamentos_lista.html', planejamentos=planejamentos)
+    except Exception as e:
+        flash(f'Erro ao listar planejamentos: {str(e)}', 'danger')
+        return render_template('industria/planejamentos_lista.html', planejamentos=[])
+
+
+@ordem_producao_bp.route('/planejamento/<int:id>/cancelar', methods=['POST'])
+@industria_ops_editar_required
+def cancelar_planejamento(id):
+    """Cancela um planejamento e todas as OPs pendentes vinculadas."""
+    db = get_db()
+    try:
+        plan = db.fetch_one("SELECT id, codigo, status FROM planejamentos_semanais WHERE id = %s", (id,))
+        if not plan:
+            flash('Planejamento não encontrado.', 'warning')
+            return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+        if plan['status'] == 'cancelado':
+            flash('Planejamento já está cancelado.', 'info')
+            return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+        # Cancelar OPs pendentes vinculadas
+        ops_vinculadas = db.fetch_all("""
+            SELECT pso.ordem_producao_id
+            FROM planejamento_semanal_ops pso
+            INNER JOIN ordens_producao op ON op.id = pso.ordem_producao_id
+            WHERE pso.planejamento_id = %s AND op.status = 'pendente'
+        """, (id,)) or []
+
+        for op_row in ops_vinculadas:
+            op_id = op_row['ordem_producao_id']
+            db.execute_query("UPDATE ordens_producao SET status = 'cancelada' WHERE id = %s", (op_id,))
+            db.execute_query("UPDATE op_lotes SET status = 'cancelado' WHERE ordem_producao_id = %s AND status = 'pendente'", (op_id,))
+
+        # Cancelar o planejamento
+        db.execute_query(
+            "UPDATE planejamentos_semanais SET status = 'cancelado' WHERE id = %s", (id,)
+        )
+
+        flash(f'Planejamento {plan["codigo"]} cancelado. {len(ops_vinculadas)} OPs pendentes foram canceladas.', 'success')
+        return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+    except Exception as e:
+        flash(f'Erro ao cancelar planejamento: {str(e)}', 'danger')
+        return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+
+@ordem_producao_bp.route('/planejamento/<int:id>')
+@industria_ops_visualizar_required
+def visualizar_planejamento(id):
+    """Redireciona para a versão v2 do cronograma semanal."""
+    return redirect(url_for('ordem_producao.visualizar_planejamento_v2', id=id))
+
+
+@ordem_producao_bp.route('/planejamento/<int:id>/v2')
+@industria_ops_visualizar_required
+def visualizar_planejamento_v2(id):
+    """Visualiza cronograma semanal v2 — agrupado por dia com horários sugeridos."""
+    db = get_db()
+    try:
+        planejamento = db.fetch_one("""
+            SELECT ps.*, u.name AS criado_por_nome
+            FROM planejamentos_semanais ps
+            LEFT JOIN users u ON u.id = ps.created_by
+            WHERE ps.id = %s
+        """, (id,))
+
+        if not planejamento:
+            flash('Planejamento não encontrado.', 'warning')
+            return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+        itens = db.fetch_all("""
+            SELECT psi.*, p.name AS produto_nome, lp.nome AS linha_nome, lp.cor_hex AS linha_cor
+            FROM planejamento_semanal_itens psi
+            INNER JOIN products p ON p.id = psi.produto_id
+            LEFT JOIN linhas_producao lp ON lp.id = psi.linha_producao_id
+            WHERE psi.planejamento_id = %s
+            ORDER BY p.name
+        """, (id,)) or []
+
+        ops = db.fetch_all("""
+            SELECT pso.*, op.numero_op, op.status AS op_status, op.quantidade,
+                   p.name AS produto_nome, op.tipo_op,
+                   lp.nome AS linha_nome, lp.cor_hex AS linha_cor
+            FROM planejamento_semanal_ops pso
+            INNER JOIN ordens_producao op ON op.id = pso.ordem_producao_id
+            INNER JOIN products p ON p.id = op.produto_id
+            LEFT JOIN linhas_producao lp ON lp.id = COALESCE(pso.linha_producao_id, op.linha_producao_id)
+            WHERE pso.planejamento_id = %s
+            ORDER BY pso.tipo_op_planejamento, p.name
+        """, (id,)) or []
+
+        op_ids = [o['ordem_producao_id'] for o in ops]
+        fases = []
+        if op_ids:
+            ph = ','.join(['%s'] * len(op_ids))
+            fases = db.fetch_all(f"""
+                SELECT f.*, op.numero_op, p.name AS produto_nome, op.tipo_op,
+                       lp.nome AS linha_nome, lp.cor_hex AS linha_cor
+                FROM op_fases_producao f
+                INNER JOIN ordens_producao op ON op.id = f.ordem_producao_id
+                INNER JOIN products p ON p.id = op.produto_id
+                LEFT JOIN linhas_producao lp ON lp.id = f.linha_producao_id
+                WHERE f.ordem_producao_id IN ({ph})
+                ORDER BY f.dia_semana, f.sequencia
+            """, tuple(op_ids)) or []
+
+        linhas = db.fetch_all(
+            "SELECT * FROM linhas_producao WHERE ativo = 1 ORDER BY ordem"
+        ) or []
+
+        # Dias da semana
+        dias = []
+        d = planejamento['data_inicio']
+        while d <= planejamento['data_fim']:
+            if d.weekday() < 6:
+                dias.append(d)
+            d += timedelta(days=1)
+
+        # ── Auto-sugestão de horários ──
+        # Jornada: 08:00 às 17:00 com pausa 12:00-13:00 = 8h úteis = 480 min
+        JORNADA_INICIO = 8 * 60   # 08:00 em minutos
+        PAUSA_INICIO = 12 * 60    # 12:00
+        PAUSA_FIM = 13 * 60       # 13:00
+        JORNADA_FIM = 17 * 60     # 17:00
+        DURACAO_MIN_FASE = 30     # mínimo 30 min por fase
+
+        # Agrupar fases por dia
+        fases_por_dia = {}
+        fases_sem_dia = []
+        for f in fases:
+            dia_key = f.get('dia_semana')
+            if dia_key:
+                fases_por_dia.setdefault(dia_key, []).append(f)
+            else:
+                fases_sem_dia.append(f)
+
+        # Distribuir fases sem dia uniformemente entre os dias disponíveis
+        if fases_sem_dia and dias:
+            for i, f in enumerate(fases_sem_dia):
+                dia_destino = dias[i % len(dias)]
+                f['dia_semana'] = dia_destino
+                f['_sugerido'] = True
+                fases_por_dia.setdefault(dia_destino, []).append(f)
+
+        # Para cada dia, sugerir horários se não definidos
+        fases_sugeridas = []
+        for dia in dias:
+            dia_fases = fases_por_dia.get(dia, [])
+            if not dia_fases:
+                continue
+
+            # Contar quantas fases precisam de horário
+            total_fases = len(dia_fases)
+            if total_fases == 0:
+                continue
+
+            # Calcular tempo disponível (em minutos)
+            tempo_total = (PAUSA_INICIO - JORNADA_INICIO) + (JORNADA_FIM - PAUSA_FIM)  # 480 min
+            duracao_por_fase = max(DURACAO_MIN_FASE, tempo_total // total_fases)
+
+            cursor_min = JORNADA_INICIO  # começa 08:00
+            for f in dia_fases:
+                hi = f.get('hora_inicio')
+                hf = f.get('hora_fim')
+
+                # Se já tem horário definido, usar e avançar cursor
+                if hi and hf:
+                    try:
+                        td_hi = hi
+                        td_hf = hf
+                        if hasattr(hi, 'total_seconds'):
+                            hi_min = int(hi.total_seconds()) // 60
+                            hf_min = int(hf.total_seconds()) // 60
+                        else:
+                            parts = str(hi).split(':')
+                            hi_min = int(parts[0]) * 60 + int(parts[1])
+                            parts = str(hf).split(':')
+                            hf_min = int(parts[0]) * 60 + int(parts[1])
+                        f['_hi_min'] = hi_min
+                        f['_hf_min'] = hf_min
+                        f['_hi_str'] = f"{hi_min // 60:02d}:{hi_min % 60:02d}"
+                        f['_hf_str'] = f"{hf_min // 60:02d}:{hf_min % 60:02d}"
+                        f['_sugerido'] = False
+                        cursor_min = max(cursor_min, hf_min)
+                        fases_sugeridas.append(f)
+                        continue
+                    except Exception:
+                        pass
+
+                # Pular pausa de almoço
+                if cursor_min >= PAUSA_INICIO and cursor_min < PAUSA_FIM:
+                    cursor_min = PAUSA_FIM
+
+                fim_min = min(cursor_min + duracao_por_fase, JORNADA_FIM)
+                # Se cruzar almoço, dividir
+                if cursor_min < PAUSA_INICIO and fim_min > PAUSA_INICIO:
+                    fim_min = PAUSA_INICIO
+
+                f['_hi_min'] = cursor_min
+                f['_hf_min'] = fim_min
+                f['_hi_str'] = f"{cursor_min // 60:02d}:{cursor_min % 60:02d}"
+                f['_hf_str'] = f"{fim_min // 60:02d}:{fim_min % 60:02d}"
+                f['_sugerido'] = True
+                fases_sugeridas.append(f)
+
+                cursor_min = fim_min
+
+        # Ordenar fases sugeridas por dia + hora início
+        fases_sugeridas.sort(key=lambda x: (x.get('dia_semana') or '', x.get('_hi_min', 0)))
+
+        # Reagrupar por dia para o template
+        cronograma = {}
+        for dia in dias:
+            cronograma[dia] = [f for f in fases_sugeridas if f.get('dia_semana') == dia]
+
+        # ── Calcular sobreposições horizontais (column packing) ──
+        for dia in dias:
+            dia_fases = cronograma.get(dia, [])
+            if not dia_fases:
+                continue
+
+            # Ordenar por hora início, depois por hora fim
+            dia_fases.sort(key=lambda x: (x.get('_hi_min', 0), x.get('_hf_min', 0)))
+
+            # Atribuir colunas usando algoritmo greedy
+            # columns[i] = fim da última fase na coluna i
+            columns = []
+            for f in dia_fases:
+                hi = f.get('_hi_min', 0)
+                hf = f.get('_hf_min', 0)
+                placed = False
+                for ci, col_end in enumerate(columns):
+                    if hi >= col_end:  # não sobrepõe
+                        f['_col_index'] = ci
+                        columns[ci] = hf
+                        placed = True
+                        break
+                if not placed:
+                    f['_col_index'] = len(columns)
+                    columns.append(hf)
+
+            total_cols = len(columns) if columns else 1
+
+            # Para cada fase, calcular quantas colunas realmente se sobrepõem
+            # com ela (para dar a largura correta)
+            for f in dia_fases:
+                hi = f.get('_hi_min', 0)
+                hf = f.get('_hf_min', 0)
+                # Contar fases que se sobrepõem com esta
+                overlapping_cols = set()
+                for f2 in dia_fases:
+                    hi2 = f2.get('_hi_min', 0)
+                    hf2 = f2.get('_hf_min', 0)
+                    if hi < hf2 and hf > hi2:  # se sobrepõem
+                        overlapping_cols.add(f2.get('_col_index', 0))
+                f['_col_total'] = max(len(overlapping_cols), 1)
+
+        return render_template(
+            'industria/planejamento_semanal_view_v2.html',
+            planejamento=planejamento,
+            itens=itens,
+            ops=ops,
+            fases=fases,
+            fases_sugeridas=fases_sugeridas,
+            cronograma=cronograma,
+            linhas=linhas,
+            dias=dias,
+        )
+
+    except Exception as e:
+        flash(f'Erro ao carregar planejamento: {str(e)}', 'danger')
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('ordem_producao.listar_planejamentos'))
+
+
+@ordem_producao_bp.route('/planejamento/fase/<int:fase_id>/atualizar', methods=['POST'])
+@industria_ops_editar_required
+def atualizar_fase(fase_id):
+    """Atualiza dia, horário ou status de uma fase de produção (AJAX)."""
+    db = get_db()
+
+    try:
+        data = request.get_json() or request.form
+        updates = []
+        params = []
+
+        if 'dia_semana' in data and data['dia_semana']:
+            updates.append("dia_semana = %s")
+            params.append(data['dia_semana'])
+        if 'hora_inicio' in data and data['hora_inicio']:
+            updates.append("hora_inicio = %s")
+            params.append(data['hora_inicio'])
+        if 'hora_fim' in data and data['hora_fim']:
+            updates.append("hora_fim = %s")
+            params.append(data['hora_fim'])
+        if 'status' in data and data['status']:
+            updates.append("status = %s")
+            params.append(data['status'])
+        if 'quantidade' in data:
+            updates.append("quantidade = %s")
+            params.append(data['quantidade'])
+        if 'quantidade_realizada' in data:
+            updates.append("quantidade_realizada = %s")
+            params.append(data['quantidade_realizada'])
+
+        if not updates:
+            return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+
+        params.append(fase_id)
+        db.execute_query(
+            f"UPDATE op_fases_producao SET {', '.join(updates)} WHERE id = %s",
+            tuple(params)
+        )
+
+        return jsonify({'ok': True})
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/planejamento/fase/<int:fase_id>/dividir', methods=['POST'])
+@industria_ops_editar_required
+def dividir_fase(fase_id):
+    """Divide/move quantidade de uma fase. Se já existe fase irmã no destino, soma."""
+    db = get_db()
+    try:
+        data = request.get_json() or {}
+        qtd_mover = float(data.get('quantidade', 0))
+        novo_dia = data.get('dia_semana', '')
+        nova_hora_inicio = data.get('hora_inicio', '')
+        nova_hora_fim = data.get('hora_fim', '')
+
+        if qtd_mover <= 0 or not novo_dia:
+            return jsonify({'erro': 'Quantidade e dia são obrigatórios'}), 400
+
+        fase = db.fetch_one("SELECT * FROM op_fases_producao WHERE id = %s", (fase_id,))
+        if not fase:
+            return jsonify({'erro': 'Fase não encontrada'}), 404
+
+        qtd_atual = float(fase.get('quantidade') or 0)
+        qtd_restante = qtd_atual - qtd_mover
+        if qtd_restante < 0:
+            qtd_restante = 0
+            qtd_mover = qtd_atual
+
+        # Verificar se já existe fase irmã no dia destino (mesma OP + mesmo fase_nome, diferente desta)
+        irma = db.fetch_one("""
+            SELECT id, quantidade FROM op_fases_producao
+            WHERE ordem_producao_id = %s AND fase_nome = %s AND dia_semana = %s AND id != %s
+            LIMIT 1
+        """, (fase['ordem_producao_id'], fase['fase_nome'], novo_dia, fase_id))
+
+        if irma:
+            # ── MERGE: somar quantidade na fase irmã existente ──
+            nova_qtd_irma = float(irma.get('quantidade') or 0) + qtd_mover
+            db.execute_query(
+                "UPDATE op_fases_producao SET quantidade = %s WHERE id = %s",
+                (nova_qtd_irma, irma['id'])
+            )
+
+            if qtd_restante <= 0:
+                # Fase original ficou vazia → remover
+                db.execute_query("DELETE FROM op_fases_producao WHERE id = %s", (fase_id,))
+                return jsonify({'ok': True, 'modo': 'merged_removido',
+                                'fase_removida': fase_id, 'fase_destino': irma['id'],
+                                'qtd_destino': nova_qtd_irma})
+            else:
+                # Reduzir fase original
+                db.execute_query(
+                    "UPDATE op_fases_producao SET quantidade = %s WHERE id = %s",
+                    (qtd_restante, fase_id)
+                )
+                return jsonify({'ok': True, 'modo': 'merged',
+                                'fase_original_id': fase_id, 'fase_destino': irma['id'],
+                                'qtd_restante': qtd_restante, 'qtd_destino': nova_qtd_irma})
+        else:
+            # ── Não existe irmã → criar nova ou mover ──
+            if qtd_restante <= 0:
+                # Mover tudo — apenas atualiza o dia
+                updates = ["dia_semana = %s"]
+                params = [novo_dia]
+                if nova_hora_inicio:
+                    updates.append("hora_inicio = %s")
+                    params.append(nova_hora_inicio)
+                if nova_hora_fim:
+                    updates.append("hora_fim = %s")
+                    params.append(nova_hora_fim)
+                params.append(fase_id)
+                db.execute_query(f"UPDATE op_fases_producao SET {', '.join(updates)} WHERE id = %s", tuple(params))
+                return jsonify({'ok': True, 'modo': 'movido', 'fase_id': fase_id})
+
+            # Reduzir quantidade da fase original
+            db.execute_query(
+                "UPDATE op_fases_producao SET quantidade = %s WHERE id = %s",
+                (qtd_restante, fase_id)
+            )
+
+            # Criar nova fase no dia destino
+            nova_id = db.insert("""
+                INSERT INTO op_fases_producao
+                    (ordem_producao_id, fase_nome, fase_tipo, sequencia, dia_semana,
+                     hora_inicio, hora_fim, quantidade, status, linha_producao_id, observacoes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendente', %s, %s)
+            """, (
+                fase['ordem_producao_id'], fase['fase_nome'], fase['fase_tipo'],
+                fase['sequencia'], novo_dia,
+                nova_hora_inicio or None, nova_hora_fim or None,
+                qtd_mover, fase.get('linha_producao_id'),
+                f"Dividido da fase #{fase_id}"
+            ))
+
+            return jsonify({'ok': True, 'modo': 'dividido', 'fase_original_id': fase_id,
+                            'nova_fase_id': nova_id, 'qtd_restante': qtd_restante, 'qtd_movida': qtd_mover})
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/planejamento/<int:id>/redistribuir', methods=['POST'])
+@industria_ops_editar_required
+def redistribuir_fases(id):
+    """Redistribui todas as fases do planejamento uniformemente entre seg-sex, agrupando por tipo."""
+    db = get_db()
+    try:
+        planejamento = db.fetch_one("SELECT * FROM planejamentos_semanais WHERE id = %s", (id,))
+        if not planejamento:
+            return jsonify({'erro': 'Planejamento não encontrado'}), 404
+
+        # Dias úteis do planejamento
+        dias = []
+        d = planejamento['data_inicio']
+        while d <= planejamento['data_fim']:
+            if d.weekday() < 5:  # seg-sex
+                dias.append(d)
+            d += timedelta(days=1)
+
+        if not dias:
+            return jsonify({'erro': 'Nenhum dia útil no período'}), 400
+
+        # Buscar OPs do planejamento
+        ops = db.fetch_all(
+            "SELECT ordem_producao_id FROM planejamento_semanal_ops WHERE planejamento_id = %s", (id,))
+        op_ids = [o['ordem_producao_id'] for o in ops] if ops else []
+        if not op_ids:
+            return jsonify({'erro': 'Nenhuma OP encontrada'}), 400
+
+        ph = ','.join(['%s'] * len(op_ids))
+        fases = db.fetch_all(f"""
+            SELECT f.id, f.fase_tipo, f.ordem_producao_id, op.tipo_op
+            FROM op_fases_producao f
+            INNER JOIN ordens_producao op ON op.id = f.ordem_producao_id
+            WHERE f.ordem_producao_id IN ({ph})
+            ORDER BY op.tipo_op, f.fase_tipo, f.id
+        """, tuple(op_ids)) or []
+
+        if not fases:
+            return jsonify({'erro': 'Nenhuma fase encontrada'}), 400
+
+        # Agrupar por tipo de processo para distribuir de forma lógica:
+        # massa (preparacao, cozimento, resfriamento) → primeiros dias
+        # recheio (preparacao, cozimento) → primeiros dias
+        # montagem → dias do meio/fim
+        # empacotamento → dias do fim
+        grupos = {'massa': [], 'recheio': [], 'montagem': [], 'empacotamento': []}
+        for f in fases:
+            ft = f.get('fase_tipo', '')
+            to = f.get('tipo_op', '')
+            if ft == 'empacotamento':
+                grupos['empacotamento'].append(f)
+            elif ft == 'montagem':
+                grupos['montagem'].append(f)
+            elif to == 'recheio':
+                grupos['recheio'].append(f)
+            else:
+                grupos['massa'].append(f)
+
+        # Distribuir cada grupo uniformemente entre os dias
+        num_dias = len(dias)
+        updates = []
+        for grupo_nome, grupo_fases in grupos.items():
+            if not grupo_fases:
+                continue
+            for i, f in enumerate(grupo_fases):
+                dia_idx = i % num_dias
+                updates.append((dias[dia_idx], f['id']))
+
+        # Executar updates: resetar dia e limpar horários para auto-sugestão
+        for dia, fase_id in updates:
+            db.execute_query(
+                "UPDATE op_fases_producao SET dia_semana = %s, hora_inicio = NULL, hora_fim = NULL WHERE id = %s",
+                (dia, fase_id)
+            )
+
+        return jsonify({'ok': True, 'total_fases': len(fases), 'dias': len(dias)})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/lotes/<int:lote_id>/consumo', methods=['GET'])
+@login_required
+def listar_consumo_lote(lote_id):
+    """Lista os insumos já registrados para um lote (AJAX)."""
+    db = get_db()
+    try:
+        consumos = db.fetch_all("""
+            SELECT c.*, p.name AS insumo_nome, u.name AS operador_nome
+            FROM lote_consumo_insumos c
+            INNER JOIN products p ON p.id = c.insumo_produto_id
+            INNER JOIN users u ON u.id = c.operador_id
+            WHERE c.lote_id = %s
+            ORDER BY c.registrado_em DESC
+        """, (lote_id,)) or []
+
+        # Serializar decimais e datetimes
+        for c in consumos:
+            for k, v in c.items():
+                if isinstance(v, Decimal):
+                    c[k] = float(v)
+                elif hasattr(v, 'isoformat'):
+                    c[k] = v.isoformat()
+
+        return jsonify(consumos)
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/lotes/<int:lote_id>/consumo/registrar', methods=['POST'])
+@login_required
+def registrar_consumo_insumo(lote_id):
+    """Operador registra retirada de insumo durante produção de um lote.
+
+    Fluxo: operador pega 1 caixa de hambúrguer (100un) → registra aqui.
+    Ao finalizar o lote, compara total retirado vs produzido → perda.
+    """
+    db = get_db()
+
+    try:
+        data = request.get_json() or request.form
+
+        insumo_produto_id = data.get('insumo_produto_id')
+        quantidade_retirada = data.get('quantidade_retirada')
+        unidade_medida = (data.get('unidade_medida') or '').strip() or 'UN'
+        unidades_por_embalagem = data.get('unidades_por_embalagem', 1)
+        motivo = data.get('motivo', 'producao')
+        observacao = (data.get('observacao') or '').strip() or None
+
+        if not insumo_produto_id or not quantidade_retirada:
+            return jsonify({'erro': 'Insumo e quantidade são obrigatórios'}), 400
+
+        # Validar lote existe
+        lote = db.fetch_one(
+            "SELECT id, ordem_producao_id, operador_id FROM op_lotes WHERE id = %s",
+            (lote_id,)
+        )
+        if not lote:
+            return jsonify({'erro': 'Lote não encontrado'}), 404
+
+        try:
+            qtd = float(str(quantidade_retirada).replace(',', '.'))
+            un_emb = float(str(unidades_por_embalagem).replace(',', '.')) if unidades_por_embalagem else 1.0
+        except (ValueError, TypeError):
+            return jsonify({'erro': 'Quantidade inválida'}), 400
+
+        if qtd <= 0:
+            return jsonify({'erro': 'Quantidade deve ser maior que zero'}), 400
+
+        consumo_id = db.insert("""
+            INSERT INTO lote_consumo_insumos
+                (lote_id, ordem_producao_id, insumo_produto_id,
+                 quantidade_retirada, unidade_medida, unidades_por_embalagem,
+                 motivo, observacao, operador_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            lote_id, lote['ordem_producao_id'], insumo_produto_id,
+            qtd, unidade_medida, un_emb,
+            motivo, observacao,
+            session.get('user_id')
+        ))
+
+        # Buscar total acumulado
+        total = db.fetch_one("""
+            SELECT COALESCE(SUM(total_unidades), 0) AS total
+            FROM lote_consumo_insumos
+            WHERE lote_id = %s
+        """, (lote_id,))
+
+        return jsonify({
+            'ok': True,
+            'consumo_id': consumo_id,
+            'total_unidades_acumulado': float(total['total']) if total else 0
+        })
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/lotes/<int:lote_id>/consumo/<int:consumo_id>/excluir', methods=['POST'])
+@login_required
+def excluir_consumo_insumo(lote_id, consumo_id):
+    """Remove um registro de consumo de insumo (correção)."""
+    db = get_db()
+    try:
+        db.execute_query(
+            "DELETE FROM lote_consumo_insumos WHERE id = %s AND lote_id = %s",
+            (consumo_id, lote_id)
+        )
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/lotes/<int:lote_id>/conferencia', methods=['POST'])
+@login_required
+def conferir_lote(lote_id):
+    """Conferência final do lote: compara insumos retirados vs quantidade produzida.
+
+    Se não bater → registra perda. Líder pode avaliar operador.
+    Fluxo:
+    1. Soma total_unidades de lote_consumo_insumos para este lote
+    2. Recebe total_produzido do formulário
+    3. Calcula perda = retirado - produzido
+    4. Calcula percentual_perda
+    5. Compara com tolerância → perda_aceitavel
+    6. Salva em lote_consumo_conferencia
+    """
+    db = get_db()
+
+    try:
+        data = request.get_json() or request.form
+
+        total_produzido_raw = data.get('total_produzido')
+        avaliacao_lider = data.get('avaliacao_lider')  # aprovado/atencao/reprovado
+        observacao_lider = (data.get('observacao_lider') or '').strip() or None
+        tolerancia = float(data.get('tolerancia_percentual', 2.0))
+
+        if total_produzido_raw is None:
+            return jsonify({'erro': 'Informe a quantidade produzida'}), 400
+
+        try:
+            total_produzido = float(str(total_produzido_raw).replace(',', '.'))
+        except (ValueError, TypeError):
+            return jsonify({'erro': 'Quantidade produzida inválida'}), 400
+
+        # Validar lote
+        lote = db.fetch_one(
+            "SELECT id, ordem_producao_id, operador_id FROM op_lotes WHERE id = %s",
+            (lote_id,)
+        )
+        if not lote:
+            return jsonify({'erro': 'Lote não encontrado'}), 404
+
+        # Verificar se já tem conferência
+        existente = db.fetch_one(
+            "SELECT id FROM lote_consumo_conferencia WHERE lote_id = %s",
+            (lote_id,)
+        )
+        if existente:
+            return jsonify({'erro': 'Este lote já foi conferido'}), 400
+
+        # Somar insumos retirados
+        soma = db.fetch_one("""
+            SELECT COALESCE(SUM(total_unidades), 0) AS total
+            FROM lote_consumo_insumos
+            WHERE lote_id = %s
+        """, (lote_id,))
+        total_retirado = float(soma['total']) if soma else 0.0
+
+        # Calcular perda
+        total_perda = max(0, total_retirado - total_produzido)
+        percentual_perda = (total_perda / total_retirado * 100) if total_retirado > 0 else 0.0
+        perda_aceitavel = 1 if percentual_perda <= tolerancia else 0
+
+        conferencia_id = db.insert("""
+            INSERT INTO lote_consumo_conferencia
+                (lote_id, ordem_producao_id,
+                 total_insumos_retirados, total_produzido, total_perda,
+                 percentual_perda, perda_aceitavel, tolerancia_percentual,
+                 avaliacao_lider, observacao_lider,
+                 operador_id, conferido_por, conferido_em)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (
+            lote_id, lote['ordem_producao_id'],
+            total_retirado, total_produzido, total_perda,
+            percentual_perda, perda_aceitavel, tolerancia,
+            avaliacao_lider, observacao_lider,
+            lote.get('operador_id'),
+            session.get('user_id')
+        ))
+
+        return jsonify({
+            'ok': True,
+            'conferencia_id': conferencia_id,
+            'total_retirado': total_retirado,
+            'total_produzido': total_produzido,
+            'total_perda': total_perda,
+            'percentual_perda': round(percentual_perda, 2),
+            'perda_aceitavel': bool(perda_aceitavel),
+        })
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/lotes/<int:lote_id>/conferencia', methods=['GET'])
+@login_required
+def ver_conferencia_lote(lote_id):
+    """Retorna dados da conferência de um lote (AJAX)."""
+    db = get_db()
+    try:
+        conf = db.fetch_one("""
+            SELECT c.*, u_op.name AS operador_nome, u_conf.name AS conferente_nome
+            FROM lote_consumo_conferencia c
+            LEFT JOIN users u_op ON u_op.id = c.operador_id
+            LEFT JOIN users u_conf ON u_conf.id = c.conferido_por
+            WHERE c.lote_id = %s
+        """, (lote_id,))
+
+        if not conf:
+            return jsonify({'conferido': False})
+
+        for k, v in conf.items():
+            if isinstance(v, Decimal):
+                conf[k] = float(v)
+            elif hasattr(v, 'isoformat'):
+                conf[k] = v.isoformat()
+
+        conf['conferido'] = True
+        return jsonify(conf)
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@ordem_producao_bp.route('/relatorio/perdas')
+@login_required
+def relatorio_perdas():
+    """Relatório de perdas por operador (para o líder avaliar desempenho)."""
+    db = get_db()
+    try:
+        periodo = request.args.get('periodo', '30')  # dias
+        try:
+            dias = int(periodo)
+        except ValueError:
+            dias = 30
+
+        perdas = db.fetch_all("""
+            SELECT
+                c.operador_id,
+                u.name AS operador_nome,
+                COUNT(c.id) AS total_lotes,
+                SUM(c.total_insumos_retirados) AS total_retirado,
+                SUM(c.total_produzido) AS total_produzido,
+                SUM(c.total_perda) AS total_perda,
+                AVG(c.percentual_perda) AS media_perda_pct,
+                SUM(CASE WHEN c.perda_aceitavel = 0 THEN 1 ELSE 0 END) AS lotes_acima_tolerancia,
+                SUM(CASE WHEN c.avaliacao_lider = 'reprovado' THEN 1 ELSE 0 END) AS lotes_reprovados
+            FROM lote_consumo_conferencia c
+            INNER JOIN users u ON u.id = c.operador_id
+            WHERE c.conferido_em >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            GROUP BY c.operador_id, u.name
+            ORDER BY media_perda_pct DESC
+        """, (dias,)) or []
+
+        for p in perdas:
+            for k, v in p.items():
+                if isinstance(v, Decimal):
+                    p[k] = float(v)
+
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify(perdas)
+
+        return render_template(
+            'industria/relatorio_perdas.html',
+            perdas=perdas,
+            periodo=dias,
+        )
+    except Exception as e:
+        flash(f'Erro ao gerar relatório: {str(e)}', 'danger')
+        return redirect(url_for('ordem_producao.listar_ops'))
 
 
 @ordem_producao_bp.route('/grupo/orcamento/<int:orcamento_id>')
