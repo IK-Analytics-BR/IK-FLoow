@@ -1,32 +1,29 @@
 # IK Flow - Supply Chain System
 # Configuração para cPanel com Passenger WSGI
 
-# Forçar interpretação Python
-AddHandler application/x-httpd-ea-php70 .php
+# Passenger WSGI Configuration
+PassengerEnabled on
+PassengerAppRoot /home/u312402671/public_html
+PassengerPython /usr/bin/python3
 
-# Se tiver Python App configurado no cPanel:
-# PassengerEnabled on
-# PassengerPython /home/u312402671/virtualenv/public_html/3.11/bin/python
-# PassengerAppRoot /home/u312402671/public_html
-# PassengerEntryPoint wsgi
-
-# Alternativa para CGI/FastCGI
-Options +ExecCGI
-AddHandler cgi-script .py
-
-# Redirecionar raiz para wsgi
-DirectoryIndex wsgi.py index.py app.py index.html
+# Directory Index
+DirectoryIndex passenger_wsgi.py index.py app.py index.html
 
 # Permissões de acesso
 Order allow,deny
 Allow from all
 
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
+# Se não tiver Passenger, tentar CGI
+<IfModule !mod_passenger.c>
+    Options +ExecCGI
+    AddHandler cgi-script .py
     
-    # Se o arquivo/pasta não existir, enviar para wsgi.py
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ wsgi.py/$1 [QSA,L]
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        RewriteBase /
+        
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
+    </IfModule>
 </IfModule>
