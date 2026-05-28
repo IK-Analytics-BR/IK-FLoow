@@ -169,7 +169,7 @@ class User(UserMixin):
 
 def get_user_by_username(username: str):
     db = get_db()
-    user = db.fetch_one("SELECT *, password_hash as password FROM users WHERE username = %s", (username,))
+    user = db.fetch_one("SELECT * FROM users WHERE username = %s", (username,))
     return user
 
 
