@@ -131,46 +131,46 @@
 
             <ul class="list-unstyled components">
                 <li>
-                    <a href="/bem-vindo"><i class="fas fa-home"></i> Início</a>
+                    <a href="{{ url_for('bem_vindo') }}"><i class="fas fa-home"></i> Início</a>
                 </li>
                 
                 <li class="mt-3">
                     <small class="text-white-50 px-3">CADASTROS</small>
                 </li>
                 <li>
-                    <a href="/empresas"><i class="fas fa-building"></i> Empresas</a>
+                    <a href="{{ url_for('empresa.empresas') }}"><i class="fas fa-building"></i> Empresas</a>
                 </li>
                 <li>
-                    <a href="/clientes"><i class="fas fa-users"></i> Clientes</a>
+                    <a href="{{ url_for('cliente.clientes') }}"><i class="fas fa-users"></i> Clientes</a>
                 </li>
                 <li>
-                    <a href="/produtos"><i class="fas fa-box"></i> Produtos</a>
+                    <a href="{{ url_for('produto.produtos') }}"><i class="fas fa-box"></i> Produtos</a>
                 </li>
                 <li>
-                    <a href="/fornecedores"><i class="fas fa-truck"></i> Fornecedores</a>
+                    <a href="{{ url_for('fornecedor.fornecedores') }}"><i class="fas fa-truck"></i> Fornecedores</a>
                 </li>
                 
                 <li class="mt-3">
                     <small class="text-white-50 px-3">OPERAÇÕES</small>
                 </li>
                 <li>
-                    <a href="/compras"><i class="fas fa-shopping-cart"></i> Compras</a>
+                    <a href="{{ url_for('purchase_order.purchase_order_list') if 'purchase_order' in session.get('permissoes', {}) else '#' }}"><i class="fas fa-shopping-cart"></i> Compras</a>
                 </li>
                 <li>
-                    <a href="/vendas"><i class="fas fa-cash-register"></i> Vendas</a>
+                    <a href="{{ url_for('venda.venda_pdv_moderna') if 'venda' in session.get('permissoes', {}) else '#' }}"><i class="fas fa-cash-register"></i> Vendas</a>
                 </li>
                 <li>
-                    <a href="/estoque"><i class="fas fa-warehouse"></i> Estoque</a>
+                    <a href="{{ url_for('inventory.inventory_list') }}"><i class="fas fa-warehouse"></i> Estoque</a>
                 </li>
                 
                 <li class="mt-3">
                     <small class="text-white-50 px-3">ADMIN</small>
                 </li>
                 <li>
-                    <a href="/usuarios"><i class="fas fa-user-cog"></i> Usuários</a>
+                    <a href="{{ url_for('usuario.usuarios') }}"><i class="fas fa-user-cog"></i> Usuários</a>
                 </li>
                 <li>
-                    <a href="/logout"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                    <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Sair</a>
                 </li>
             </ul>
         </nav>
