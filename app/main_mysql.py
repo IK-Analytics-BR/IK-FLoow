@@ -169,7 +169,8 @@ class User(UserMixin):
 
 def get_user_by_username(username: str):
     db = get_db()
-    return db.fetch_one("SELECT * FROM users WHERE username = %s", (username,))
+    user = db.fetch_one("SELECT *, password_hash as password FROM users WHERE username = %s", (username,))
+    return user
 
 
 def get_user_by_id(user_id: int):
@@ -753,7 +754,12 @@ def login():
         except Exception as e:
             print(f"[AUTH] Erro ao validar senha: {e}")
 
-        if is_valid_password and user.get('status') == 'active':
+        # Verificar status do usuário (aceita 'status' ou 'active')
+        user_status = user.get('status')
+        user_active = user.get('active')
+        is_user_active = (user_status == 'active') or (user_active == 1) or (user_active == True)
+        
+        if is_valid_password and is_user_active:
             print(f"[AUTH] Login bem-sucedido para {username}")
             session['username'] = username
             session['role'] = user.get('role')
