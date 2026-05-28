@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IK Flow - Sistema de Gestão{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --ik-teal: #08a5b2;
+            --ik-teal-dark: #067d87;
+            --ik-orange: #ff9f1a;
+            --ik-orange-dark: #f08a00;
+            --ik-navy: #0b2447;
+            --ik-sidebar-bg: #071a2e;
+            --ik-sidebar-bg-2: #061426;
+            --ik-sidebar-text: rgba(255, 255, 255, 0.86);
+        }
+
+        #sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, var(--ik-sidebar-bg), var(--ik-sidebar-bg-2));
+        }
+
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #sidebar ul li a {
+            padding: 10px 15px;
+            display: block;
+            color: var(--ik-sidebar-text);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #sidebar ul li a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        #sidebar ul li a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .welcome-card {
+            background: linear-gradient(135deg, var(--ik-navy) 0%, var(--ik-teal-dark) 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .setup-alert {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .menu-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s;
+        }
+
+        .menu-item:hover {
+            background: var(--ik-teal);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .menu-item i {
+            font-size: 24px;
+            margin-right: 15px;
+            color: var(--ik-teal);
+        }
+
+        .menu-item:hover i {
+            color: white;
+        }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        {% if session.get('username') %}
+        <nav id="sidebar" class="position-fixed" style="width: 250px; z-index: 1000;">
+            <div class="sidebar-header">
+                <h4 class="text-white mb-0">IK Flow</h4>
+                <small class="text-white-50">{{ session.get('username', 'Usuário') }}</small>
+            </div>
+
+            <ul class="list-unstyled components">
+                <li>
+                    <a href="/bem-vindo"><i class="fas fa-home"></i> Início</a>
+                </li>
+                
+                <li class="mt-3">
+                    <small class="text-white-50 px-3">CADASTROS</small>
+                </li>
+                <li>
+                    <a href="/empresas"><i class="fas fa-building"></i> Empresas</a>
+                </li>
+                <li>
+                    <a href="/clientes"><i class="fas fa-users"></i> Clientes</a>
+                </li>
+                <li>
+                    <a href="/produtos"><i class="fas fa-box"></i> Produtos</a>
+                </li>
+                <li>
+                    <a href="/fornecedores"><i class="fas fa-truck"></i> Fornecedores</a>
+                </li>
+                
+                <li class="mt-3">
+                    <small class="text-white-50 px-3">OPERAÇÕES</small>
+                </li>
+                <li>
+                    <a href="/compras"><i class="fas fa-shopping-cart"></i> Compras</a>
+                </li>
+                <li>
+                    <a href="/vendas"><i class="fas fa-cash-register"></i> Vendas</a>
+                </li>
+                <li>
+                    <a href="/estoque"><i class="fas fa-warehouse"></i> Estoque</a>
+                </li>
+                
+                <li class="mt-3">
+                    <small class="text-white-50 px-3">ADMIN</small>
+                </li>
+                <li>
+                    <a href="/usuarios"><i class="fas fa-user-cog"></i> Usuários</a>
+                </li>
+                <li>
+                    <a href="/logout"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- Content -->
+        <div class="{% if session.get('username') %}main-content{% else %}w-100{% endif %}">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
