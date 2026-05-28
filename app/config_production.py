@@ -4,9 +4,9 @@
 
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'usuario',
-    'password': 'Verme958984!',
-    'database': 'supply_chain_system',
+    'user': 'ikflow_user',
+    'password': 'IkFl0w@2024!DB',
+    'database': 'ikflow',
     'port': 3306,
     'autocommit': True,
     'buffered': True,
